@@ -23,6 +23,9 @@ struct CarMainView: View {
     @State private var tab = 0
     @State private var carPage = 0
     @State private var dragX: CGFloat = 0
+    /// Ось жеста фиксируется на первом заметном смещении и держится до конца.
+    /// Раньше решение принималось на каждом кадре — отсюда дёрганье.
+    @State private var swipeAxis: SwipeAxis?
     @State private var showServiceChoice = false
     @State private var showAddService = false
     @State private var showPhotoPicker = false
@@ -49,6 +52,42 @@ struct CarMainView: View {
     private func visibility(_ index: Int, _ width: CGFloat, _ containerX: CGFloat) -> Double {
         guard width > 0 else { return index == 0 ? 1 : 0 }
         return Double(max(0, 1 - abs(CGFloat(index) * width + containerX) / width))
+    }
+
+    private enum SwipeAxis { case horizontal, vertical }
+
+    /// Порог, после которого решаем, куда ведёт жест.
+    private static let axisLockThreshold: CGFloat = 10
+
+    private func carouselDrag(width: CGFloat) -> some Gesture {
+        DragGesture()
+            .onChanged { value in
+                let dx = value.translation.width
+                let dy = value.translation.height
+
+                if swipeAxis == nil,
+                   max(abs(dx), abs(dy)) > Self.axisLockThreshold {
+                    swipeAxis = abs(dx) > abs(dy) ? .horizontal : .vertical
+                }
+                guard swipeAxis == .horizontal else { return }
+
+                // у краёв карусели тянется туже
+                let atEdge = (carPage == 0 && dx > 0) || (carPage == 1 && dx < 0)
+                dragX = atEdge ? dx / 3 : dx
+            }
+            .onEnded { value in
+                defer { swipeAxis = nil }
+                guard swipeAxis == .horizontal else { return }
+
+                let threshold = width * 0.22
+                var page = carPage
+                if value.translation.width < -threshold { page = min(1, carPage + 1) }
+                if value.translation.width > threshold { page = max(0, carPage - 1) }
+                withAnimation(Motion.page) {
+                    carPage = page
+                    dragX = 0
+                }
+            }
     }
 
     private var car: Car? { cars.first }
@@ -91,26 +130,10 @@ struct CarMainView: View {
                         .frame(width: width)
                 }
                 .offset(x: containerX)
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                            // у краёв карусели тянется туже
-                            let raw = value.translation.width
-                            let atEdge = (carPage == 0 && raw > 0) || (carPage == 1 && raw < 0)
-                            dragX = atEdge ? raw / 3 : raw
-                        }
-                        .onEnded { value in
-                            let threshold = geo.size.width * 0.22
-                            var page = carPage
-                            if value.translation.width < -threshold { page = min(1, carPage + 1) }
-                            if value.translation.width > threshold { page = max(0, carPage - 1) }
-                            withAnimation(Motion.page) {
-                                carPage = page
-                                dragX = 0
-                            }
-                        }
-                )
+                // simultaneousGesture, а не gesture: заполненная страница —
+                // вертикальный ScrollView, и он забирал свайп себе, поэтому
+                // над картинкой машины и карточкой ТО карусель не листалась.
+                .simultaneousGesture(carouselDrag(width: width))
             }
             // важно: сам GeometryReader должен игнорировать safe area, иначе он
             // отдаёт урезанный размер и все координаты макета съезжают вниз
@@ -245,6 +268,8 @@ struct CarMainView: View {
         }
         // HIG: форму со списком клавиатура должна отпускать скроллом
         .scrollDismissesKeyboard(.interactively)
+        // пока жест признан горизонтальным, список не должен ползти
+        .scrollDisabled(swipeAxis == .horizontal)
     }
 
     // MARK: - «главная_добавить новую» — вторая страница карусели

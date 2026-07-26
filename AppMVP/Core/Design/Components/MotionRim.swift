@@ -68,13 +68,20 @@ private struct MotionRimOverlay<S: Shape>: View {
     /// При Reduce Motion угол фиксируем — блик остаётся, но не двигается.
     private var angle: Double { reduceMotion ? -.pi / 2 : tilt.angle }
 
+    /// Узкая яркая точка вместо размазанной по четверти окружности: именно
+    /// из-за ширины предыдущий блик почти не читался на экране.
     private var gradient: AngularGradient {
         AngularGradient(
             stops: [
                 .init(color: .white.opacity(0), location: 0),
+                .init(color: .white.opacity(intensity * 0.12), location: 0.17),
                 .init(color: .white.opacity(intensity), location: 0.25),
-                .init(color: .white.opacity(0), location: 0.5),
-                .init(color: .white.opacity(intensity * 0.6), location: 0.75),
+                .init(color: .white.opacity(intensity * 0.12), location: 0.33),
+                .init(color: .white.opacity(0), location: 0.48),
+                // вторичный отблеск с противоположной стороны, вдвое слабее
+                .init(color: .white.opacity(intensity * 0.1), location: 0.68),
+                .init(color: .white.opacity(intensity * 0.5), location: 0.75),
+                .init(color: .white.opacity(intensity * 0.1), location: 0.82),
                 .init(color: .white.opacity(0), location: 1)
             ],
             center: .center,
@@ -85,7 +92,7 @@ private struct MotionRimOverlay<S: Shape>: View {
 
 extension View {
     /// Кромка со бликом, который следует за наклоном устройства.
-    func motionRim<S: Shape>(in shape: S, lineWidth: CGFloat = 0.5, intensity: Double = 0.5) -> some View {
+    func motionRim<S: Shape>(in shape: S, lineWidth: CGFloat = 1, intensity: Double = 0.9) -> some View {
         overlay {
             MotionRimOverlay(shape: shape, lineWidth: lineWidth, intensity: intensity)
         }
