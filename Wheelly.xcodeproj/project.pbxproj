@@ -43,6 +43,7 @@
 		AA0000010000000000000023 /* AddCarSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000023 /* AddCarSheet.swift */; };
 		AA0000010000000000000024 /* LiquidGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000024 /* LiquidGlass.swift */; };
 		AA0000010000000000000025 /* BottomSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000025 /* BottomSheet.swift */; };
+		AA0000010000000000000026 /* PlateFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000026 /* PlateFormat.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -82,6 +83,7 @@
 		BB0000010000000000000023 /* AddCarSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCarSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000024 /* LiquidGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlass.swift; sourceTree = "<group>"; };
 		BB0000010000000000000025 /* BottomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomSheet.swift; sourceTree = "<group>"; };
+		BB0000010000000000000026 /* PlateFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateFormat.swift; sourceTree = "<group>"; };
 		BB0000010000000000000099 /* Wheelly.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wheelly.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -215,6 +217,7 @@
 				BB000001000000000000001F /* FloatingTabBar.swift */,
 				BB0000010000000000000024 /* LiquidGlass.swift */,
 				BB0000010000000000000025 /* BottomSheet.swift */,
+				BB0000010000000000000026 /* PlateFormat.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -394,6 +397,7 @@
 				AA0000010000000000000023 /* AddCarSheet.swift in Sources */,
 				AA0000010000000000000024 /* LiquidGlass.swift in Sources */,
 				AA0000010000000000000025 /* BottomSheet.swift in Sources */,
+				AA0000010000000000000026 /* PlateFormat.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
