@@ -27,6 +27,7 @@
 		AA0000010000000000000023 /* AddCarSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000023 /* AddCarSheet.swift */; };
 		AA0000010000000000000024 /* LiquidGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000024 /* LiquidGlass.swift */; };
 		AA0000010000000000000025 /* BottomSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000025 /* BottomSheet.swift */; };
+		AA00000100000000000000B1 /* VehicleLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000100000000000000B1 /* VehicleLookup.swift */; };
 		AA0000010000000000000026 /* PlateFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000026 /* PlateFormat.swift */; };
 		AA00000100000000000000A1 /* ServiceRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000100000000000000A1 /* ServiceRecord.swift */; };
 /* End PBXBuildFile section */
@@ -53,6 +54,7 @@
 		BB0000010000000000000023 /* AddCarSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCarSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000024 /* LiquidGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlass.swift; sourceTree = "<group>"; };
 		BB0000010000000000000025 /* BottomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomSheet.swift; sourceTree = "<group>"; };
+		BB00000100000000000000B1 /* VehicleLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleLookup.swift; sourceTree = "<group>"; };
 		BB0000010000000000000026 /* PlateFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateFormat.swift; sourceTree = "<group>"; };
 		BB0000010000000000000099 /* Wheelly.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wheelly.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB00000100000000000000A1 /* ServiceRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceRecord.swift; sourceTree = "<group>"; };
@@ -103,6 +105,7 @@
 			isa = PBXGroup;
 			children = (
 				EE000001000000000000000A /* Design */,
+				EE00000100000000000000B0 /* Services */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -141,6 +144,14 @@
 				BB0000010000000000000015 /* Assets.xcassets */,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		EE00000100000000000000B0 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				BB00000100000000000000B1 /* VehicleLookup.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		EE000001000000000000000A /* Design */ = {
@@ -294,6 +305,7 @@
 				AA0000010000000000000024 /* LiquidGlass.swift in Sources */,
 				AA0000010000000000000025 /* BottomSheet.swift in Sources */,
 				AA0000010000000000000026 /* PlateFormat.swift in Sources */,
+				AA00000100000000000000B1 /* VehicleLookup.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

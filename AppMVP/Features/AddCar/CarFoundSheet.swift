@@ -36,9 +36,15 @@ struct CarFoundSheet: View {
                         .fill(Figma.fillsTertiary)
                         .frame(height: 240)
 
+                    // Строки рисуются только при наличии данных: поставщик
+                    // может не отдать VIN или прислать его замаскированным.
                     VStack(alignment: .leading, spacing: 16) {
-                        specLine("VIN: ", car.vin)
-                        specLine("Поколение: ", car.generation)
+                        if let vin = car.vehicle.displayVIN {
+                            specLine("VIN: ", vin)
+                        }
+                        if let generation = car.vehicle.generation {
+                            specLine("Поколение: ", generation)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -144,14 +150,26 @@ struct CarFoundSheet: View {
 }
 
 struct FoundCar {
-    let name: String
     let plateLetter: String
     let plateDigits: String
     let plateLetters: String
     let plateRegion: String
-    let vin: String
-    let generation: String
-    /// Пробег из «поиска по базе». В шторке не показывается, но нужен,
-    /// чтобы завести машину с реальным одометром.
-    let odometer: Int
+    /// Данные от поставщика: марка с моделью, VIN, поколение, пробег.
+    let vehicle: FoundVehicle
+}
+
+extension FoundCar {
+    var name: String { vehicle.name }
+
+    /// Собирает карточку из введённого номера и ответа поставщика.
+    init(plate: String, vehicle: FoundVehicle) {
+        let parts = PlateFormat.components(plate)
+        self.init(
+            plateLetter: parts?.letter ?? "",
+            plateDigits: parts?.digits ?? "",
+            plateLetters: parts?.letters ?? "",
+            plateRegion: parts?.region ?? "",
+            vehicle: vehicle
+        )
+    }
 }

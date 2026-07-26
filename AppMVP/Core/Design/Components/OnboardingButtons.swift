@@ -8,21 +8,37 @@ struct GlassProminentButton: View {
     var lineHeight: CGFloat = 22
     var weight: Font.Weight = .regular
     var tracking: CGFloat = -0.43
+    /// Идёт запрос: вместо лейбла индикатор, нажатие заблокировано.
+    /// Состояния загрузки в макете нет, поэтому геометрию кнопки не меняем.
+    var isBusy = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
+            // Индикатор — оверлеем, а не обёрткой: цепочка модификаторов
+            // лейбла должна остаться прежней, иначе кнопка сдвигается
+            // на пиксель относительно макета.
             Text(title)
                 .font(.system(size: Figma.buttonLabelSize, weight: weight))
                 .tracking(tracking)
                 .foregroundStyle(.white)
+                .opacity(isBusy ? 0 : 1)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 20)
                 .frame(height: lineHeight + 32)
+                .overlay {
+                    if isBusy {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(.white)
+                    }
+                }
                 .background(Figma.labelsPrimary, in: Capsule())
                 .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
         }
         .buttonStyle(.plain)
+        .disabled(isBusy)
+        .accessibilityLabel(isBusy ? "\(title), выполняется" : title)
     }
 }
 

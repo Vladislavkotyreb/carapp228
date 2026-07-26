@@ -21,6 +21,11 @@ struct AddCarView: View {
     @State private var shake: CGFloat = 0
     @State private var foundCar: FoundCar?
     @State private var photoItem: PhotosPickerItem?
+    @State private var isSearching = false
+
+    /// Пока поставщика нет — заглушка. Реализация поверх своего сервера
+    /// появится вместе с бэкендом, см. docs/BACKEND.md.
+    private let lookup: any VehicleLookup = StubVehicleLookup()
     @State private var photo: Image?
 
     /// Высота контейнера: от координаты макета до нижней safe area.
@@ -57,7 +62,7 @@ struct AddCarView: View {
 
                 Spacer(minLength: 0)
 
-                GlassProminentButton(title: "Добавить", action: submit)
+                GlassProminentButton(title: "Добавить", isBusy: isSearching, action: submit)
             }
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
@@ -181,17 +186,11 @@ struct AddCarView: View {
 
     private func submit() {
         if tab == 0 {
-            if !PlateFormat.isValid(plate) {
+            guard PlateFormat.isValid(plate) else {
                 fail(.plateInvalid)
-            } else {
-                // TODO: заменить на реальный поиск по API.
-                // Пока API нет, находим машину по любому корректному номеру и
-                // подставляем данные из макета: иначе флоу непроходим — раньше
-                // заглушка принимала единственный номер «В 777 ОР 777».
-                // Состояние «не нашли такого номера» вернётся с реальным поиском.
-                fieldError = nil
-                foundCar = .designExample(plate: plate)
+                return
             }
+            search()
         } else {
             if name.trimmingCharacters(in: .whitespaces).isEmpty
                 || mileage.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -199,6 +198,27 @@ struct AddCarView: View {
             } else {
                 fieldError = nil
                 finish()
+            }
+        }
+    }
+
+    /// Поиск по номеру. Пока за ним стоит заглушка, но интерфейс уже
+    /// асинхронный: у реальных поставщиков ответ приходит не мгновенно,
+    /// а у Автокода вообще двумя запросами.
+    private func search() {
+        guard !isSearching else { return }
+        fieldError = nil
+        isSearching = true
+
+        Task {
+            defer { isSearching = false }
+            do {
+                let vehicle = try await lookup.lookup(plate: plate)
+                foundCar = FoundCar(plate: plate, vehicle: vehicle)
+            } catch VehicleLookupError.notFound {
+                fail(.plateNotFound)
+            } catch {
+                fail(.lookupFailed)
             }
         }
     }
@@ -216,9 +236,9 @@ struct AddCarView: View {
             return Car(
                 plate: PlateFormat.format(plate),
                 name: foundCar.name,
-                vin: foundCar.vin,
-                generation: foundCar.generation,
-                odometer: foundCar.odometer
+                vin: foundCar.vehicle.displayVIN,
+                generation: foundCar.vehicle.generation,
+                odometer: foundCar.vehicle.odometer ?? 0
             )
         }
         return Car(
@@ -239,32 +259,18 @@ enum FieldError {
     case plateInvalid
     case plateNotFound
     case detailsMissing
+    case lookupFailed
 
     var message: String {
         switch self {
         case .plateInvalid: return "Введите госномер: буква, 3 цифры, 2 буквы и код региона"
         case .plateNotFound: return "Мы не нашли такого номера в базе, попробуйте другой"
         case .detailsMissing: return "Введите название машины и её пробег"
+        case .lookupFailed: return "Не удалось проверить номер, попробуйте позже"
         }
     }
 }
 
-extension FoundCar {
-    /// Данные из макета (node 45854:2936); номер подставляется введённый.
-    static func designExample(plate: String) -> FoundCar {
-        let parts = PlateFormat.components(plate)
-        return FoundCar(
-            name: "Mercedes-Benz GL-класс",
-            plateLetter: parts?.letter ?? "В",
-            plateDigits: parts?.digits ?? "777",
-            plateLetters: parts?.letters ?? "ОР",
-            plateRegion: parts?.region ?? "777",
-            vin: "423423432FRFRIFR",
-            generation: "X166 (2015-2026)",
-            odometer: 9_000_000
-        )
-    }
-}
 
 #Preview {
     AddCarView()
