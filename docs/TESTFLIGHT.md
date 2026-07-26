@@ -4,7 +4,6 @@
 
 - [ ] Apple Developer Program активен
 - [ ] Приложение стабильно на реальном iPhone
-- [ ] `Config.plist` с production Supabase (или отдельный prod-проект)
 - [ ] App Icon 1024×1024 в `Assets.xcassets/AppIcon`
 
 ## 1. App Store Connect — создать приложение

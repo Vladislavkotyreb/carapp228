@@ -1,12 +1,6 @@
 import PhotosUI
+import SwiftData
 import SwiftUI
-
-struct ServiceRecord: Identifiable {
-    let id = UUID()
-    let date: String
-    let mileage: Int
-    let amount: Int
-}
 
 /// Разделяет разряды пробелами, как в макете: «9 000 000 км».
 func formattedNumber(_ value: Int) -> String {
@@ -19,12 +13,15 @@ func formattedNumber(_ value: Int) -> String {
 /// Figma «раздел «машина»»: «главная» (45854:3547), «главная_то_добавлено» (45867:3007),
 /// «добавление то» (45870:2868) и «сакцесс» (45887:3561).
 struct CarMainView: View {
-    @EnvironmentObject private var appState: AppState
+    @Environment(\.modelContext) private var modelContext
+
+    /// Машины из локальной базы. Карусель показывает первую — вёрстка макета
+    /// рассчитана на одну машину плюс страницу «Добавить авто».
+    @Query(sort: \Car.createdAt) private var cars: [Car]
 
     @State private var tab = 0
     @State private var carPage = 0
     @State private var dragX: CGFloat = 0
-    @State private var services: [ServiceRecord] = []
     @State private var showServiceChoice = false
     @State private var showAddService = false
     @State private var showPhotoPicker = false
@@ -36,11 +33,13 @@ struct CarMainView: View {
     @State private var showToast = false
     @State private var showDeleteConfirm = false
 
-    /// Текущий пробег авто. Пока значение из макета — заменится данными с бэка.
-    @State private var odometer = 9_000_000
 
     /// Межсервисный интервал: ТО через 10 000 км от последнего.
     private let serviceInterval = 10_000
+
+    private var car: Car? { cars.first }
+    private var services: [ServiceRecord] { car?.sortedServices ?? [] }
+    private var odometer: Int { car?.odometer ?? 0 }
 
     // Поля шторки «Добавление ТО»
     @State private var serviceDate = Date()
@@ -462,7 +461,8 @@ struct CarMainView: View {
             HStack(spacing: 16) {
                 ForEach(services) { record in
                     VStack(spacing: 6) {
-                        Text(record.date)
+                        Text(record.date, format: .dateTime.day(.twoDigits)
+                            .month(.twoDigits).year())
                             .font(.system(size: 15, weight: .semibold))
                             .tracking(-0.23)
                             .foregroundStyle(Figma.vibrantControlsPrimary)
@@ -574,26 +574,27 @@ struct CarMainView: View {
     }
 
     private func deleteCar() {
-        services.removeAll()
-        appState.hasAddedCar = false
+        guard let car else { return }
+        // ТО и чеки уходят каскадом — правило задано в модели Car.services
+        modelContext.delete(car)
     }
 
     private func saveService() {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd.MM.yyyy"
-        let amount = works.compactMap { Int($0.amount.filter(\.isNumber)) }.reduce(0, +)
+        guard let car else { return }
         let mileage = Int(serviceMileage.filter(\.isNumber)) ?? odometer
 
-        services.append(
-            ServiceRecord(
-                date: formatter.string(from: serviceDate),
-                mileage: mileage,
-                amount: amount
-            )
-        )
+        let record = ServiceRecord(date: serviceDate, mileage: mileage)
+        record.works = works.compactMap { work in
+            let amount = Int(work.amount.filter(\.isNumber)) ?? 0
+            let title = work.title.trimmingCharacters(in: .whitespaces)
+            guard !title.isEmpty || amount > 0 else { return nil }
+            return ServiceWorkItem(title: title, amount: amount)
+        }
+        record.car = car
+        modelContext.insert(record)
 
         // Одометр не может быть меньше пробега на последнем ТО
-        odometer = max(odometer, mileage)
+        car.odometer = max(car.odometer, mileage)
 
         showAddService = false
         serviceMileage = ""

@@ -125,24 +125,13 @@ struct OnboardingView: View {
 
     // MARK: - Переходы
 
+    /// Аккаунта пока нет: данные лежат локально на устройстве, поэтому вход
+    /// ничего не даёт и флоу просто продолжается. Привязка Apple ID появится
+    /// вместе с сервером — см. docs/BACKEND.md.
     private func handleAppleSignIn(_ result: Result<ASAuthorizationAppleIDCredential, Error>) {
-        switch result {
-        case .success(let credential):
-            guard let tokenData = credential.identityToken,
-                  let idToken = String(data: tokenData, encoding: .utf8) else { return }
-            Task {
-                try? await appState.authService.signInWithApple(
-                    idToken: idToken,
-                    fullName: credential.fullName?.formatted()
-                )
-                advance()
-            }
-        case .failure:
-            #if targetEnvironment(simulator)
-            // В симуляторе Apple ID/Supabase может быть не настроен — не блокируем показ флоу.
-            advance()
-            #endif
-        }
+        // TODO: при переходе на сервер — отправлять credential.identityToken
+        // на бэкенд для проверки и заводить учётную запись.
+        advance()
     }
 
     private func advance() {

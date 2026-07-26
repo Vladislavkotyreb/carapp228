@@ -1,57 +1,36 @@
-# Чеклист: Figma → TestFlight
+# Чеклист: что сделано и что дальше
 
-Отмечайте по порядку. Код и документация уже в [`ios-app`](/Users/vladislavkotyrev/Desktop/ios-app).
+## Сделано
 
-## 1. Apple Developer (вы)
+- [x] Онбординг, добавление машины и раздел «Машина» по макетам Figma
+- [x] Маска ввода госномера `В 777 ОР 777` с латиницы
+- [x] Анимации шторок и Liquid Glass по HIG
+- [x] Локальное хранение на SwiftData — машины, ТО, работы, чеки
+- [x] Supabase удалён: хостится вне РФ и в приложении не использовался
+- [x] Сборка ставится на iPhone — [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md)
 
-- [ ] Зарегистрироваться: [developer.apple.com/programs](https://developer.apple.com/programs/)
-- [ ] Дождаться статуса **Active**
-- [ ] Подробнее: [docs/APPLE_DEVELOPER.md](docs/APPLE_DEVELOPER.md)
+## Дальше — от вас
 
-## 2. Xcode (вы)
+- [ ] Иконка приложения 1024×1024 в `Assets.xcassets/AppIcon`
+      (сейчас на домашнем экране пустой квадрат)
+- [ ] Данные сервера с ISPmanager — чеклист в [docs/BACKEND.md](docs/BACKEND.md)
+- [ ] Согласовать текст ошибки госномера: в макете «должен состоять из
+      9 символов», но код региона бывает двузначным
+- [ ] Что показывают вкладки «Карта», «Ошибки», «Ещё» — сейчас они ведут
+      в никуда, это нарушение HIG
+- [ ] Правило расчёта «Цена авто» — значение захардкожено из макета
+- [ ] Платный Apple Developer Program, если нужен рабочий вход через Apple
+      и публикация в App Store
 
-- [ ] Установить **Xcode** из App Store
-- [ ] `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`
-- [ ] `open AppMVP.xcodeproj`
-- [ ] Подробнее: [docs/XCODE_SETUP.md](docs/XCODE_SETUP.md)
+## Дальше — от меня
 
-## 3. MVP и Figma (вы + AI)
+- [ ] Бэкенд в РФ по 152-ФЗ, когда придут данные сервера
+- [ ] Реальный парсер PDF и фото для добавления ТО
+      (сейчас заглушка `applyParsedService`)
+- [ ] Экран входа по телефону — потребует нового макета
 
-- [x] 5 экранов описаны: [docs/MVP_FLOWS.md](docs/MVP_FLOWS.md)
-- [ ] Прислать ссылку на Figma для подгонки дизайна
-- [ ] Добавить App Icon 1024×1024 в `Assets.xcassets/AppIcon`
+## TestFlight
 
-## 4. Supabase (вы)
-
-- [ ] Создать проект на [supabase.com](https://supabase.com)
-- [ ] Выполнить [supabase/schema.sql](supabase/schema.sql) в SQL Editor
-- [ ] Скопировать URL и anon key в `Config.plist`
-- [ ] Подробнее: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)
-
-## 5. Сборка (вы)
-
-- [ ] Xcode → Resolve Package Versions (Supabase SDK)
-- [ ] Signing → выбрать Team
-- [ ] Run на симуляторе (⌘R)
-- [ ] Пройти onboarding → регистрация → home
-
-## 6. iPhone (вы)
-
-- [ ] Подключить iPhone, включить Developer Mode
-- [ ] Run на устройстве
-- [ ] Чеклист: [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md)
-
-## 7. TestFlight (вы)
-
-- [ ] Создать app в App Store Connect
-- [ ] Product → Archive → Upload
-- [ ] TestFlight → Internal/External testing
-- [ ] Подробнее: [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md)
-
-## Уже сделано в проекте
-
-- SwiftUI приложение с MVVM (5 экранов)
-- Supabase Auth + CRUD для `items`
-- SQL-схема с RLS
-- Xcode-проект `AppMVP.xcodeproj`
-- Design tokens и переиспользуемые компоненты
+Отдельный чеклист: [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md).
+Потребуется платный аккаунт и опубликованная политика обработки
+персональных данных — без неё Apple не пропустит приложение.

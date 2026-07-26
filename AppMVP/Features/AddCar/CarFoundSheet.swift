@@ -151,4 +151,7 @@ struct FoundCar {
     let plateRegion: String
     let vin: String
     let generation: String
+    /// Пробег из «поиска по базе». В шторке не показывается, но нужен,
+    /// чтобы завести машину с реальным одометром.
+    let odometer: Int
 }

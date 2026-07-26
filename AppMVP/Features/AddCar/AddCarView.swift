@@ -1,11 +1,12 @@
 import PhotosUI
+import SwiftData
 import SwiftUI
 
 /// Figma «добавление машины + edge cases» (секция 45854:2880).
 /// Один экран с двумя вкладками и состояниями ошибок; координаты из макета
 /// (контейнер y = 107.93, высота 735, паддинг 16, кнопка прижата к низу).
 struct AddCarView: View {
-    @EnvironmentObject private var appState: AppState
+    @Environment(\.modelContext) private var modelContext
 
     /// Если задан — экран открыт модально (добавление ещё одной машины),
     /// и по завершении просто закрывается, не сбрасывая уже добавленную.
@@ -189,7 +190,28 @@ struct AddCarView: View {
     }
 
     private func finish() {
-        if let onFinish { onFinish() } else { appState.completeCarAdding() }
+        modelContext.insert(newCar())
+        onFinish?()
+    }
+
+    /// Собирает машину из того, что ввёл пользователь. По номеру данные
+    /// приходят из «поиска» (пока это макетная заглушка), по названию —
+    /// прямо из полей формы.
+    private func newCar() -> Car {
+        if let foundCar {
+            return Car(
+                plate: PlateFormat.format(plate),
+                name: foundCar.name,
+                vin: foundCar.vin,
+                generation: foundCar.generation,
+                odometer: foundCar.odometer
+            )
+        }
+        return Car(
+            plate: "",
+            name: name.trimmingCharacters(in: .whitespaces),
+            odometer: Int(mileage.filter(\.isNumber)) ?? 0
+        )
     }
 
     /// Аннотация в макете: «хаптик негативное действие и тряска инпута».
@@ -224,12 +246,13 @@ extension FoundCar {
             plateLetters: parts?.letters ?? "ОР",
             plateRegion: parts?.region ?? "777",
             vin: "423423432FRFRIFR",
-            generation: "X166 (2015-2026)"
+            generation: "X166 (2015-2026)",
+            odometer: 9_000_000
         )
     }
 }
 
 #Preview {
     AddCarView()
-        .environmentObject(AppState())
+        .modelContainer(for: Car.self, inMemory: true)
 }

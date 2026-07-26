@@ -4,9 +4,6 @@ DerivedData/
 *.xcuserdata/
 build/
 
-# Secrets
-Config.plist
-
 # macOS
 .DS_Store
 

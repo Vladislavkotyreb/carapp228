@@ -30,4 +30,4 @@ com.vladislavkotyrev.appmvp
 ## Sign in with Apple (если используете email + Apple login)
 
 1. Identifiers → ваш App ID → включите **Sign in with Apple**
-2. В Supabase Dashboard → Authentication → Apple — добавьте Service ID и ключ
+2. Проверку токена Apple будет делать наш бэкенд — см. docs/BACKEND.md

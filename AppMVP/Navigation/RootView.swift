@@ -1,35 +1,24 @@
+import SwiftData
 import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var appState: AppState
 
+    /// Маршрут зависит от того, есть ли машина в базе, а не от флага
+    /// в UserDefaults — так состояние не может разъехаться с данными.
+    @Query private var cars: [Car]
+
     var body: some View {
         Group {
             if !appState.hasCompletedOnboarding {
                 OnboardingView()
-            } else if !appState.hasAddedCar {
+            } else if cars.isEmpty {
                 AddCarView()
             } else {
                 CarMainView()
             }
         }
         .animation(.easeInOut, value: appState.hasCompletedOnboarding)
-        .animation(.easeInOut, value: appState.hasAddedCar)
-    }
-}
-
-struct MainTabView: View {
-    var body: some View {
-        TabView {
-            HomeView()
-                .tabItem {
-                    Label("Главная", systemImage: "house.fill")
-                }
-
-            ProfileView()
-                .tabItem {
-                    Label("Профиль", systemImage: "person.fill")
-                }
-        }
+        .animation(.easeInOut, value: cars.isEmpty)
     }
 }

@@ -29,7 +29,6 @@ open /Users/vladislavkotyrev/Desktop/ios-app/AppMVP.xcodeproj
 
 1. Выберите симулятор **iPhone 16** (или любой iPhone)
 2. Нажмите **Run** (⌘R)
-3. При первом запуске Xcode предложит **Resolve Package Versions** для Supabase SDK — согласитесь
 
 ## Signing
 

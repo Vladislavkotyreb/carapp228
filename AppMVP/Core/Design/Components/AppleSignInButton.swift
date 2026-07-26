@@ -5,6 +5,14 @@ import UIKit
 /// Кнопка входа с Apple из макета: тот же Glass Prominent, лейбл «\u{F8FF} Войти с Apple»
 /// (SF Pro Medium 17, line-height 18 → высота 50). Нативный SignInWithAppleButton не
 /// используется намеренно — у него системный лейбл и своя вёрстка, макет задаёт свою.
+enum AppleSignInError: LocalizedError {
+    case noCredential
+
+    var errorDescription: String? {
+        "Не удалось получить данные Apple ID."
+    }
+}
+
 struct AppleSignInButton: View {
     let onCompletion: (Result<ASAuthorizationAppleIDCredential, Error>) -> Void
 
@@ -55,7 +63,7 @@ final class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate,
     func authorizationController(controller: ASAuthorizationController,
                                  didCompleteWithAuthorization authorization: ASAuthorization) {
         guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-            completion(.failure(AuthError.unknown("Не удалось получить данные Apple ID.")))
+            completion(.failure(AppleSignInError.noCredential))
             return
         }
         completion(.success(credential))
