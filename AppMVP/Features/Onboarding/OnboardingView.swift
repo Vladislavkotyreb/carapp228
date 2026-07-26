@@ -108,8 +108,9 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
-            // 116 = кнопка 50 + зазор 16 + кнопка 50
-            .offset(y: Figma.bottomAnchoredY(designY: 796.5, height: 50) - 66)
+            // Кнопки 54pt (lineHeight 22 + padding 32), между ними 16.
+            // Якорим нижнюю, верхняя встаёт на 54 + 16 выше.
+            .offset(y: Figma.bottomAnchoredY(designY: 796.5, height: 54) - 70)
         }
     }
 

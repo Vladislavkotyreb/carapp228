@@ -26,7 +26,9 @@ struct AddCarView: View {
     /// В макете контейнер 735 упирается в самый низ, и кнопка «Добавить»
     /// заезжает на home indicator.
     private var contentHeight: CGFloat {
-        max(0, Figma.bottomAnchoredY(designY: 792.93, height: 50) + 50 - 107.93)
+        // В макете контейнер 735 от y = 107.93 → низ 842.93, кнопка 54pt
+        // прижата к нему, то есть её верх в макете 788.93.
+        max(0, Figma.bottomAnchoredY(designY: 788.93, height: 54) + 54 - 107.93)
     }
 
     var body: some View {
@@ -41,7 +43,15 @@ struct AddCarView: View {
                         .foregroundStyle(Figma.labelsPrimary)
                         .frame(maxWidth: .infinity)
 
-                    if tab == 0 { byPlate } else { byName }
+                    // Контрол объявлен один раз, снаружи ветвления: если он
+                    // лежит внутри `if tab == 0`, то при переключении SwiftUI
+                    // уничтожает вьюху вместе с нажатой кнопкой и её
+                    // @Namespace, и переезд пилюли ломается.
+                    VStack(spacing: 32) {
+                        segmentedControl
+
+                        if tab == 0 { byPlate } else { byName }
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -92,23 +102,19 @@ struct AddCarView: View {
     // MARK: - Вкладка «По номеру»
 
     private var byPlate: some View {
-        VStack(spacing: 32) {
-            segmentedControl
+        VStack(spacing: 8) {
+            FigmaTextField(
+                placeholder: "В 777 ОР 777",
+                text: $plate,
+                placeholderColor: fieldError == nil ? Figma.labelsQuaternary : Figma.labelsTertiary,
+                keyboardType: .asciiCapable,
+                format: PlateFormat.format,
+                autocapitalization: .characters
+            )
+            .shake(shake)
 
-            VStack(spacing: 8) {
-                FigmaTextField(
-                    placeholder: "В 777 ОР 777",
-                    text: $plate,
-                    placeholderColor: fieldError == nil ? Figma.labelsQuaternary : Figma.labelsTertiary,
-                    keyboardType: .asciiCapable,
-                    format: PlateFormat.format,
-                    autocapitalization: .characters
-                )
-                .shake(shake)
-
-                if let fieldError {
-                    caption(fieldError.message, color: Figma.accentsRed)
-                }
+            if let fieldError {
+                caption(fieldError.message, color: Figma.accentsRed)
             }
         }
     }
@@ -117,23 +123,19 @@ struct AddCarView: View {
 
     private var byName: some View {
         VStack(spacing: 24) {
-            VStack(spacing: 32) {
-                segmentedControl
+            VStack(spacing: 8) {
+                FigmaGroupedTextField(
+                    firstPlaceholder: "Название",
+                    first: $name,
+                    secondPlaceholder: "Пробег в км",
+                    second: $mileage,
+                    secondKeyboardType: .numberPad,
+                    bottomPadding: fieldError == nil ? 19 : 0
+                )
+                .shake(shake)
 
-                VStack(spacing: 8) {
-                    FigmaGroupedTextField(
-                        firstPlaceholder: "Название",
-                        first: $name,
-                        secondPlaceholder: "Пробег в км",
-                        second: $mileage,
-                        secondKeyboardType: .numberPad,
-                        bottomPadding: fieldError == nil ? 19 : 0
-                    )
-                    .shake(shake)
-
-                    if let fieldError {
-                        caption(fieldError.message, color: Figma.accentsRed)
-                    }
+                if let fieldError {
+                    caption(fieldError.message, color: Figma.accentsRed)
                 }
             }
 
@@ -178,15 +180,16 @@ struct AddCarView: View {
 
     private func submit() {
         if tab == 0 {
-            let symbols = PlateFormat.significant(plate)
             if !PlateFormat.isValid(plate) {
                 fail(.plateInvalid)
-            } else if symbols == "В777ОР777" {
-                // TODO: заменить на реальный поиск по API — сейчас данные из макета.
+            } else {
+                // TODO: заменить на реальный поиск по API.
+                // Пока API нет, находим машину по любому корректному номеру и
+                // подставляем данные из макета: иначе флоу непроходим — раньше
+                // заглушка принимала единственный номер «В 777 ОР 777».
+                // Состояние «не нашли такого номера» вернётся с реальным поиском.
                 fieldError = nil
                 foundCar = .designExample(plate: plate)
-            } else {
-                fail(.plateNotFound)
             }
         } else {
             if name.trimmingCharacters(in: .whitespaces).isEmpty
