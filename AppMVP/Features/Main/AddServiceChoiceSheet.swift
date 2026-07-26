@@ -34,11 +34,13 @@ struct AddServiceChoiceSheet: View {
                     .padding(24)
                     .frame(maxWidth: .infinity)
                     .frame(height: 162)
-                    .background(Figma.darkCard, in: RoundedRectangle(cornerRadius: 42))
-                    .overlay(
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: 42), tint: Figma.darkCard) {
                         RoundedRectangle(cornerRadius: 42)
-                            .stroke(Color(white: 217 / 255), lineWidth: 0.5)
-                    )
+                            .fill(Figma.darkCard)
+                            .overlay(RoundedRectangle(cornerRadius: 42)
+                                .stroke(Color(white: 217 / 255), lineWidth: 0.5))
+                    }
+                    .motionRim(in: RoundedRectangle(cornerRadius: 42))
                 }
 
                 Button(action: onManual) {
@@ -99,12 +101,14 @@ struct AddServiceChoiceSheet: View {
                         .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(Figma.vibrantSecondary)
                         .frame(width: 44, height: 44)
-                        .background {
+                        // Кромку круглой кнопки даёт системное стекло
+                        .liquidGlass(in: Circle()) {
                             Circle()
                                 .fill(.white)
                                 .overlay(Circle().stroke(Color(white: 232 / 255), lineWidth: 0.5))
-                                .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
                         }
+                        .motionRim(in: Circle())
+                        .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Закрыть")

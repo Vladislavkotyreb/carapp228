@@ -63,6 +63,10 @@ struct AddCarSheet: View {
             UnevenRoundedRectangle(topLeadingRadius: 38, topTrailingRadius: 38)
                 .fill(.white)
                 .shadow(color: .black.opacity(0.18), radius: 18.75, y: 15)
+                // Системный фон шторки отключён через .presentationBackground(.clear),
+                // поэтому подложку надо самим дотянуть до низа экрана — иначе
+                // в нижней safe area просвечивает тёмный экран под шторкой.
+                .ignoresSafeArea(edges: .bottom)
         }
         .overlay(alignment: .top) {
             Capsule()
@@ -85,12 +89,14 @@ struct AddCarSheet: View {
                         .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(Figma.vibrantSecondary)
                         .frame(width: 44, height: 44)
-                        .background {
+                        // Кромку круглой кнопки даёт системное стекло
+                        .liquidGlass(in: Circle()) {
                             Circle()
                                 .fill(.white)
                                 .overlay(Circle().stroke(Color(white: 232 / 255), lineWidth: 0.5))
-                                .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
                         }
+                        .motionRim(in: Circle())
+                        .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
                 }
                 .accessibilityLabel("Закрыть")
 

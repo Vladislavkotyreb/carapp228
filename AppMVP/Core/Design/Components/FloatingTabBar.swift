@@ -57,8 +57,10 @@ struct FloatingTabBar: View {
         .background {
             Capsule()
                 .fill(.clear)
+                // Обводку даёт само стекло. Нарисованная поверх капсула
+                // давала вторую кромку — её убрали.
                 .liquidGlass(in: Capsule()) { Capsule().fill(.ultraThinMaterial) }
-                .overlay(Capsule().stroke(Color(red: 232 / 255, green: 232 / 255, blue: 232 / 255), lineWidth: 0.5))
+                .motionRim(in: Capsule())
                 .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
                 .padding(-4)
         }

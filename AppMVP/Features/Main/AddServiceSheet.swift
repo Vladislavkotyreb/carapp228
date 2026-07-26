@@ -192,12 +192,14 @@ struct AddServiceSheet: View {
                         .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(Figma.vibrantSecondary)
                         .frame(width: 44, height: 44)
-                        .background {
+                        // Кромку круглой кнопки даёт системное стекло
+                        .liquidGlass(in: Circle()) {
                             Circle()
                                 .fill(.white)
                                 .overlay(Circle().stroke(Color(white: 232 / 255), lineWidth: 0.5))
-                                .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
                         }
+                        .motionRim(in: Circle())
+                        .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
                 }
                 .accessibilityLabel("Закрыть")
 

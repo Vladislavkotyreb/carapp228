@@ -396,8 +396,16 @@ struct CarMainView: View {
         .padding(24)
         .frame(maxWidth: .infinity)
         .frame(height: 92)
-        .background(Figma.darkCard, in: RoundedRectangle(cornerRadius: 36))
-        .overlay(RoundedRectangle(cornerRadius: 34).stroke(Color(white: 166 / 255), lineWidth: 0.5))
+        // Figma 45867:2944 — системный «Liquid Glass - Regular - Medium».
+        // Кромку даёт стекло, а не нарисованная обводка; раньше здесь
+        // расходились радиусы заливки (36) и обводки (34).
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 36), tint: Figma.darkCard) {
+            RoundedRectangle(cornerRadius: 36)
+                .fill(Figma.darkCard)
+                .overlay(RoundedRectangle(cornerRadius: 36)
+                    .stroke(Color(white: 166 / 255), lineWidth: 0.5))
+        }
+        .motionRim(in: RoundedRectangle(cornerRadius: 36))
         .shadow(color: .black.opacity(0.45), radius: 24, y: 8)
     }
 
@@ -431,8 +439,16 @@ struct CarMainView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity)
-        .background(Figma.darkCard, in: RoundedRectangle(cornerRadius: 36))
-        .overlay(RoundedRectangle(cornerRadius: 34).stroke(Color(white: 166 / 255), lineWidth: 0.5))
+        // Figma 45867:2944 — системный «Liquid Glass - Regular - Medium».
+        // Кромку даёт стекло, а не нарисованная обводка; раньше здесь
+        // расходились радиусы заливки (36) и обводки (34).
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 36), tint: Figma.darkCard) {
+            RoundedRectangle(cornerRadius: 36)
+                .fill(Figma.darkCard)
+                .overlay(RoundedRectangle(cornerRadius: 36)
+                    .stroke(Color(white: 166 / 255), lineWidth: 0.5))
+        }
+        .motionRim(in: RoundedRectangle(cornerRadius: 36))
         .shadow(color: .black.opacity(0.45), radius: 24, y: 8)
     }
 
