@@ -7,6 +7,7 @@ import SwiftUI
 /// и «Пропустить» заезжала на него даже на макетном устройстве.
 struct OnboardingView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var metrics: DeviceMetrics
     @State private var step = 0
     @State private var goingForward = true
 
@@ -110,7 +111,7 @@ struct OnboardingView: View {
             .frame(maxWidth: .infinity)
             // Кнопки 54pt (lineHeight 22 + padding 32), между ними 16.
             // Якорим нижнюю, верхняя встаёт на 54 + 16 выше.
-            .offset(y: Figma.bottomAnchoredY(designY: 796.5, height: 54) - 70)
+            .offset(y: metrics.bottomAnchoredY(designY: 796.5, height: 54) - 70)
         }
     }
 

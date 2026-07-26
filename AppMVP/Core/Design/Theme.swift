@@ -112,32 +112,6 @@ enum Figma {
         max(frameHeight - frameSafeBottom - y - height, minBottomGap)
     }
 
-    /// Нижняя safe area текущего устройства. Читаем через UIKit: внутри
-    /// `.ignoresSafeArea()` SwiftUI отдаёт нули, а GeometryReader на корне
-    /// экрана ломает абсолютные координаты макета.
-    static var deviceSafeBottom: CGFloat {
-        keyWindow?.safeAreaInsets.bottom ?? frameSafeBottom
-    }
-
-    /// Полная высота экрана, без вычета safe area.
-    static var deviceHeight: CGFloat {
-        keyWindow?.bounds.height ?? frameHeight
-    }
-
-    private static var keyWindow: UIWindow? {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .first { $0.isKeyWindow }
-    }
-
-    /// Координата y от верха экрана для элемента, прижатого к нижней safe area.
-    /// На макетном устройстве совпадает с координатой из Figma везде, где макет
-    /// не заезжает на home indicator.
-    static func bottomAnchoredY(designY: CGFloat, height: CGFloat) -> CGFloat {
-        deviceHeight - deviceSafeBottom - bottomGap(y: designY, height: height) - height
-    }
-
     // Типографика
     static let titleSize: CGFloat = 32
     static let titleLineHeight: CGFloat = 38.4   // 32 × 1.2
@@ -145,6 +119,26 @@ enum Figma {
     static let bodyLineHeight: CGFloat = 27
     static let bodyTracking: CGFloat = -0.45
     static let buttonLabelSize: CGFloat = 17
+}
+
+/// Метрики экрана. Заполняются одним GeometryReader на уровне приложения.
+/// Читать окно UIKit прямо в body нельзя: body начинает зависеть от размера
+/// окна, а тот — от раскладки этого же body, и AttributeGraph ловит цикл.
+@MainActor
+final class DeviceMetrics: ObservableObject {
+    @Published private(set) var safeBottom: CGFloat = Figma.frameSafeBottom
+    @Published private(set) var height: CGFloat = Figma.frameHeight
+
+    func update(size: CGSize, insets: EdgeInsets) {
+        let fullHeight = size.height + insets.top + insets.bottom
+        if safeBottom != insets.bottom { safeBottom = insets.bottom }
+        if height != fullHeight { height = fullHeight }
+    }
+
+    /// Координата y от верха экрана для элемента, прижатого к нижней safe area.
+    func bottomAnchoredY(designY: CGFloat, height elementHeight: CGFloat) -> CGFloat {
+        height - safeBottom - Figma.bottomGap(y: designY, height: elementHeight) - elementHeight
+    }
 }
 
 extension View {

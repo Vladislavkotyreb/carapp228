@@ -14,6 +14,7 @@ func formattedNumber(_ value: Int) -> String {
 /// «добавление то» (45870:2868) и «сакцесс» (45887:3561).
 struct CarMainView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var metrics: DeviceMetrics
 
     /// Машины из локальной базы. Карусель показывает первую — вёрстка макета
     /// рассчитана на одну машину плюс страницу «Добавить авто».
@@ -95,7 +96,7 @@ struct CarMainView: View {
             // этот зазор сохранялся на экранах любой высоты.
             FloatingTabBar(selection: $tab)
                 .frame(maxWidth: .infinity)
-                .offset(y: Figma.bottomAnchoredY(designY: 779, height: 54))
+                .offset(y: metrics.bottomAnchoredY(designY: 779, height: 54))
 
             if showToast {
                 toast

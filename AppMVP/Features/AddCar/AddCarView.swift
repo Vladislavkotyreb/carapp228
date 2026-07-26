@@ -7,6 +7,7 @@ import SwiftUI
 /// (контейнер y = 107.93, высота 735, паддинг 16, кнопка прижата к низу).
 struct AddCarView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var metrics: DeviceMetrics
 
     /// Если задан — экран открыт модально (добавление ещё одной машины),
     /// и по завершении просто закрывается, не сбрасывая уже добавленную.
@@ -28,7 +29,7 @@ struct AddCarView: View {
     private var contentHeight: CGFloat {
         // В макете контейнер 735 от y = 107.93 → низ 842.93, кнопка 54pt
         // прижата к нему, то есть её верх в макете 788.93.
-        max(0, Figma.bottomAnchoredY(designY: 788.93, height: 54) + 54 - 107.93)
+        max(0, metrics.bottomAnchoredY(designY: 788.93, height: 54) + 54 - 107.93)
     }
 
     var body: some View {

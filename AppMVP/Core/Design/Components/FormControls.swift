@@ -32,7 +32,7 @@ struct FigmaSegmentedControl: View {
                                 .matchedGeometryEffect(id: "segment", in: pill)
                         }
                     }
-                    .contentShape(Capsule())
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(titles[index])
