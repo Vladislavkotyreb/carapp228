@@ -54,6 +54,11 @@ struct FigmaTextField: View {
     @Binding var text: String
     var placeholderColor: Color = Figma.labelsQuaternary
     var keyboardType: UIKeyboardType = .default
+    /// Маска ввода: значение прогоняется через неё на каждое изменение.
+    /// Для обычных полей не задаётся.
+    var format: ((String) -> String)?
+    /// Верхний регистр нужен полям вроде госномера.
+    var autocapitalization: TextInputAutocapitalization = .never
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -67,7 +72,14 @@ struct FigmaTextField: View {
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Figma.labelsPrimary)
                 .keyboardType(keyboardType)
+                .textInputAutocapitalization(autocapitalization)
                 .autocorrectionDisabled()
+                .onChange(of: text) { _, new in
+                    guard let format else { return }
+                    let masked = format(new)
+                    // переписываем только при отличии, иначе будет цикл
+                    if masked != new { text = masked }
+                }
         }
         .padding(.horizontal, 16)
         .frame(height: 52)

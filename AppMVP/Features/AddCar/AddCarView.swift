@@ -88,7 +88,10 @@ struct AddCarView: View {
                 FigmaTextField(
                     placeholder: "В 777 ОР 777",
                     text: $plate,
-                    placeholderColor: fieldError == nil ? Figma.labelsQuaternary : Figma.labelsTertiary
+                    placeholderColor: fieldError == nil ? Figma.labelsQuaternary : Figma.labelsTertiary,
+                    keyboardType: .asciiCapable,
+                    format: PlateFormat.format,
+                    autocapitalization: .characters
                 )
                 .shake(shake)
 
@@ -164,13 +167,13 @@ struct AddCarView: View {
 
     private func submit() {
         if tab == 0 {
-            let symbols = plate.filter { !$0.isWhitespace }
-            if symbols.count != 9 {
+            let symbols = PlateFormat.significant(plate)
+            if !PlateFormat.isValid(plate) {
                 fail(.plateInvalid)
-            } else if symbols.uppercased() == "В777ОР777" {
+            } else if symbols == "В777ОР777" {
                 // TODO: заменить на реальный поиск по API — сейчас данные из макета.
                 fieldError = nil
-                foundCar = .designExample
+                foundCar = .designExample(plate: plate)
             } else {
                 fail(.plateNotFound)
             }
@@ -203,7 +206,7 @@ enum FieldError {
 
     var message: String {
         switch self {
-        case .plateInvalid: return "Введите госномер. Он должен состоять из 9 символов"
+        case .plateInvalid: return "Введите госномер: буква, 3 цифры, 2 буквы и код региона"
         case .plateNotFound: return "Мы не нашли такого номера в базе, попробуйте другой"
         case .detailsMissing: return "Введите название машины и её пробег"
         }
@@ -211,16 +214,19 @@ enum FieldError {
 }
 
 extension FoundCar {
-    /// Данные из макета (node 45854:2936).
-    static let designExample = FoundCar(
-        name: "Mercedes-Benz GL-класс",
-        plateLetter: "В",
-        plateDigits: "777",
-        plateLetters: "ОР",
-        plateRegion: "777",
-        vin: "423423432FRFRIFR",
-        generation: "X166 (2015-2026)"
-    )
+    /// Данные из макета (node 45854:2936); номер подставляется введённый.
+    static func designExample(plate: String) -> FoundCar {
+        let parts = PlateFormat.components(plate)
+        return FoundCar(
+            name: "Mercedes-Benz GL-класс",
+            plateLetter: parts?.letter ?? "В",
+            plateDigits: parts?.digits ?? "777",
+            plateLetters: parts?.letters ?? "ОР",
+            plateRegion: parts?.region ?? "777",
+            vin: "423423432FRFRIFR",
+            generation: "X166 (2015-2026)"
+        )
+    }
 }
 
 #Preview {
