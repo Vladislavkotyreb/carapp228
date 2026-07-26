@@ -172,9 +172,9 @@ struct CarMainView: View {
             }
         ))
         // gradient bg (45879:3002): сам градиент лежит в контенте страницы и
-        // уезжает вверх вместе со скроллом. База под ним чёрная, а не #F2F2F7:
-        // при оттягивании списка светлая полоса вылезала над чёрной шапкой.
-        .background(Color.black.ignoresSafeArea())
+        // уезжает вверх вместе со скроллом. База светлая — она видна снизу,
+        // под контентом. Чёрное сверху даёт запас в gradientLayer.
+        .background(Figma.mainBackground.ignoresSafeArea())
         .ignoresSafeArea()
         .preferredColorScheme(.dark)
         // «нативная штука добавления фото» (45885:3279) — системный пикер,
@@ -243,6 +243,8 @@ struct CarMainView: View {
             .padding(.bottom, 140)
             .background(alignment: .top) { gradientLayer }
         }
+        // HIG: форму со списком клавиатура должна отпускать скроллом
+        .scrollDismissesKeyboard(.interactively)
     }
 
     // MARK: - «главная_добавить новую» — вторая страница карусели
@@ -271,6 +273,11 @@ struct CarMainView: View {
     /// иначе слой увеличил бы высоту страницы и контент бы отцентрировался.
     private var gradientLayer: some View {
         VStack(spacing: 0) {
+            // Запас на оттягивание сверху: ScrollView обрезает по своим
+            // границам, поэтому чёрное видно только когда список тянут вниз.
+            Color.black
+                .frame(height: Self.overscrollReserve)
+
             Figma.mainGradient
                 .frame(height: Figma.mainGradientHeight)
 
@@ -279,7 +286,11 @@ struct CarMainView: View {
             Figma.mainBackground
         }
         .frame(maxWidth: .infinity)
+        // сдвигаем вверх, чтобы сам градиент начинался ровно у верха контента
+        .offset(y: -Self.overscrollReserve)
     }
+
+    private static let overscrollReserve: CGFloat = 600
 
     // MARK: - Шапка: название, номер, фото, пейдж-контрол
 

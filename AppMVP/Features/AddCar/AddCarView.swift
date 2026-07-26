@@ -229,6 +229,10 @@ struct AddCarView: View {
     }
 
     private func finish() {
+        // На вкладке «По названию» шторки нет, экран просто закрывается —
+        // клавиатуру убираем сами. В ветке ошибки фокус оставляем: там ввод
+        // надо исправлять.
+        dismissKeyboard()
         modelContext.insert(newCar())
         onFinish?()
     }

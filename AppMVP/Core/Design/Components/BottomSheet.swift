@@ -1,5 +1,13 @@
 import SwiftUI
 
+/// Убирает клавиатуру. Вызывать только из замыканий: чтение UIApplication
+/// в `body` однажды уже дало цикл AttributeGraph.
+@MainActor
+func dismissKeyboard() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                    to: nil, from: nil, for: nil)
+}
+
 /// Общая механика шторок: затемнение с кросс-фейдом, выезд снизу пружиной,
 /// закрытие свайпом вниз и тапом по фону. До этого три шторки были написаны
 /// по отдельности и анимировались по-разному (одна вообще просто проявлялась).
@@ -24,6 +32,11 @@ private struct BottomSheetModifier<SheetContent: View>: ViewModifier {
             // устройствах с home indicator) и шторка встаёт выше макета
             .ignoresSafeArea()
             .animation(Motion.sheet(reduceMotion: reduceMotion), value: isPresented)
+            // Шторка сама убирает клавиатуру: иначе она остаётся поднятой и
+            // закрывает кнопки внутри шторки. Касается любой из них.
+            .onChange(of: isPresented) { _, shown in
+                if shown { dismissKeyboard() }
+            }
         }
     }
 

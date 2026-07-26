@@ -103,16 +103,20 @@ struct FigmaGroupedTextField: View {
     var submitLabel: SubmitLabel = .return
     var onSubmit: (() -> Void)?
 
+    /// Компонент владеет обеими строками, поэтому фокусом рулит сам —
+    /// без него `.next` на первой строке ничего не переключал.
+    @FocusState private var focusedRow: Int?
+
     var body: some View {
         VStack(spacing: 0) {
-            row(firstPlaceholder, text: $first)
+            row(firstPlaceholder, text: $first, index: 0)
 
             Rectangle()
                 .fill(Figma.separatorsVibrant)
                 .frame(height: 1)
                 .padding(.leading, 16)
 
-            row(secondPlaceholder, text: $second, keyboardType: secondKeyboardType, isLast: true)
+            row(secondPlaceholder, text: $second, keyboardType: secondKeyboardType, index: 1, isLast: true)
         }
         // Капсула — ровно две строки и разделитель, 105pt. Раньше сюда входили
         // ещё 19pt пустоты снизу, из-за которых вторая строка выглядела
@@ -122,6 +126,7 @@ struct FigmaGroupedTextField: View {
 
     private func row(_ placeholder: String, text: Binding<String>,
                      keyboardType: UIKeyboardType = .default,
+                     index: Int,
                      isLast: Bool = false) -> some View {
         ZStack(alignment: .leading) {
             if text.wrappedValue.isEmpty {
