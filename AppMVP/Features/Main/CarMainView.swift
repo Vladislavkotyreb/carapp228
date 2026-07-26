@@ -26,9 +26,6 @@ struct CarMainView: View {
     /// Ось жеста фиксируется на первом заметном смещении и держится до конца.
     /// Раньше решение принималось на каждом кадре — отсюда дёрганье.
     @State private var swipeAxis: SwipeAxis?
-    /// Палец на ленте истории ТО. Пока он там, карусель не двигается —
-    /// иначе от свайпа по ленте уезжала вся страница.
-    @State private var isDraggingHistory = false
     @State private var showServiceChoice = false
     @State private var showAddService = false
     @State private var showPhotoPicker = false
@@ -65,7 +62,6 @@ struct CarMainView: View {
     private func carouselDrag(width: CGFloat) -> some Gesture {
         DragGesture()
             .onChanged { value in
-                guard !isDraggingHistory else { return }
                 let dx = value.translation.width
                 let dy = value.translation.height
 
@@ -86,11 +82,8 @@ struct CarMainView: View {
                 dragX = atEdge ? dx / 4 : dx
             }
             .onEnded { value in
-                defer {
-                    swipeAxis = nil
-                    isDraggingHistory = false
-                }
-                guard !isDraggingHistory, swipeAxis == .horizontal else { return }
+                defer { swipeAxis = nil }
+                guard swipeAxis == .horizontal else { return }
 
                 let threshold = width * 0.22
                 var page = carPage
@@ -126,30 +119,31 @@ struct CarMainView: View {
                 let width = geo.size.width
                 let containerX = -CGFloat(carPage) * width + dragX
 
-                // Слой под каруселью не двигается вместе с offset и закрывает
-                // область за краем при оттягивании. ZStack, а не .background
-                // после .offset: у offset фрейм не меняется, и фон встал бы не туда.
-                ZStack(alignment: .top) {
-                    gradientLayer
-
-                    HStack(spacing: 0) {
-                        Group {
-                            if services.isEmpty {
-                                emptyState(pin: pinX(0, width, containerX),
-                                           visible: visibility(0, width, containerX))
-                            } else {
-                                filledState(pin: pinX(0, width, containerX),
-                                            visible: visibility(0, width, containerX))
-                            }
+                HStack(spacing: 0) {
+                    Group {
+                        if services.isEmpty {
+                            emptyState(pin: pinX(0, width, containerX),
+                                       visible: visibility(0, width, containerX))
+                        } else {
+                            filledState(pin: pinX(0, width, containerX),
+                                        visible: visibility(0, width, containerX))
                         }
-                        .frame(width: width)
-
-                        addNewCarState(pin: pinX(1, width, containerX),
-                                       visible: visibility(1, width, containerX))
-                            .frame(width: width)
                     }
-                    .offset(x: containerX)
+                    .frame(width: width)
+
+                    addNewCarState(pin: pinX(1, width, containerX),
+                                   visible: visibility(1, width, containerX))
+                        .frame(width: width)
                 }
+                .offset(x: containerX)
+                // Фон закрывает область за краем при оттягивании. Именно
+                // .background, а не сосед в ZStack: gradientLayer требует
+                // 1534pt (600 запаса + 934 градиента), и как сосед он раздувал
+                // контейнер до этой высоты — ScrollView получал вьюпорт 1534,
+                // контент в него влезал целиком, и скролл пропадал.
+                // .background на размер родителя не влияет, а поскольку offset
+                // фрейм не меняет, фон остаётся неподвижным.
+                .background(alignment: .top) { gradientLayer }
                 // simultaneousGesture, а не gesture: заполненная страница —
                 // вертикальный ScrollView, и он забирал свайп себе, поэтому
                 // над картинкой машины и карточкой ТО карусель не листалась.
@@ -608,13 +602,6 @@ struct CarMainView: View {
         }
         .frame(height: 84 + shadowInset * 2)
         .padding(-shadowInset)
-        // Касание ленты помечаем сразу, до порога карусели: тогда свайп по
-        // истории листает только её, а страница остаётся на месте.
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isDraggingHistory = true }
-                .onEnded { _ in isDraggingHistory = false }
-        )
     }
 
     /// Запас вокруг ленты, чтобы тени карточек не обрезались.
