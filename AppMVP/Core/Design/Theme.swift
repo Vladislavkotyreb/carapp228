@@ -93,8 +93,50 @@ enum Figma {
         endPoint: .top
     )
 
-    // Frame макета
+    // Frame макета — iPhone 16 Pro, 402×874
     static let frameWidth: CGFloat = 402
+    static let frameHeight: CGFloat = 874
+    /// Нижняя safe area на макетном устройстве. В самом Figma её нет —
+    /// макет нарисован до края экрана, поэтому нижние элементы в нём
+    /// местами заезжают на home indicator.
+    static let frameSafeBottom: CGFloat = 34
+    /// Минимальный зазор до home indicator. 7pt — столько макет оставляет таббару,
+    /// то есть это и есть заданный дизайном минимум.
+    static let minBottomGap: CGFloat = 7
+
+    /// Сколько отступить от нижней границы safe area для элемента, который
+    /// в макете стоит на `y` и имеет высоту `height`. Там, где макет уже
+    /// уважает индикатор, отступ сохраняется как есть; где заезжает —
+    /// поднимаем до минимального.
+    static func bottomGap(y: CGFloat, height: CGFloat) -> CGFloat {
+        max(frameHeight - frameSafeBottom - y - height, minBottomGap)
+    }
+
+    /// Нижняя safe area текущего устройства. Читаем через UIKit: внутри
+    /// `.ignoresSafeArea()` SwiftUI отдаёт нули, а GeometryReader на корне
+    /// экрана ломает абсолютные координаты макета.
+    static var deviceSafeBottom: CGFloat {
+        keyWindow?.safeAreaInsets.bottom ?? frameSafeBottom
+    }
+
+    /// Полная высота экрана, без вычета safe area.
+    static var deviceHeight: CGFloat {
+        keyWindow?.bounds.height ?? frameHeight
+    }
+
+    private static var keyWindow: UIWindow? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }
+    }
+
+    /// Координата y от верха экрана для элемента, прижатого к нижней safe area.
+    /// На макетном устройстве совпадает с координатой из Figma везде, где макет
+    /// не заезжает на home indicator.
+    static func bottomAnchoredY(designY: CGFloat, height: CGFloat) -> CGFloat {
+        deviceHeight - deviceSafeBottom - bottomGap(y: designY, height: height) - height
+    }
 
     // Типографика
     static let titleSize: CGFloat = 32

@@ -2,8 +2,9 @@ import AuthenticationServices
 import SwiftUI
 
 /// Онбординг Beepy — Figma «1 флоу: онбординг + добавление машины» (node 45822:3994).
-/// Геометрия задана абсолютно, как в макете (frame 402×874), поэтому координаты
-/// отсчитываются от верхнего края экрана, а не от safe area.
+/// Верхние блоки стоят в координатах макета (frame 402×874) от верха экрана,
+/// а кнопки прижаты к нижней safe area: в макете home indicator не нарисован,
+/// и «Пропустить» заезжала на него даже на макетном устройстве.
 struct OnboardingView: View {
     @EnvironmentObject private var appState: AppState
     @State private var step = 0
@@ -63,16 +64,17 @@ struct OnboardingView: View {
     // MARK: - онбординг/велком скрин (node 45822:3995)
 
     private var welcome: some View {
-        // Content container: x = 41, ширина 338 (при frame 402 справа остаётся 23 — так в макете).
+        // Content container (45822:3998): x = 32, ширина 338 — по 32 с каждой
+        // стороны, блок ровно по центру.
         ZStack(alignment: .topLeading) {
             title("Привет!")
-                .figmaBlock(x: 41, width: 338, y: 528.75)
+                .figmaBlock(x: 32, width: 338, y: 528.75)
 
             description("Beepy — сервис, который поможет тебе держать всё самое важное \nдля автомобиля под контролем")
-                .figmaBlock(x: 41, width: 338, y: 586.75)
+                .figmaBlock(x: 32, width: 338, y: 586.75)
 
             AppleSignInButton(onCompletion: handleAppleSignIn)
-                .figmaBlock(x: 41, width: 338, y: 730.75)
+                .figmaBlock(x: 32, width: 338, y: 730.75)
         }
     }
 
@@ -92,13 +94,22 @@ struct OnboardingView: View {
             description(page.description)
                 .figmaBlock(x: 16, width: 370, y: 625.5)
 
-            GlassProminentButton(title: page.primaryTitle, action: advance)
-                .figmaBlock(x: 16, width: 370, y: 730.5)
+            // Кнопки прижаты к низу safe area. Слот «Пропустить» держится
+            // всегда, даже на последней странице, иначе основная кнопка
+            // прыгала бы по вертикали при перелистывании.
+            VStack(spacing: 16) {
+                GlassProminentButton(title: page.primaryTitle, action: advance)
 
-            if page.hasSkip {
-                GlassButton(title: "Пропустить", action: finish)
-                    .figmaBlock(x: 16, width: 370, y: 796.5)
+                if page.hasSkip {
+                    GlassButton(title: "Пропустить", action: finish)
+                } else {
+                    Color.clear.frame(height: 50)
+                }
             }
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity)
+            // 116 = кнопка 50 + зазор 16 + кнопка 50
+            .offset(y: Figma.bottomAnchoredY(designY: 796.5, height: 50) - 66)
         }
     }
 

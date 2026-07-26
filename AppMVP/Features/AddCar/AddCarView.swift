@@ -22,6 +22,13 @@ struct AddCarView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var photo: Image?
 
+    /// Высота контейнера: от координаты макета до нижней safe area.
+    /// В макете контейнер 735 упирается в самый низ, и кнопка «Добавить»
+    /// заезжает на home indicator.
+    private var contentHeight: CGFloat {
+        max(0, Figma.bottomAnchoredY(designY: 792.93, height: 50) + 50 - 107.93)
+    }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             Figma.backgroundsPrimary
@@ -43,7 +50,10 @@ struct AddCarView: View {
             }
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
-            .frame(height: 735, alignment: .top)
+            // В макете контейнер 735 от y = 107.93 упирается в самый низ экрана,
+            // и кнопка «Добавить» заезжает на home indicator. Тянем контейнер
+            // до нижней границы safe area вместо фиксированной высоты.
+            .frame(height: contentHeight, alignment: .top)
             .offset(y: 107.93)
 
         }

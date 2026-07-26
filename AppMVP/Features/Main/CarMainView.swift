@@ -90,9 +90,12 @@ struct CarMainView: View {
             // отдаёт урезанный размер и все координаты макета съезжают вниз
             .ignoresSafeArea()
 
+            // В макете таббар стоит на y = 779 при высоте экрана 874, то есть
+            // в 7pt над home indicator. Прижимаем к нижней safe area, чтобы
+            // этот зазор сохранялся на экранах любой высоты.
             FloatingTabBar(selection: $tab)
                 .frame(maxWidth: .infinity)
-                .offset(y: 779)
+                .offset(y: Figma.bottomAnchoredY(designY: 779, height: 54))
 
             if showToast {
                 toast
