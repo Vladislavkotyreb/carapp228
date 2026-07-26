@@ -618,7 +618,9 @@ struct CarMainView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .frame(width: 202)
-        .background {
+        // Тот же системный Liquid Glass, что у карточек: кромку даёт стекло,
+        // а не нарисованная обводка. Блик так же следует за наклоном.
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 24), tint: Figma.darkCard) {
             RoundedRectangle(cornerRadius: 24)
                 .fill(.ultraThinMaterial)
                 .environment(\.colorScheme, .dark)
@@ -627,9 +629,11 @@ struct CarMainView: View {
                         .fill(Color.black.opacity(0.8))
                         .blendMode(.luminosity)
                 )
-                .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color(white: 217 / 255), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
+                .overlay(RoundedRectangle(cornerRadius: 24)
+                    .stroke(Color(white: 217 / 255), lineWidth: 0.5))
         }
+        .motionRim(in: RoundedRectangle(cornerRadius: 24))
+        .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
     }
 
     // MARK: - Действия
