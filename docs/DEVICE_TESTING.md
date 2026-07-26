@@ -62,19 +62,28 @@ xcrun devicectl list devices -j /dev/stdout | grep udid
 
 ```sh
 UDID=00008130-000A38DA0E04001C
+DD=~/Library/Developer/Xcode/DerivedData/beepy-device
 
-xcodebuild -project Wheelly.xcodeproj -scheme AppMVP \
+xcodebuild -project Wheelly.xcodeproj -scheme AppMVP -configuration Debug \
   -destination "id=$UDID" -allowProvisioningUpdates \
-  -derivedDataPath build/device build
+  -derivedDataPath "$DD" build
 
 xcrun devicectl device install app --device "$UDID" \
-  build/device/Build/Products/Debug-iphoneos/Wheelly.app
+  "$DD/Build/Products/Debug-iphoneos/Wheelly.app"
 
 xcrun devicectl device process launch --device "$UDID" \
   com.vladislavkotyrev.appmvp
 ```
 
-При первом запуске iPhone скажет, что разработчик не доверен:
+> **Не собирайте внутрь папки проекта.** Проект лежит на Рабочем столе, а он
+> синхронизируется с iCloud Drive, и файловый провайдер вешает на бандл
+> атрибут `com.apple.FinderInfo`. Подпись падает с
+> `resource fork, Finder information, or similar detritus not allowed`.
+> Поэтому `-derivedDataPath` указывает наружу, в `~/Library/Developer/Xcode`.
+> Если всё-таки собрали внутрь — помогает `xattr -cr путь/к/Wheelly.app`.
+
+При первом запуске iPhone откажется запускать приложение с ошибкой про
+недоверенный профиль. Лечится один раз:
 **Настройки → Основные → VPN и управление устройством** → выбрать свой
 Apple ID → «Доверять».
 
