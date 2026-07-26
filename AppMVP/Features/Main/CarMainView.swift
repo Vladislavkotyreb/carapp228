@@ -26,6 +26,9 @@ struct CarMainView: View {
     /// Ось жеста фиксируется на первом заметном смещении и держится до конца.
     /// Раньше решение принималось на каждом кадре — отсюда дёрганье.
     @State private var swipeAxis: SwipeAxis?
+    /// Палец на ленте истории ТО. Пока он там, карусель не двигается —
+    /// иначе от свайпа по ленте уезжала вся страница.
+    @State private var isDraggingHistory = false
     @State private var showServiceChoice = false
     @State private var showAddService = false
     @State private var showPhotoPicker = false
@@ -62,6 +65,7 @@ struct CarMainView: View {
     private func carouselDrag(width: CGFloat) -> some Gesture {
         DragGesture()
             .onChanged { value in
+                guard !isDraggingHistory else { return }
                 let dx = value.translation.width
                 let dy = value.translation.height
 
@@ -71,13 +75,17 @@ struct CarMainView: View {
                 }
                 guard swipeAxis == .horizontal else { return }
 
-                // у краёв карусели тянется туже
+                // За краями карусели страницы нет, и при оттягивании обнажался
+                // фон экрана — упираемся вместо резинки.
                 let atEdge = (carPage == 0 && dx > 0) || (carPage == 1 && dx < 0)
-                dragX = atEdge ? dx / 3 : dx
+                dragX = atEdge ? 0 : dx
             }
             .onEnded { value in
-                defer { swipeAxis = nil }
-                guard swipeAxis == .horizontal else { return }
+                defer {
+                    swipeAxis = nil
+                    isDraggingHistory = false
+                }
+                guard !isDraggingHistory, swipeAxis == .horizontal else { return }
 
                 let threshold = width * 0.22
                 var page = carPage
@@ -582,6 +590,13 @@ struct CarMainView: View {
         }
         .frame(height: 84 + shadowInset * 2)
         .padding(-shadowInset)
+        // Касание ленты помечаем сразу, до порога карусели: тогда свайп по
+        // истории листает только её, а страница остаётся на месте.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isDraggingHistory = true }
+                .onEnded { _ in isDraggingHistory = false }
+        )
     }
 
     /// Запас вокруг ленты, чтобы тени карточек не обрезались.
