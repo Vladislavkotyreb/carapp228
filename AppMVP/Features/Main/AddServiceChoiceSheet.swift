@@ -3,6 +3,11 @@ import SwiftUI
 /// Figma «главная» (node 45883:3842) → Sheet, Detent = Medium.
 /// Открывается по «Добавить ТО» и предлагает два пути: скан фото/PDF или ручное заполнение.
 struct AddServiceChoiceSheet: View {
+    private static let shape = UnevenRoundedRectangle(
+        topLeadingRadius: 34, bottomLeadingRadius: 58,
+        bottomTrailingRadius: 58, topTrailingRadius: 34
+    )
+
     var title = "Добавление ТО"
     let onClose: () -> Void
     let onPickPhoto: () -> Void
@@ -62,12 +67,12 @@ struct AddServiceChoiceSheet: View {
         }
         .padding(.top, 16)
         .frame(height: 459)
-        .background {
-            UnevenRoundedRectangle(topLeadingRadius: 34, bottomLeadingRadius: 58,
-                                   bottomTrailingRadius: 58, topTrailingRadius: 34)
-                .fill(.white)
-                .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
-        }
+        // в макете это стеклянная поверхность (Fill + Shadow + слой Glass Effect)
+        // стекло тонируем белым и держим светлым: без этого над тёмной
+        // подложкой поверхность темнеет и чёрный текст становится нечитаемым
+        .liquidGlass(in: Self.shape, tint: .white) { Self.shape.fill(.white) }
+        .environment(\.colorScheme, .light)
+        .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
             Capsule()
                 .fill(Figma.vibrantPrimary)

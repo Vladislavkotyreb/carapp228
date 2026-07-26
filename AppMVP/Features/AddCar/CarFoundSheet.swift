@@ -3,6 +3,11 @@ import SwiftUI
 /// Figma «добавление авто по номеру данные введены и апи поиска запущен» → Sheet (node 45854:2936).
 /// Карточка 390×731 на x = 6, y = 137.93; скругления сверху 34, снизу 58.
 struct CarFoundSheet: View {
+    private static let shape = UnevenRoundedRectangle(
+        topLeadingRadius: 34, bottomLeadingRadius: 58,
+        bottomTrailingRadius: 58, topTrailingRadius: 34
+    )
+
     let car: FoundCar
     let onClose: () -> Void
     let onConfirm: () -> Void
@@ -51,12 +56,11 @@ struct CarFoundSheet: View {
         }
         .padding(.top, 16)
         .frame(width: 390, height: 731, alignment: .top)
-        .background {
-            UnevenRoundedRectangle(topLeadingRadius: 34, bottomLeadingRadius: 58,
-                                   bottomTrailingRadius: 58, topTrailingRadius: 34)
-                .fill(.white)
-                .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
-        }
+        // в макете это стеклянная поверхность (Fill + Shadow + слой Glass Effect).
+        // Тонировать не нужно: экран добавления авто под шторкой светлый,
+        // так стекло ближе к макету.
+        .liquidGlass(in: Self.shape) { Self.shape.fill(.white) }
+        .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
             Capsule()
                 .fill(Figma.grabber)

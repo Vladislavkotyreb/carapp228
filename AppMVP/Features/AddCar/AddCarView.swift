@@ -45,10 +45,14 @@ struct AddCarView: View {
             .frame(height: 735, alignment: .top)
             .offset(y: 107.93)
 
+        }
+        .ignoresSafeArea()
+        // выезд снизу, затемнение кросс-фейдом, свайп вниз — как у остальных шторок
+        .bottomSheet(isPresented: Binding(
+            get: { foundCar != nil },
+            set: { if !$0 { foundCar = nil } }
+        )) {
             if let foundCar {
-                Figma.overlaysDefault
-                    .ignoresSafeArea()
-
                 CarFoundSheet(
                     car: foundCar,
                     onClose: { self.foundCar = nil },
@@ -58,11 +62,10 @@ struct AddCarView: View {
                         fieldError = .plateNotFound
                     }
                 )
-                .offset(x: 6, y: 137.93)
+                // в макете шторка 390×731 на y = 137.93 → снизу остаётся 5.07
+                .padding(.bottom, 5.07)
             }
         }
-        .ignoresSafeArea()
-        .animation(Motion.sheet, value: foundCar != nil)
         // отклик даёт SwiftUI — он уважает системные настройки
         .sensoryFeedback(.error, trigger: shake)
         .onChange(of: photoItem) { _, item in

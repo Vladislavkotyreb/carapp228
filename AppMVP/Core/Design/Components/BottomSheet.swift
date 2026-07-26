@@ -20,6 +20,9 @@ private struct BottomSheetModifier<SheetContent: View>: ViewModifier {
                     sheet
                 }
             }
+            // без этого контейнер оверлея учитывает нижнюю safe area (34pt на
+            // устройствах с home indicator) и шторка встаёт выше макета
+            .ignoresSafeArea()
             .animation(Motion.sheet(reduceMotion: reduceMotion), value: isPresented)
         }
     }
