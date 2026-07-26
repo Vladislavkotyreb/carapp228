@@ -69,6 +69,10 @@ struct CarMainView: View {
                 let dx = value.translation.width
                 let dy = value.translation.height
 
+                // Начало нового жеста: смещение ещё крошечное, а ось осталась
+                // с прошлого раза — значит onEnded не пришёл, сбрасываем.
+                if max(abs(dx), abs(dy)) < 2 { swipeAxis = nil }
+
                 if swipeAxis == nil,
                    max(abs(dx), abs(dy)) > Self.axisLockThreshold {
                     swipeAxis = abs(dx) > abs(dy) ? .horizontal : .vertical
@@ -288,8 +292,7 @@ struct CarMainView: View {
         }
         // HIG: форму со списком клавиатура должна отпускать скроллом
         .scrollDismissesKeyboard(.interactively)
-        // пока жест признан горизонтальным, список не должен ползти
-        .scrollDisabled(swipeAxis == .horizontal)
+
     }
 
     // MARK: - «главная_добавить новую» — вторая страница карусели
