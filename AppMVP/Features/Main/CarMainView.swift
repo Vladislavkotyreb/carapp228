@@ -75,10 +75,11 @@ struct CarMainView: View {
                 }
                 guard swipeAxis == .horizontal else { return }
 
-                // За краями карусели страницы нет, и при оттягивании обнажался
-                // фон экрана — упираемся вместо резинки.
+                // За краями карусели страницы нет, поэтому тянется короче.
+                // Обнажившуюся область закрывает неподвижный gradientLayer
+                // под всей каруселью.
                 let atEdge = (carPage == 0 && dx > 0) || (carPage == 1 && dx < 0)
-                dragX = atEdge ? 0 : dx
+                dragX = atEdge ? dx / 4 : dx
             }
             .onEnded { value in
                 defer {
@@ -121,23 +122,30 @@ struct CarMainView: View {
                 let width = geo.size.width
                 let containerX = -CGFloat(carPage) * width + dragX
 
-                HStack(spacing: 0) {
-                    Group {
-                        if services.isEmpty {
-                            emptyState(pin: pinX(0, width, containerX),
-                                       visible: visibility(0, width, containerX))
-                        } else {
-                            filledState(pin: pinX(0, width, containerX),
-                                        visible: visibility(0, width, containerX))
-                        }
-                    }
-                    .frame(width: width)
+                // Слой под каруселью не двигается вместе с offset и закрывает
+                // область за краем при оттягивании. ZStack, а не .background
+                // после .offset: у offset фрейм не меняется, и фон встал бы не туда.
+                ZStack(alignment: .top) {
+                    gradientLayer
 
-                    addNewCarState(pin: pinX(1, width, containerX),
-                                   visible: visibility(1, width, containerX))
+                    HStack(spacing: 0) {
+                        Group {
+                            if services.isEmpty {
+                                emptyState(pin: pinX(0, width, containerX),
+                                           visible: visibility(0, width, containerX))
+                            } else {
+                                filledState(pin: pinX(0, width, containerX),
+                                            visible: visibility(0, width, containerX))
+                            }
+                        }
                         .frame(width: width)
+
+                        addNewCarState(pin: pinX(1, width, containerX),
+                                       visible: visibility(1, width, containerX))
+                            .frame(width: width)
+                    }
+                    .offset(x: containerX)
                 }
-                .offset(x: containerX)
                 // simultaneousGesture, а не gesture: заполненная страница —
                 // вертикальный ScrollView, и он забирал свайп себе, поэтому
                 // над картинкой машины и карточкой ТО карусель не листалась.
@@ -230,14 +238,17 @@ struct CarMainView: View {
                 Button { showServiceChoice = true } label: { addServiceCard }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Добавить ТО")
+                    .opacity(visible)
 
                 HStack(spacing: 16) {
                     statCard(title: "Цена авто", value: "4 269 999 ₽ ")
                     statCard(title: "Пробег", value: "\(formattedNumber(odometer)) км ")
                 }
+                .opacity(visible)
             }
 
             deleteButton
+                .opacity(visible)
         }
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
@@ -268,6 +279,7 @@ struct CarMainView: View {
 
                     deleteButton
                 }
+                .opacity(visible)
             }
             .padding(.horizontal, 16)
             .padding(.top, 103)
@@ -292,6 +304,7 @@ struct CarMainView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Добавить авто")
+                .opacity(visible)
             }
         }
         .padding(.horizontal, 16)
@@ -330,6 +343,7 @@ struct CarMainView: View {
     private func header(addNew: Bool, pin: CGFloat, visible: Double) -> some View {
         VStack(spacing: 12) {
             VStack(spacing: 24) {
+                // Гаснет всё, кроме фото машины и точек
                 VStack(spacing: 16) {
                     Text(addNew ? "Добавьте новый авто" : "Mercedes-Benz GL-класс")
                         .font(.system(size: 26, weight: .bold))
@@ -342,6 +356,7 @@ struct CarMainView: View {
                     plate
                         .opacity(addNew ? 0 : 1)
                 }
+                .opacity(visible)
 
                 Image("CarPhoto")
                     .resizable()
