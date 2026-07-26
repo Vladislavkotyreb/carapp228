@@ -26,9 +26,10 @@ struct AddCarSheet: View {
                         FigmaTextField(
                             placeholder: "В 777 ОР 777",
                             text: $plate,
-                            keyboardType: .asciiCapable,
                             format: PlateFormat.format,
-                            autocapitalization: .characters
+                            autocapitalization: .characters,
+                            submitLabel: .go,
+                            onSubmit: onSubmit
                         )
                     } else {
                         VStack(spacing: 24) {
@@ -37,7 +38,9 @@ struct AddCarSheet: View {
                                 first: $name,
                                 secondPlaceholder: "Пробег в км",
                                 second: $mileage,
-                                secondKeyboardType: .numberPad
+                                secondKeyboardType: .numberPad,
+                                submitLabel: .go,
+                                onSubmit: onSubmit
                             )
 
                             PhotosPicker(selection: $photoItems, matching: .images) {

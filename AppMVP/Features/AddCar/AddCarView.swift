@@ -96,9 +96,10 @@ struct AddCarView: View {
         // отклик даёт SwiftUI — он уважает системные настройки
         .sensoryFeedback(.error, trigger: shake)
         .onChange(of: photoItem) { _, item in
+            guard let item else { return }
             Task {
-                if let data = try? await item?.loadTransferable(type: Data.self),
-                   let uiImage = UIImage(data: data) {
+                // Декодирование идёт вне главного актора, см. ImageLoader
+                if let uiImage = await ImageLoader.load(item) {
                     photo = Image(uiImage: uiImage)
                 }
             }
@@ -113,9 +114,10 @@ struct AddCarView: View {
                 placeholder: "В 777 ОР 777",
                 text: $plate,
                 placeholderColor: fieldError == nil ? Figma.labelsQuaternary : Figma.labelsTertiary,
-                keyboardType: .asciiCapable,
                 format: PlateFormat.format,
-                autocapitalization: .characters
+                autocapitalization: .characters,
+                submitLabel: .go,
+                onSubmit: submit
             )
             .shake(shake)
 
@@ -136,9 +138,12 @@ struct AddCarView: View {
                     secondPlaceholder: "Пробег в км",
                     second: $mileage,
                     secondKeyboardType: .numberPad,
-                    bottomPadding: fieldError == nil ? 19 : 0
+                    submitLabel: .go,
+                    onSubmit: submit
                 )
                 .shake(shake)
+                // 19pt из макета — отступ под капсулой, а не пустота внутри неё
+                .padding(.bottom, fieldError == nil ? 19 : 0)
 
                 if let fieldError {
                     caption(fieldError.message, color: Figma.accentsRed)

@@ -59,6 +59,9 @@ struct FigmaTextField: View {
     var format: ((String) -> String)?
     /// Верхний регистр нужен полям вроде госномера.
     var autocapitalization: TextInputAutocapitalization = .never
+    /// Подпись клавиши возврата и действие по её нажатию.
+    var submitLabel: SubmitLabel = .return
+    var onSubmit: (() -> Void)?
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -74,6 +77,8 @@ struct FigmaTextField: View {
                 .keyboardType(keyboardType)
                 .textInputAutocapitalization(autocapitalization)
                 .autocorrectionDisabled()
+                .submitLabel(submitLabel)
+                .onSubmit { onSubmit?() }
                 .onChange(of: text) { _, new in
                     guard let format else { return }
                     let masked = format(new)
@@ -95,9 +100,8 @@ struct FigmaGroupedTextField: View {
     let secondPlaceholder: String
     @Binding var second: String
     var secondKeyboardType: UIKeyboardType = .default
-    /// В базовом состоянии макета у группы снизу 19pt паддинга (высота 123),
-    /// в состоянии с ошибкой его нет (высота 104).
-    var bottomPadding: CGFloat = 19
+    var submitLabel: SubmitLabel = .return
+    var onSubmit: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -108,14 +112,17 @@ struct FigmaGroupedTextField: View {
                 .frame(height: 1)
                 .padding(.leading, 16)
 
-            row(secondPlaceholder, text: $second, keyboardType: secondKeyboardType)
+            row(secondPlaceholder, text: $second, keyboardType: secondKeyboardType, isLast: true)
         }
-        .padding(.bottom, bottomPadding)
+        // Капсула — ровно две строки и разделитель, 105pt. Раньше сюда входили
+        // ещё 19pt пустоты снизу, из-за которых вторая строка выглядела
+        // поджатой вверх; теперь это отступ снаружи, в вызывающем экране.
         .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 26))
     }
 
     private func row(_ placeholder: String, text: Binding<String>,
-                     keyboardType: UIKeyboardType = .default) -> some View {
+                     keyboardType: UIKeyboardType = .default,
+                     isLast: Bool = false) -> some View {
         ZStack(alignment: .leading) {
             if text.wrappedValue.isEmpty {
                 Text(placeholder)

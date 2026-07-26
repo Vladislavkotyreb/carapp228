@@ -38,6 +38,19 @@ struct CarMainView: View {
     /// Межсервисный интервал: ТО через 10 000 км от последнего.
     private let serviceInterval = 10_000
 
+    /// Насколько сдвинуть элемент внутри страницы, чтобы он визуально стоял
+    /// на месте, пока карусель едет. Нужно точкам пейдж-контрола.
+    private func pinX(_ index: Int, _ width: CGFloat, _ containerX: CGFloat) -> CGFloat {
+        -(CGFloat(index) * width + containerX)
+    }
+
+    /// Видимость варианта точек этой страницы: пока страницы разъезжаются,
+    /// «точка» и «плюс» перекрестно гаснут и не наложатся двумя копиями.
+    private func visibility(_ index: Int, _ width: CGFloat, _ containerX: CGFloat) -> Double {
+        guard width > 0 else { return index == 0 ? 1 : 0 }
+        return Double(max(0, 1 - abs(CGFloat(index) * width + containerX) / width))
+    }
+
     private var car: Car? { cars.first }
     private var services: [ServiceRecord] { car?.sortedServices ?? [] }
     private var odometer: Int { car?.odometer ?? 0 }
@@ -56,16 +69,28 @@ struct CarMainView: View {
             // Аннотация макета (45895:3569): «все элементы остаются на месте и просто
             // меняются надписи» — раскладка страниц идентична, разъезжаться нечему.
             GeometryReader { geo in
+                // Экранное смещение контейнера. Страница i стоит в
+                // x = i * width + containerX, отсюда компенсация для точек.
+                let width = geo.size.width
+                let containerX = -CGFloat(carPage) * width + dragX
+
                 HStack(spacing: 0) {
                     Group {
-                        if services.isEmpty { emptyState } else { filledState }
+                        if services.isEmpty {
+                            emptyState(pin: pinX(0, width, containerX),
+                                       visible: visibility(0, width, containerX))
+                        } else {
+                            filledState(pin: pinX(0, width, containerX),
+                                        visible: visibility(0, width, containerX))
+                        }
                     }
-                    .frame(width: geo.size.width)
+                    .frame(width: width)
 
-                    addNewCarState
-                        .frame(width: geo.size.width)
+                    addNewCarState(pin: pinX(1, width, containerX),
+                                   visible: visibility(1, width, containerX))
+                        .frame(width: width)
                 }
-                .offset(x: -CGFloat(carPage) * geo.size.width + dragX)
+                .offset(x: containerX)
                 .gesture(
                     DragGesture()
                         .onChanged { value in
@@ -146,9 +171,10 @@ struct CarMainView: View {
                 if !loaded.isEmpty { applyParsedService() }
             }
         ))
-        // gradient bg (45879:3002): база #F2F2F7 на весь экран. Сам градиент лежит
-        // в контенте страницы и уезжает вверх вместе со скроллом.
-        .background(Figma.mainBackground.ignoresSafeArea())
+        // gradient bg (45879:3002): сам градиент лежит в контенте страницы и
+        // уезжает вверх вместе со скроллом. База под ним чёрная, а не #F2F2F7:
+        // при оттягивании списка светлая полоса вылезала над чёрной шапкой.
+        .background(Color.black.ignoresSafeArea())
         .ignoresSafeArea()
         .preferredColorScheme(.dark)
         // «нативная штука добавления фото» (45885:3279) — системный пикер,
@@ -165,10 +191,10 @@ struct CarMainView: View {
 
     // MARK: - «главная» — авто без ТО
 
-    private var emptyState: some View {
+    private func emptyState(pin: CGFloat, visible: Double) -> some View {
         VStack(alignment: .leading, spacing: 32) {
             VStack(spacing: 24) {
-                header(addNew: false)
+                header(addNew: false, pin: pin, visible: visible)
 
                 Button { showServiceChoice = true } label: { addServiceCard }
                     .buttonStyle(.plain)
@@ -192,10 +218,10 @@ struct CarMainView: View {
 
     // MARK: - «главная_то_добавлено»
 
-    private var filledState: some View {
+    private func filledState(pin: CGFloat, visible: Double) -> some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                header(addNew: false)
+                header(addNew: false, pin: pin, visible: visible)
 
                 VStack(spacing: 32) {
                     VStack(spacing: 16) {
@@ -221,10 +247,10 @@ struct CarMainView: View {
 
     // MARK: - «главная_добавить новую» — вторая страница карусели
 
-    private var addNewCarState: some View {
+    private func addNewCarState(pin: CGFloat, visible: Double) -> some View {
         VStack(alignment: .leading, spacing: 32) {
             VStack(spacing: 24) {
-                header(addNew: true)
+                header(addNew: true, pin: pin, visible: visible)
 
                 Button { showAddCar = true } label: {
                     darkCard(symbol: "plus", title: "Добавить авто")
@@ -244,14 +270,20 @@ struct CarMainView: View {
     /// Градиентный слой под контентом: 934pt от верха. Именно `.background`,
     /// иначе слой увеличил бы высоту страницы и контент бы отцентрировался.
     private var gradientLayer: some View {
-        Figma.mainGradient
-            .frame(height: Figma.mainGradientHeight)
-            .frame(maxWidth: .infinity)
+        VStack(spacing: 0) {
+            Figma.mainGradient
+                .frame(height: Figma.mainGradientHeight)
+
+            // Ниже градиента продолжаем его нижним цветом, иначе на длинном
+            // контенте появлялся шов между градиентом и фоном экрана.
+            Figma.mainBackground
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Шапка: название, номер, фото, пейдж-контрол
 
-    private func header(addNew: Bool) -> some View {
+    private func header(addNew: Bool, pin: CGFloat, visible: Double) -> some View {
         VStack(spacing: 12) {
             VStack(spacing: 24) {
                 VStack(spacing: 16) {
@@ -275,7 +307,10 @@ struct CarMainView: View {
                     .frame(height: 190.415)
             }
 
+            // Точки не едут за пальцем: компенсируем сдвиг карусели.
             pageControl(addNew: addNew)
+                .offset(x: pin)
+                .opacity(visible)
         }
     }
 
@@ -668,13 +703,11 @@ private struct CarMainChrome: ViewModifier {
             // «нативная штука добавления фото» (45885:3279) — системный пикер
             .photosPicker(isPresented: $showPhotoPicker, selection: $photoItems, matching: .images)
             .onChange(of: photoItems) { _, items in
+                guard !items.isEmpty else { return }
                 Task {
-                    var loaded: [UIImage] = []
-                    for item in items {
-                        if let data = try? await item.loadTransferable(type: Data.self),
-                           let image = UIImage(data: data) { loaded.append(image) }
-                    }
-                    onPhotosLoaded(loaded)
+                    // Конкурентно и вне главного актора: последовательный цикл
+                    // с UIImage(data:) вешал интерфейс на несколько секунд
+                    onPhotosLoaded(await ImageLoader.load(items))
                 }
             }
     }
