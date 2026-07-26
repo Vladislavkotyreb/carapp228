@@ -1,0 +1,18 @@
+# Xcode
+DerivedData/
+*.xcuserstate
+*.xcuserdata/
+build/
+
+# Secrets
+Config.plist
+
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+
+# Локальные настройки инструментов
+.claude/settings.local.json
