@@ -223,7 +223,7 @@ struct CarMainView: View {
         let visible = 1 - p
         return VStack(alignment: .leading, spacing: 32) {
             VStack(spacing: 24) {
-                header(progress: p, width: width)
+                header(progress: p)
 
                 Button { p > 0.5 ? (showAddCar = true) : (showServiceChoice = true) } label: {
                     darkCard(symbol: "plus", title: "Добавить ТО",
@@ -255,7 +255,7 @@ struct CarMainView: View {
         return
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                header(progress: p, width: width)
+                header(progress: p)
 
                 VStack(spacing: 32) {
                     VStack(spacing: 16) {
@@ -307,7 +307,7 @@ struct CarMainView: View {
 
     // MARK: - Шапка: название, номер, фото, пейдж-контрол
 
-    private func header(progress p: Double, width: CGFloat) -> some View {
+    private func header(progress p: Double) -> some View {
         VStack(spacing: 12) {
             VStack(spacing: 24) {
                 // Заголовок и номер стоят на месте, текст перекрёстно меняется
@@ -320,17 +320,20 @@ struct CarMainView: View {
                     plate.opacity(1 - p)
                 }
 
-                // Единственный едущий элемент: две карточки в ряд,
-                // обрезанные по рамке макета.
-                HStack(spacing: 0) {
-                    carPhoto
-                    carPhoto.opacity(0)
+                // Единственный едущий элемент. Локальный GeometryReader
+                // намеренно: он принимает предложенную ширину контентной
+                // области (370), а не экранную. Раньше здесь стояла
+                // width * 2 от ширины экрана, и вся раскладка вылезала
+                // за края на 16pt с каждой стороны.
+                GeometryReader { g in
+                    HStack(spacing: 0) {
+                        carPhoto.frame(width: g.size.width)
+                        carPhoto.frame(width: g.size.width).opacity(0)
+                    }
+                    .offset(x: -CGFloat(p) * g.size.width)
                 }
-                .frame(width: width * 2)
-                .offset(x: -CGFloat(p) * width)
-                .frame(width: width, alignment: .leading)
-                .clipped()
                 .frame(height: 190.415)
+                .clipped()
             }
 
             pageControl(addNew: p > 0.5)
