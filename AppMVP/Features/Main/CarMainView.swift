@@ -59,9 +59,19 @@ struct CarMainView: View {
     /// Порог, после которого решаем, куда ведёт жест.
     private static let axisLockThreshold: CGFloat = 10
 
+    /// Высота зоны свайпа от верха экрана: отступ страницы 103 + шапка 349
+    /// + гэп 20 + карточка «ТО через» 146.
+    private static let swipeZoneHeight: CGFloat = 620
+
     private func carouselDrag(width: CGFloat) -> some Gesture {
         DragGesture()
             .onChanged { value in
+                // Карусель листается только в верхней зоне — по фото машины и
+                // карточке «ТО через». Ниже жест не наш, поэтому и конфликтов
+                // с вертикальным скроллом и лентой ТО больше нет.
+                // startLocation даёт зону без оверлея, то есть не трогая
+                // нажатия по карточкам и кнопкам внутри неё.
+                guard value.startLocation.y < Self.swipeZoneHeight else { return }
                 let dx = value.translation.width
                 let dy = value.translation.height
 
@@ -75,15 +85,18 @@ struct CarMainView: View {
                 }
                 guard swipeAxis == .horizontal else { return }
 
-                // За краями карусели страницы нет, поэтому тянется короче.
-                // Обнажившуюся область закрывает неподвижный gradientLayer
-                // под всей каруселью.
+                // За краями страницы нет. Любая подложка под каруселью
+                // давала артефакты (раздувала вьюпорт, проступала из-под
+                // контента), поэтому вместо неё резинка сделана совсем
+                // короткой — обнажается лишь пара точек, отдача есть,
+                // а фона за краем не видно.
                 let atEdge = (carPage == 0 && dx > 0) || (carPage == 1 && dx < 0)
-                dragX = atEdge ? dx / 4 : dx
+                dragX = atEdge ? dx / 10 : dx
             }
             .onEnded { value in
                 defer { swipeAxis = nil }
-                guard swipeAxis == .horizontal else { return }
+                guard value.startLocation.y < Self.swipeZoneHeight,
+                      swipeAxis == .horizontal else { return }
 
                 let threshold = width * 0.22
                 var page = carPage
@@ -136,14 +149,7 @@ struct CarMainView: View {
                         .frame(width: width)
                 }
                 .offset(x: containerX)
-                // Фон закрывает область за краем при оттягивании. Именно
-                // .background, а не сосед в ZStack: gradientLayer требует
-                // 1534pt (600 запаса + 934 градиента), и как сосед он раздувал
-                // контейнер до этой высоты — ScrollView получал вьюпорт 1534,
-                // контент в него влезал целиком, и скролл пропадал.
-                // .background на размер родителя не влияет, а поскольку offset
-                // фрейм не меняет, фон остаётся неподвижным.
-                .background(alignment: .top) { gradientLayer }
+
                 // simultaneousGesture, а не gesture: заполненная страница —
                 // вертикальный ScrollView, и он забирал свайп себе, поэтому
                 // над картинкой машины и карточкой ТО карусель не листалась.
