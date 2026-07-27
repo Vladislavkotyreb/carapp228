@@ -239,20 +239,17 @@ struct CarMainView: View {
             VStack(spacing: 24) {
                 header(addNew: false, pin: pin, visible: visible)
 
-                Button { showServiceChoice = true } label: { addServiceCard }
+                Button { showServiceChoice = true } label: { addServiceCard(visible: visible) }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Добавить ТО")
-                    .opacity(visible)
 
                 HStack(spacing: 16) {
-                    statCard(title: "Цена авто", value: "4 269 999 ₽ ")
-                    statCard(title: "Пробег", value: "\(formattedNumber(odometer)) км ")
+                    statCard(title: "Цена авто", value: "4 269 999 ₽ ", visible: visible)
+                    statCard(title: "Пробег", value: "\(formattedNumber(odometer)) км ", visible: visible)
                 }
-                .opacity(visible)
             }
 
-            deleteButton
-                .opacity(visible)
+            deleteButton(visible: visible)
         }
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
@@ -271,19 +268,18 @@ struct CarMainView: View {
 
                 VStack(spacing: 32) {
                     VStack(spacing: 16) {
-                        nextServiceCard
+                        nextServiceCard(visible: visible)
 
                         HStack(spacing: 16) {
-                            statCard(title: "Цена авто", value: "4 269 999 ₽ ")
-                            statCard(title: "Пробег", value: "\(formattedNumber(odometer)) км ")
+                            statCard(title: "Цена авто", value: "4 269 999 ₽ ", visible: visible)
+                            statCard(title: "Пробег", value: "\(formattedNumber(odometer)) км ", visible: visible)
                         }
                     }
 
-                    historyCard
+                    historyCard(visible: visible)
 
-                    deleteButton
+                    deleteButton(visible: visible)
                 }
-                .opacity(visible)
             }
             .padding(.horizontal, 16)
             .padding(.top, 103)
@@ -303,11 +299,10 @@ struct CarMainView: View {
                 header(addNew: true, pin: pin, visible: visible)
 
                 Button { showAddCar = true } label: {
-                    darkCard(symbol: "plus", title: "Добавить авто")
+                    darkCard(symbol: "plus", title: "Добавить авто", visible: visible)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Добавить авто")
-                .opacity(visible)
             }
         }
         .padding(.horizontal, 16)
@@ -429,11 +424,11 @@ struct CarMainView: View {
 
     // MARK: - Карточки
 
-    private var addServiceCard: some View {
-        darkCard(symbol: "plus", title: "Добавить ТО")
+    private func addServiceCard(visible: Double) -> some View {
+        darkCard(symbol: "plus", title: "Добавить ТО", visible: visible)
     }
 
-    private func darkCard(symbol: String, title: String) -> some View {
+    private func darkCard(symbol: String, title: String, visible: Double) -> some View {
         HStack(spacing: 10) {
             Image(systemName: symbol)
                 .font(.system(size: 17, weight: .semibold))
@@ -447,6 +442,8 @@ struct CarMainView: View {
         .padding(24)
         .frame(maxWidth: .infinity)
         .frame(height: 92)
+        // Гаснут только надписи, подложка остаётся целой
+        .opacity(visible)
         // Figma 45867:2944 — системный «Liquid Glass - Regular - Medium».
         // Кромку даёт стекло, а не нарисованная обводка; раньше здесь
         // расходились радиусы заливки (36) и обводки (34).
@@ -461,7 +458,7 @@ struct CarMainView: View {
     }
 
     /// Карточка «ТО через» с прогрессом (Figma 45867:3026).
-    private var nextServiceCard: some View {
+    private func nextServiceCard(visible: Double) -> some View {
         VStack(spacing: 12) {
             VStack(spacing: 4) {
                 Text("ТО через")
@@ -490,6 +487,7 @@ struct CarMainView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity)
+        .opacity(visible)
         // Figma 45867:2944 — системный «Liquid Glass - Regular - Medium».
         // Кромку даёт стекло, а не нарисованная обводка; раньше здесь
         // расходились радиусы заливки (36) и обводки (34).
@@ -503,7 +501,7 @@ struct CarMainView: View {
         .shadow(color: .black.opacity(0.45), radius: 24, y: 8)
     }
 
-    private func statCard(title: String, value: String) -> some View {
+    private func statCard(title: String, value: String, visible: Double) -> some View {
         VStack(spacing: 0) {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
@@ -520,6 +518,7 @@ struct CarMainView: View {
         .frame(height: 47)
         .frame(maxWidth: .infinity)
         .frame(height: 96)
+        .opacity(visible)
         // Figma: 0/0/32 #EBEBEB — мягкая подложка, а не свечение вокруг плитки
         .background(
             RoundedRectangle(cornerRadius: 34)
@@ -530,23 +529,25 @@ struct CarMainView: View {
 
     /// Figma «Frame 2608897» (45893:3541): вся история в одной белой карточке
     /// 370×350, padding 16, radius 34, тень 0/0/32 #EBEBEB.
-    private var historyCard: some View {
+    private func historyCard(visible: Double) -> some View {
         VStack(spacing: 20) {
             VStack(spacing: 16) {
                 VStack(spacing: 24) {
                     Text("История обслуживания")
+                        .opacity(visible)
                         .font(.system(size: 22, weight: .bold))
                         .figmaLineHeight(28, fontSize: 22, weight: .bold)
                         .foregroundStyle(Figma.labelsPrimary)
                         .frame(maxWidth: .infinity)
 
                     HStack(spacing: 16) {
-                        statCard(title: "Всего потрачено", value: totalSpent)
-                        statCard(title: "Количество ТО", value: "\(services.count)")
+                        statCard(title: "Всего потрачено", value: totalSpent, visible: visible)
+                        statCard(title: "Количество ТО", value: "\(services.count)", visible: visible)
                     }
                 }
 
                 historyStrip
+                    .opacity(visible)
             }
 
             // «Добавить ТО» внутри карточки — синяя, на Fills/Tertiary
@@ -614,7 +615,7 @@ struct CarMainView: View {
     private let shadowInset: CGFloat = 16
 
     /// Деструктивное действие — по HIG требует подтверждения.
-    private var deleteButton: some View {
+    private func deleteButton(visible: Double) -> some View {
         Button(role: .destructive) { showDeleteConfirm = true } label: {
             Text("Удалить авто")
                 .font(.system(size: 17))
@@ -623,6 +624,7 @@ struct CarMainView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity)
+                .opacity(visible)
                 .background(Figma.fillsQuaternary, in: Capsule())
         }
         .buttonStyle(.plain)
