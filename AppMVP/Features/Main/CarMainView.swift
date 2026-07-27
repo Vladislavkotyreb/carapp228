@@ -269,10 +269,11 @@ struct CarMainView: View {
         // после выбора открываем форму с уже прикреплённым файлом.
         .animation(Motion.toast, value: showToast)
         .sensoryFeedback(.success, trigger: services.count)
-        // Щелчок при смене машины — тот же отклик, что у пикеров и сегментед-
-        // контролов. Срабатывает на защёлкивании страницы, а не по ходу
-        // пальца: незасчитанный свайп не меняет carPage и молчит.
-        .sensoryFeedback(.selection, trigger: carPage)
+        // Отклик при смене машины: мягкий удар, а не сухой щелчок пикера —
+        // перелистывание карточки ощущается «мясистее». Срабатывает на
+        // защёлкивании страницы, а не по ходу пальца: незасчитанный свайп
+        // не меняет carPage и потому молчит.
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: carPage)
         .confirmationDialog("Удалить авто?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Удалить", role: .destructive) { deleteCar() }
             Button("Отмена", role: .cancel) {}
