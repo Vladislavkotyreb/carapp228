@@ -30,6 +30,7 @@ AppMVP/
   Navigation/             — RootView, AppState
   Resources/              — Assets
 docs/                     — устройство проекта и процессы
+docs/JOURNAL.md           — журнал решений и граблей, читать первым
 ```
 
 ## Флоу
