@@ -78,8 +78,22 @@ struct CarMainView: View {
     /// начинал зависеть `body`, `ScrollView` пересобирался на каждом кадре,
     /// и экран сам уезжал вниз на 151pt — шапка «появлялась» в покое.
     /// Коробку никто не наблюдает, поэтому запись в неё ничего не перерисовывает.
-    private final class ScrollOffset { var value: CGFloat = 0 }
-    @State private var scroll = ScrollOffset()
+    private final class ScrollState {
+        var offset: CGFloat = 0
+        /// Живой UIScrollView под SwiftUI-прокруткой. Нужен, чтобы гасить
+        /// вертикаль на время горизонтального свайпа, не трогая состояние.
+        weak var view: UIScrollView?
+    }
+    @State private var scroll = ScrollState()
+
+    /// Гасим сам распознаватель, а не `isScrollEnabled`: последним управляет
+    /// SwiftUI из окружения и может перезаписать его на любом обновлении, а
+    /// `body` во время свайпа пересобирается каждый кадр из-за `dragX`.
+    /// Профиль отказа при этом правильный: если правку всё-таки затрут,
+    /// вернётся нынешнее поведение, а не мёртвая прокрутка.
+    private func setScrollEnabled(_ enabled: Bool) {
+        scroll.view?.panGestureRecognizer.isEnabled = enabled
+    }
 
 
     /// Межсервисный интервал: ТО через 10 000 км от последнего.
@@ -113,7 +127,7 @@ struct CarMainView: View {
     /// startLocation даёт зону без оверлея, то есть не трогая нажатия по
     /// карточкам и кнопкам внутри неё.
     private func canSwipe(startY: CGFloat) -> Bool {
-        startY < Self.swipeZoneHeight && scroll.value < Self.swipeLockOffset
+        startY < Self.swipeZoneHeight && scroll.offset < Self.swipeLockOffset
     }
 
     private func carouselDrag(width: CGFloat) -> some Gesture {
@@ -125,11 +139,20 @@ struct CarMainView: View {
 
                 // Начало нового жеста: смещение ещё крошечное, а ось осталась
                 // с прошлого раза — значит onEnded не пришёл, сбрасываем.
-                if max(abs(dx), abs(dy)) < 2 { swipeAxis = nil }
+                if max(abs(dx), abs(dy)) < 2 {
+                    swipeAxis = nil
+                    setScrollEnabled(true)
+                }
 
                 if swipeAxis == nil,
                    max(abs(dx), abs(dy)) > Self.axisLockThreshold {
                     swipeAxis = abs(dx) > abs(dy) ? .horizontal : .vertical
+                    // Касание получают оба — наш жест и UIScrollView. Пока
+                    // мы не выключали ему панорамирование, он честно отматывал
+                    // список на вертикальную составляющую пальца: свайп
+                    // сопровождался микроскроллом вверх, а дрейф больше 8pt
+                    // ещё и запирал карусель для следующего свайпа.
+                    setScrollEnabled(swipeAxis != .horizontal)
                 }
                 guard swipeAxis == .horizontal else { return }
 
@@ -142,6 +165,10 @@ struct CarMainView: View {
                 dragX = atEdge ? dx / 10 : dx
             }
             .onEnded { value in
+                // Первым делом и без условий: залипший запрет прокрутки —
+                // ровно та авария, которую журнал уже описывает.
+                setScrollEnabled(true)
+
                 let axis = swipeAxis
                 swipeAxis = nil
 
@@ -366,6 +393,12 @@ struct CarMainView: View {
             // слой не участвует в раскладке и не может раздуть страницу,
             // как когда-то градиент.
             .background { scrollOffsetReader }
+            .background {
+                ScrollViewFinder { found in
+                    scroll.view = found
+                    found.panGestureRecognizer.isEnabled = true
+                }
+            }
             // Шапка лежит внутри прокрутки и приколочена к верху обратным
             // сдвигом. Оверлей не занимает места в раскладке.
             .overlay(alignment: .top) { scrollHeader(progress: p) }
@@ -381,8 +414,8 @@ struct CarMainView: View {
         GeometryReader { g in
             let offset = -g.frame(in: .named(ScrollHeader.space)).minY
             Color.clear
-                .onAppear { scroll.value = offset }
-                .onChange(of: offset) { _, new in scroll.value = new }
+                .onAppear { scroll.offset = offset }
+                .onChange(of: offset) { _, new in scroll.offset = new }
         }
     }
 
@@ -920,6 +953,30 @@ struct CarMainView: View {
             showToast = false
         }
     }
+}
+
+/// Поднимается по иерархии UIKit до ближайшего UIScrollView — того самого,
+/// на котором стоит SwiftUI-прокрутка. Отдельного файла не заводим: правка
+/// `project.pbxproj` вручную дороже двадцати строк.
+private struct ScrollViewFinder: UIViewRepresentable {
+    let onFound: (UIScrollView) -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let probe = UIView()
+        probe.isUserInteractionEnabled = false
+        // В makeUIView вьюха ещё не вставлена в иерархию — ищем на следующем
+        // витке цикла, когда superview уже есть.
+        DispatchQueue.main.async { [weak probe] in
+            var next = probe?.superview
+            while let view = next {
+                if let scroll = view as? UIScrollView { onFound(scroll); return }
+                next = view.superview
+            }
+        }
+        return probe
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
 /// «Increment» из Page Control — плюс одним контуром.

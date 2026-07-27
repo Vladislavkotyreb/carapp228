@@ -11,8 +11,13 @@ import SwiftUI
 final class DeviceTilt: ObservableObject {
     static let shared = DeviceTilt()
 
+    /// Положение покоя: с него начинаем и к нему же приравниваем угол при
+    /// Reduce Motion. Блик отсчитывает качание именно от него, поэтому в покое
+    /// пятна стоят ровно в углах.
+    static let neutralAngle: Double = -.pi / 2
+
     /// Направление «источника света» в системе координат экрана, радианы.
-    @Published private(set) var angle: Double = -.pi / 2
+    @Published private(set) var angle: Double = DeviceTilt.neutralAngle
 
     private let manager = CMMotionManager()
     /// Сколько бликов сейчас на экране. Гироскоп работает только пока есть хоть один.
@@ -45,6 +50,10 @@ final class DeviceTilt: ObservableObject {
     }
 }
 
+/// Насколько далеко пятно блика уходит от своего угла. Вне вьюхи: она
+/// генерик, а генерики не держат статических хранимых свойств.
+private let maxRimSwing: Double = .pi / 6.4   // ±28°
+
 /// Блик на кромке. Отдельная листовая вьюха намеренно: она одна подписана на
 /// `DeviceTilt`, поэтому 30 обновлений в секунду перерисовывают только обводку,
 /// а не экран целиком.
@@ -58,20 +67,35 @@ private struct MotionRimOverlay<S: Shape>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        shape
-            .stroke(gradient, lineWidth: lineWidth)
-            .allowsHitTesting(false)
-            .onAppear { if !reduceMotion { tilt.subscribe() } }
-            .onDisappear { if !reduceMotion { tilt.unsubscribe() } }
+        // GeometryReader нужен ради размера: по нему считается направление на
+        // угол фигуры. В overlay он раскладку не трогает.
+        GeometryReader { geo in
+            shape
+                .stroke(gradient(in: geo.size), lineWidth: lineWidth)
+        }
+        .allowsHitTesting(false)
+        .onAppear { if !reduceMotion { tilt.subscribe() } }
+        .onDisappear { if !reduceMotion { tilt.unsubscribe() } }
     }
 
-    /// При Reduce Motion угол фиксируем — блик остаётся, но не двигается.
-    private var angle: Double { reduceMotion ? -.pi / 2 : tilt.angle }
+    /// Качание вокруг угла вместо кругов по периметру. `sin` даёт гладкое
+    /// ограниченное колебание: за `maxSwing` пятно не уходит и оборот не
+    /// наматывает. При Reduce Motion — ноль, то есть ровно угол.
+    private var swing: Double {
+        reduceMotion ? 0 : sin(tilt.angle - DeviceTilt.neutralAngle) * maxRimSwing
+    }
 
     /// Узкая яркая точка вместо размазанной по четверти окружности: именно
     /// из-за ширины предыдущий блик почти не читался на экране.
-    private var gradient: AngularGradient {
-        AngularGradient(
+    ///
+    /// Пятна привязаны к диагонали «левый верхний — правый нижний». Основное
+    /// стоит на `location 0.25`, то есть в четверти оборота от `angle`, —
+    /// отсюда сдвиг на `-.pi/2`. Второе на `0.75` попадает ровно напротив,
+    /// в правый нижний угол, само собой.
+    private func gradient(in size: CGSize) -> AngularGradient {
+        let corner = atan2(-size.height / 2, -size.width / 2)
+        let angle = corner + swing - .pi / 2
+        return AngularGradient(
             stops: [
                 .init(color: .white.opacity(0), location: 0),
                 .init(color: .white.opacity(intensity * 0.12), location: 0.17),
