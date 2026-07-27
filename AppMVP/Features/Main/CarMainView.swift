@@ -276,6 +276,7 @@ struct CarMainView: View {
                     showAddService = false
                     // Иначе следующее «Добавить ТО» молча перезапишет запись
                     editingRecord = nil
+                    clearServiceForm()
                 },
                 onSave: saveService
             )
@@ -948,6 +949,16 @@ struct CarMainView: View {
         modelContext.delete(car)
     }
 
+    /// Форма одна на все записи, поэтому её надо чистить за собой. Фото до
+    /// этого не чистились вовсе — пока они никуда не сохранялись, это было
+    /// незаметно, а теперь прицепились бы к следующему ТО.
+    private func clearServiceForm() {
+        serviceMileage = ""
+        works = [ServiceWork()]
+        photos = []
+        photoItems = []
+    }
+
     /// Открывает шторку с полями, заполненными из записи.
     private func startEditing(_ record: ServiceRecord) {
         serviceDate = record.date
@@ -955,6 +966,14 @@ struct CarMainView: View {
         // Форма рассчитана минимум на одну группу полей: пустой список её ломает
         let rows = record.works.map { ServiceWork(title: $0.title, amount: "\($0.amount)") }
         works = rows.isEmpty ? [ServiceWork()] : rows
+
+        // Чеки восстанавливаются вне главного актора: их может быть много,
+        // а форма должна открыться сразу.
+        photos = []
+        photoItems = []
+        let receipts = record.receipts
+        Task { photos = await ImageLoader.decode(receipts) }
+
         editingRecord = record
         showAddService = true
     }
@@ -969,16 +988,20 @@ struct CarMainView: View {
             return ServiceWorkItem(title: title, amount: amount)
         }
 
+        let receipts = ImageLoader.encode(photos)
+
         if let record = editingRecord {
             record.date = serviceDate
             record.mileage = mileage
+            record.receipts = receipts
             // Старые работы удаляем явно: подмена массива оставила бы их
             // сиротами в базе — каскад срабатывает только на удаление записи.
             record.works.forEach { modelContext.delete($0) }
             record.works = items
             toastMessage = "ТО изменено!"
         } else {
-            let record = ServiceRecord(date: serviceDate, mileage: mileage)
+            let record = ServiceRecord(date: serviceDate, mileage: mileage,
+                                       receipts: receipts)
             record.works = items
             record.car = car
             modelContext.insert(record)
@@ -990,8 +1013,7 @@ struct CarMainView: View {
         car.odometer = max(car.odometer, mileage)
 
         showAddService = false
-        serviceMileage = ""
-        works = [ServiceWork()]
+        clearServiceForm()
 
         showToast = true
         Task {

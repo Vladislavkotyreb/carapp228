@@ -36,6 +36,27 @@ enum ImageLoader {
         }
     }
 
+    /// Восстановление сохранённых чеков. Через тот же `downsample`: он читает
+    /// уменьшенный кадр, не разворачивая в память полноразмерный битмап, и
+    /// работает вне главного актора.
+    static func decode(_ blobs: [Data]) async -> [UIImage] {
+        var result: [UIImage] = []
+        for blob in blobs {
+            if let image = await downsample(blob) { result.append(image) }
+        }
+        return result
+    }
+
+    /// Кодирование для хранения. Качество 0.8 — чек остаётся читаемым, а вес
+    /// кадра 1200px держится в пределах пары сотен килобайт.
+    ///
+    /// Синхронно и на главном акторе намеренно: сюда приходят уже уменьшенные
+    /// кадры, JPEG на таком размере занимает единицы миллисекунд. Тормозило
+    /// когда-то не кодирование, а разбор полноразмерных снимков с камеры.
+    static func encode(_ images: [UIImage]) -> [Data] {
+        images.compactMap { $0.jpegData(compressionQuality: 0.8) }
+    }
+
     /// Уменьшение через ImageIO: он читает уменьшенный кадр сразу, не разворачивая
     /// в память полноразмерный битмап.
     private static func downsample(_ data: Data) async -> UIImage? {
