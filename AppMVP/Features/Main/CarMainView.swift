@@ -754,8 +754,9 @@ struct CarMainView: View {
         )
     }
 
-    /// Figma «Frame 2608897» (45893:3541): вся история в одной белой карточке
-    /// 370×350, padding 16, radius 34, тень 0/0/32 #EBEBEB.
+    /// История обслуживания. Белая подложка снята: блок лежит прямо на фоне
+    /// страницы, поэтому и внутренний отступ 16 ушёл вместе с ней — иначе
+    /// содержимое было бы на 32pt уже остальной страницы.
     private func historyCard() -> some View {
         VStack(spacing: 20) {
             VStack(spacing: 16) {
@@ -775,7 +776,7 @@ struct CarMainView: View {
                 historyStrip
             }
 
-            // «Добавить ТО» внутри карточки — синяя, на Fills/Tertiary
+            // «Добавить ТО» — синяя, на Fills/Tertiary
             Button { showServiceChoice = true } label: {
                 Text("Добавить ТО")
                     .font(.system(size: 17))
@@ -788,12 +789,6 @@ struct CarMainView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 34)
-                .fill(.white)
-                .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
-        )
     }
 
     /// Лента карточек ТО 230×84; следующая карточка выглядывает справа.
