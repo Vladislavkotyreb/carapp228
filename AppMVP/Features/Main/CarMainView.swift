@@ -48,6 +48,7 @@ private enum PhotoStretch {
 /// «добавление то» (45870:2868) и «сакцесс» (45887:3561).
 struct CarMainView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var metrics: DeviceMetrics
 
     /// Машины из локальной базы. Карусель показывает первую — вёрстка макета
@@ -72,6 +73,9 @@ struct CarMainView: View {
     /// Запись, которую сейчас правят. nil — значит шторка создаёт новую.
     @State private var editingRecord: ServiceRecord?
     @State private var toastMessage = "ТО добавлено!"
+    /// Таймер скрытия. Хранится, чтобы его можно было отменить: без этого
+    /// таймер предыдущего тоста гасил следующий почти сразу после появления.
+    @State private var toastTask: Task<Void, Never>?
 
     @State private var showDeleteConfirm = false
     /// Смещение прокрутки заполненной страницы. Управляет двумя вещами:
@@ -246,7 +250,10 @@ struct CarMainView: View {
                 toast
                     .frame(maxWidth: .infinity)
                     .offset(y: 62)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(toastTransition)
+                    // HIG: временное сообщение не перехватывает работу с
+                    // экраном — под ним всё остаётся нажимаемым.
+                    .allowsHitTesting(false)
             }
 
         }
@@ -304,7 +311,7 @@ struct CarMainView: View {
         .preferredColorScheme(.dark)
         // «нативная штука добавления фото» (45885:3279) — системный пикер,
         // после выбора открываем форму с уже прикреплённым файлом.
-        .animation(Motion.toast, value: showToast)
+        .animation(Motion.toast(reduceMotion: reduceMotion), value: showToast)
         .sensoryFeedback(.success, trigger: services.count)
         // Отклик при смене машины: мягкий удар, а не сухой щелчок пикера —
         // перелистывание карточки ощущается «мясистее». Срабатывает на
@@ -878,6 +885,38 @@ struct CarMainView: View {
         .accessibilityLabel("Удалить авто")
     }
 
+    /// Приход — пружиной сверху с проявлением. Уход — только затухание с
+    /// лёгким уменьшением: сообщение отступает, а не улетает, и не тянет на
+    /// себя взгляд, когда человек уже вернулся к экрану.
+    ///
+    /// При Reduce Motion движения нет вовсе, остаётся перекрёстное проявление —
+    /// этого HIG требует прямо.
+    private var toastTransition: AnyTransition {
+        guard !reduceMotion else { return .opacity }
+
+        return .asymmetric(
+            insertion: .move(edge: .top).combined(with: .opacity),
+            removal: .opacity
+                .combined(with: .scale(scale: 0.96))
+                .animation(Motion.toastOut)
+        )
+    }
+
+    /// Показ тоста одним местом: сообщение, отмена прошлого таймера и
+    /// объявление для VoiceOver, который иначе не узнал бы о нём вовсе.
+    private func presentToast(_ message: String) {
+        toastMessage = message
+        toastTask?.cancel()
+        showToast = true
+        AccessibilityNotification.Announcement(message).post()
+
+        toastTask = Task {
+            try? await Task.sleep(for: Motion.toastDwell)
+            guard !Task.isCancelled else { return }
+            showToast = false
+        }
+    }
+
     /// Figma «сакцесс» → «Notification - Collapsed», аннотация «Хаптик позитивное действие».
     private var toast: some View {
         HStack(spacing: 10) {
@@ -989,6 +1028,7 @@ struct CarMainView: View {
         }
 
         let receipts = ImageLoader.encode(photos)
+        var savedMessage = ""
 
         if let record = editingRecord {
             record.date = serviceDate
@@ -998,14 +1038,14 @@ struct CarMainView: View {
             // сиротами в базе — каскад срабатывает только на удаление записи.
             record.works.forEach { modelContext.delete($0) }
             record.works = items
-            toastMessage = "ТО изменено!"
+            savedMessage = "ТО изменено!"
         } else {
             let record = ServiceRecord(date: serviceDate, mileage: mileage,
                                        receipts: receipts)
             record.works = items
             record.car = car
             modelContext.insert(record)
-            toastMessage = "ТО добавлено!"
+            savedMessage = "ТО добавлено!"
         }
         editingRecord = nil
 
@@ -1015,11 +1055,7 @@ struct CarMainView: View {
         showAddService = false
         clearServiceForm()
 
-        showToast = true
-        Task {
-            try? await Task.sleep(nanoseconds: 2_500_000_000)
-            showToast = false
-        }
+        presentToast(savedMessage)
     }
 }
 

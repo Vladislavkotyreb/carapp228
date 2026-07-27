@@ -9,13 +9,23 @@ enum Motion {
     static let selection = Animation.smooth(duration: 0.28)
     /// Перелистывание страниц (онбординг, карусель авто).
     static let page = Animation.interpolatingSpring(stiffness: 220, damping: 26)
-    /// Всплывающее уведомление.
+    /// Всплывающее уведомление: приходит пружиной сверху.
     static let toast = Animation.spring(response: 0.38, dampingFraction: 0.82)
+    /// Уход быстрее прихода и без движения. HIG: исчезновение временного
+    /// сообщения не должно перетягивать внимание — оно отступает, а не улетает.
+    static let toastOut = Animation.easeOut(duration: 0.22)
+    /// Сколько тост висит. Двух слов хватает прочесть за это время, а системные
+    /// баннеры Apple живут примерно столько же.
+    static let toastDwell: Duration = .milliseconds(2500)
 
     /// При включённом Reduce Motion системные рекомендации требуют заменять
     /// перемещение на простое проявление.
     static func sheet(reduceMotion: Bool) -> Animation {
         reduceMotion ? .easeInOut(duration: 0.2) : sheet
+    }
+
+    static func toast(reduceMotion: Bool) -> Animation {
+        reduceMotion ? .easeInOut(duration: 0.2) : toast
     }
 }
 
