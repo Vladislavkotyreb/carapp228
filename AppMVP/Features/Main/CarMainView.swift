@@ -10,6 +10,22 @@ func formattedNumber(_ value: Int) -> String {
     return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
 }
 
+/// Константы шапки при прокрутке. Вынесены из вью намеренно: замыкание
+/// `visualEffect` помечено `@Sendable` и не может читать статики, изолированные
+/// главным актором.
+private enum ScrollHeader {
+    static let space = "carScroll"
+
+    /// Отрезок появления. В покое шапки нет: на её месте стоит заголовок самой
+    /// страницы, который при прокрутке уходит под неё.
+    static let fadeStart: CGFloat = 8
+    static let fadeEnd: CGFloat = 48
+
+    static func visibility(at offset: CGFloat) -> Double {
+        Double(min(1, max(0, (offset - fadeStart) / (fadeEnd - fadeStart))))
+    }
+}
+
 /// Figma «раздел «машина»»: «главная» (45854:3547), «главная_то_добавлено» (45867:3007),
 /// «добавление то» (45870:2868) и «сакцесс» (45887:3561).
 struct CarMainView: View {
@@ -36,6 +52,16 @@ struct CarMainView: View {
     @State private var carMileage = ""
     @State private var showToast = false
     @State private var showDeleteConfirm = false
+    /// Смещение прокрутки заполненной страницы. Управляет двумя вещами:
+    /// запретом свайпа карусели и появлением шапки.
+    ///
+    /// Живёт в ссылочной коробке, а не в `@State`, и это не украшательство:
+    /// значение пишется на каждом кадре прокрутки. Через `@State` от него
+    /// начинал зависеть `body`, `ScrollView` пересобирался на каждом кадре,
+    /// и экран сам уезжал вниз на 151pt — шапка «появлялась» в покое.
+    /// Коробку никто не наблюдает, поэтому запись в неё ничего не перерисовывает.
+    private final class ScrollOffset { var value: CGFloat = 0 }
+    @State private var scroll = ScrollOffset()
 
 
     /// Межсервисный интервал: ТО через 10 000 км от последнего.
@@ -58,15 +84,24 @@ struct CarMainView: View {
     /// + гэп 20 + карточка «ТО через» 146.
     private static let swipeZoneHeight: CGFloat = 620
 
+    /// Дальше этого смещения список считается прокрученным и карусель
+    /// запирается. Порог небольшой: он должен пропускать дрожание пальца,
+    /// но не реальную прокрутку.
+    private static let swipeLockOffset: CGFloat = 8
+
+    /// Карусель листается только в верхней зоне — по фото машины и карточке
+    /// «ТО через» — и только пока список не прокручен. Ниже и в прокрутке
+    /// жест не наш, поэтому конфликтов с вертикальным скроллом и лентой ТО нет.
+    /// startLocation даёт зону без оверлея, то есть не трогая нажатия по
+    /// карточкам и кнопкам внутри неё.
+    private func canSwipe(startY: CGFloat) -> Bool {
+        startY < Self.swipeZoneHeight && scroll.value < Self.swipeLockOffset
+    }
+
     private func carouselDrag(width: CGFloat) -> some Gesture {
         DragGesture()
             .onChanged { value in
-                // Карусель листается только в верхней зоне — по фото машины и
-                // карточке «ТО через». Ниже жест не наш, поэтому и конфликтов
-                // с вертикальным скроллом и лентой ТО больше нет.
-                // startLocation даёт зону без оверлея, то есть не трогая
-                // нажатия по карточкам и кнопкам внутри неё.
-                guard value.startLocation.y < Self.swipeZoneHeight else { return }
+                guard canSwipe(startY: value.startLocation.y) else { return }
                 let dx = value.translation.width
                 let dy = value.translation.height
 
@@ -89,9 +124,16 @@ struct CarMainView: View {
                 dragX = atEdge ? dx / 10 : dx
             }
             .onEnded { value in
-                defer { swipeAxis = nil }
-                guard value.startLocation.y < Self.swipeZoneHeight,
-                      swipeAxis == .horizontal else { return }
+                let axis = swipeAxis
+                swipeAxis = nil
+
+                // Жест мог начаться разрешённым и стать запрещённым посреди
+                // движения: список успел уехать за порог. Тогда dragX залипнет
+                // и страница останется наполовину погашенной — возвращаем.
+                guard axis == .horizontal, canSwipe(startY: value.startLocation.y) else {
+                    if dragX != 0 { withAnimation(Motion.page) { dragX = 0 } }
+                    return
+                }
 
                 let threshold = width * 0.22
                 var page = carPage
@@ -129,9 +171,9 @@ struct CarMainView: View {
 
                 Group {
                     if services.isEmpty {
-                        emptyState(progress: p, width: width)
+                        emptyState(progress: p)
                     } else {
-                        filledState(progress: p, width: width)
+                        filledState(progress: p)
                     }
                 }
 
@@ -219,7 +261,7 @@ struct CarMainView: View {
 
     // MARK: - «главная» — авто без ТО
 
-    private func emptyState(progress p: Double, width: CGFloat) -> some View {
+    private func emptyState(progress p: Double) -> some View {
         let visible = 1 - p
         return VStack(alignment: .leading, spacing: 32) {
             VStack(spacing: 24) {
@@ -250,10 +292,9 @@ struct CarMainView: View {
 
     // MARK: - «главная_то_добавлено»
 
-    private func filledState(progress p: Double, width: CGFloat) -> some View {
+    private func filledState(progress p: Double) -> some View {
         let visible = 1 - p
-        return
-        ScrollView(showsIndicators: false) {
+        return ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
                 header(progress: p)
 
@@ -276,10 +317,96 @@ struct CarMainView: View {
             .padding(.top, 103)
             .padding(.bottom, 140)
             .background(alignment: .top) { gradientLayer }
+            // Позиция прокрутки для запрета свайпа. Именно `.background` —
+            // слой не участвует в раскладке и не может раздуть страницу,
+            // как когда-то градиент.
+            .background { scrollOffsetReader }
+            // Шапка лежит внутри прокрутки и приколочена к верху обратным
+            // сдвигом. Оверлей не занимает места в раскладке.
+            .overlay(alignment: .top) { scrollHeader(progress: p) }
         }
+        .coordinateSpace(name: ScrollHeader.space)
         // HIG: форму со списком клавиатура должна отпускать скроллом
         .scrollDismissesKeyboard(.interactively)
+    }
 
+    /// iOS 17 не умеет `onScrollGeometryChange`, поэтому позиция снимается
+    /// геометрией контента в именованном пространстве координат ScrollView.
+    private var scrollOffsetReader: some View {
+        GeometryReader { g in
+            let offset = -g.frame(in: .named(ScrollHeader.space)).minY
+            Color.clear
+                .onAppear { scroll.value = offset }
+                .onChange(of: offset) { _, new in scroll.value = new }
+        }
+    }
+
+    // MARK: - Шапка при прокрутке
+
+    /// Figma «header» (46001:6457): чёрная плашка 402×137 поверх статус-бара,
+    /// контент прижат к низу — название модели и уменьшенный номер.
+    private func scrollHeader(progress p: Double) -> some View {
+        VStack(spacing: 6) {
+            // Высота 22 (leading/headline) вместо figmaLineHeight: строка
+            // одна, и Figma центрирует её в line box — то же самое делает
+            // фиксированная высота.
+            //
+            // Трекинга нет намеренно: токен Headline объявляет −0.43, но нода
+            // отрисована без него. Ширина ноды 208 — это ровно ширина строки
+            // с трекингом 0 (208.02), с −0.43 вышло бы 197.
+            Text(Self.carTitle)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .frame(height: 22)
+
+            compactPlate
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity)
+        .frame(height: Figma.scrollHeaderHeight, alignment: .bottom)
+        .background(Figma.graysBlack)
+        // Шапка декоративная: касания должны доходить до контента под ней
+        .allowsHitTesting(false)
+        // Обратный сдвиг держит шапку у верха экрана, а прозрачность растёт
+        // по мере ухода контента под неё. Множитель (1 - p) убирает название
+        // текущей машины на странице «Добавьте новый авто».
+        //
+        // visualEffect — эффект этапа отрисовки: он читает геометрию, не
+        // превращая её в состояние. Через `@State` то же самое пересобирало
+        // ScrollView на каждом кадре прокрутки, и экран уезжал сам.
+        .visualEffect { content, proxy in
+            let offset = -proxy.frame(in: .named(ScrollHeader.space)).minY
+            return content
+                .offset(y: offset)
+                .opacity(ScrollHeader.visibility(at: offset) * (1 - p))
+        }
+    }
+
+    /// Номер в шапке — не тот же `plate`, а уменьшенная копия (46001:6482):
+    /// 11pt против 17, паддинги 6/2 против 12/4, разделитель 0.5pt.
+    private var compactPlate: some View {
+        HStack(spacing: 2) {
+            HStack(spacing: 4) {
+                Text("В")
+                Text("777")
+                Text("ОР")
+            }
+
+            Rectangle()
+                .fill(Figma.labelsVibrantTertiary)
+                .frame(width: 0.5, height: 20.117)
+                .blendMode(.softLight)
+
+            Text("777")
+        }
+        .font(.system(size: 11, weight: .semibold))
+        .tracking(0.06)
+        .foregroundStyle(Figma.graysGray2)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Figma.fillsPrimary, in: RoundedRectangle(cornerRadius: 12))
     }
 
     /// Градиентный слой под контентом: 934pt от верха. Именно `.background`,
@@ -313,7 +440,7 @@ struct CarMainView: View {
                 // Заголовок и номер стоят на месте, текст перекрёстно меняется
                 VStack(spacing: 16) {
                     ZStack {
-                        title("Mercedes-Benz GL-класс").opacity(1 - p)
+                        title(Self.carTitle).opacity(1 - p)
                         title("Добавьте новый авто").opacity(p)
                     }
 
@@ -339,6 +466,10 @@ struct CarMainView: View {
             pageControl(addNew: p > 0.5)
         }
     }
+
+    /// Одно место на весь экран: то же название стоит и в шапке при прокрутке.
+    /// TODO: брать из модели, когда появится справочник марок.
+    private static let carTitle = "Mercedes-Benz GL-класс"
 
     private func title(_ text: String) -> some View {
         Text(text)

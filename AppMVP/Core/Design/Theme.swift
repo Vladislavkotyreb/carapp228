@@ -46,6 +46,7 @@ enum Figma {
     static let accentsRed = Color(red: 1, green: 56 / 255, blue: 60 / 255)           // Accents/Red #FF383C
     static let accentsBlue = Color(red: 0, green: 136 / 255, blue: 1)                // Accents/Blue #0088FF
     static let separatorsVibrant = Color(red: 230 / 255, green: 230 / 255, blue: 230 / 255) // #E6E6E6
+    static let labelsVibrantTertiary = Color(red: 191 / 255, green: 191 / 255, blue: 191 / 255) // #BFBFBF
     static let overlaysDefault = Color.black.opacity(0.2)                           // Overlays/Default
     static let vibrantSecondary = Color(red: 114 / 255, green: 114 / 255, blue: 114 / 255)  // #727272
     static let grabber = Color(red: 204 / 255, green: 204 / 255, blue: 204 / 255)    // #CCCCCC
@@ -55,6 +56,7 @@ enum Figma {
         .opacity(0.08)                                                              // Fills/Quaternary
     static let fillsVibrantSecondary = Color(red: 224 / 255, green: 224 / 255, blue: 224 / 255) // #E0E0E0
     static let graysGray2 = Color(red: 174 / 255, green: 174 / 255, blue: 178 / 255) // Grays/Gray-2 #AEAEB2
+    static let graysBlack = Color.black                                              // Grays/Black
     static let darkCard = Color(red: 26 / 255, green: 26 / 255, blue: 26 / 255)      // #1A1A1A
     static let accentsGreen = Color(red: 52 / 255, green: 199 / 255, blue: 89 / 255) // Accents/Green #34C759
     static let fillsSecondary = Color(red: 120 / 255, green: 120 / 255, blue: 128 / 255)
@@ -96,6 +98,10 @@ enum Figma {
     // Frame макета — iPhone 16 Pro, 402×874
     static let frameWidth: CGFloat = 402
     static let frameHeight: CGFloat = 874
+    /// Высота шапки при прокрутке (нода 46001:6457). В макете шапка нарисована
+    /// от самого верха кадра, то есть вместе со статус-баром — как и остальные
+    /// верхние координаты экрана, отсчитывается от края, а не от safe area.
+    static let scrollHeaderHeight: CGFloat = 137
     /// Нижняя safe area на макетном устройстве. В самом Figma её нет —
     /// макет нарисован до края экрана, поэтому нижние элементы в нём
     /// местами заезжают на home indicator.
