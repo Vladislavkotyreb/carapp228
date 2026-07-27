@@ -41,17 +41,12 @@ struct CarMainView: View {
     /// Межсервисный интервал: ТО через 10 000 км от последнего.
     private let serviceInterval = 10_000
 
-    /// Насколько сдвинуть элемент внутри страницы, чтобы он визуально стоял
-    /// на месте, пока карусель едет. Нужно точкам пейдж-контрола.
-    private func pinX(_ index: Int, _ width: CGFloat, _ containerX: CGFloat) -> CGFloat {
-        -(CGFloat(index) * width + containerX)
-    }
-
-    /// Видимость варианта точек этой страницы: пока страницы разъезжаются,
-    /// «точка» и «плюс» перекрестно гаснут и не наложатся двумя копиями.
-    private func visibility(_ index: Int, _ width: CGFloat, _ containerX: CGFloat) -> Double {
-        guard width > 0 else { return index == 0 ? 1 : 0 }
-        return Double(max(0, 1 - abs(CGFloat(index) * width + containerX) / width))
+    /// Прогресс свайпа: 0 — машина, 1 — «добавить новую».
+    /// Аннотация макета 45895:3569 — «все элементы остаются на месте и просто
+    /// меняются надписи», поэтому страница неподвижна, едет только фото.
+    private func swipeProgress(width: CGFloat) -> Double {
+        guard width > 0 else { return Double(carPage) }
+        return min(1, max(0, Double(CGFloat(carPage) - dragX / width)))
     }
 
     private enum SwipeAxis { case horizontal, vertical }
@@ -127,28 +122,18 @@ struct CarMainView: View {
             // Аннотация макета (45895:3569): «все элементы остаются на месте и просто
             // меняются надписи» — раскладка страниц идентична, разъезжаться нечему.
             GeometryReader { geo in
-                // Экранное смещение контейнера. Страница i стоит в
-                // x = i * width + containerX, отсюда компенсация для точек.
                 let width = geo.size.width
-                let containerX = -CGFloat(carPage) * width + dragX
+                // Прогресс свайпа 0…1. Страница НЕ едет: он управляет только
+                // содержимым — фото, текстами и видимостью блоков.
+                let p = swipeProgress(width: width)
 
-                HStack(spacing: 0) {
-                    Group {
-                        if services.isEmpty {
-                            emptyState(pin: pinX(0, width, containerX),
-                                       visible: visibility(0, width, containerX))
-                        } else {
-                            filledState(pin: pinX(0, width, containerX),
-                                        visible: visibility(0, width, containerX))
-                        }
+                Group {
+                    if services.isEmpty {
+                        emptyState(progress: p, width: width)
+                    } else {
+                        filledState(progress: p, width: width)
                     }
-                    .frame(width: width)
-
-                    addNewCarState(pin: pinX(1, width, containerX),
-                                   visible: visibility(1, width, containerX))
-                        .frame(width: width)
                 }
-                .offset(x: containerX)
 
                 // simultaneousGesture, а не gesture: заполненная страница —
                 // вертикальный ScrollView, и он забирал свайп себе, поэтому
@@ -234,14 +219,18 @@ struct CarMainView: View {
 
     // MARK: - «главная» — авто без ТО
 
-    private func emptyState(pin: CGFloat, visible: Double) -> some View {
-        VStack(alignment: .leading, spacing: 32) {
+    private func emptyState(progress p: Double, width: CGFloat) -> some View {
+        let visible = 1 - p
+        return VStack(alignment: .leading, spacing: 32) {
             VStack(spacing: 24) {
-                header(addNew: false, pin: pin, visible: visible)
+                header(progress: p, width: width)
 
-                Button { showServiceChoice = true } label: { addServiceCard(visible: visible) }
+                Button { p > 0.5 ? (showAddCar = true) : (showServiceChoice = true) } label: {
+                    darkCard(symbol: "plus", title: "Добавить ТО",
+                             altTitle: "Добавить авто", progress: p)
+                }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Добавить ТО")
+                    .accessibilityLabel(p > 0.5 ? "Добавить авто" : "Добавить ТО")
 
                 HStack(spacing: 16) {
                     statCard(title: "Цена авто", value: "4 269 999 ₽ ", visible: visible)
@@ -261,10 +250,12 @@ struct CarMainView: View {
 
     // MARK: - «главная_то_добавлено»
 
-    private func filledState(pin: CGFloat, visible: Double) -> some View {
+    private func filledState(progress p: Double, width: CGFloat) -> some View {
+        let visible = 1 - p
+        return
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                header(addNew: false, pin: pin, visible: visible)
+                header(progress: p, width: width)
 
                 VStack(spacing: 32) {
                     VStack(spacing: 16) {
@@ -289,28 +280,6 @@ struct CarMainView: View {
         // HIG: форму со списком клавиатура должна отпускать скроллом
         .scrollDismissesKeyboard(.interactively)
 
-    }
-
-    // MARK: - «главная_добавить новую» — вторая страница карусели
-
-    private func addNewCarState(pin: CGFloat, visible: Double) -> some View {
-        VStack(alignment: .leading, spacing: 32) {
-            VStack(spacing: 24) {
-                header(addNew: true, pin: pin, visible: visible)
-
-                Button { showAddCar = true } label: {
-                    darkCard(symbol: "plus", title: "Добавить авто", visible: visible)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Добавить авто")
-            }
-        }
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity)
-        .frame(height: 723, alignment: .top)
-        .offset(y: 103)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(alignment: .top) { gradientLayer }
     }
 
     /// Градиентный слой под контентом: 934pt от верха. Именно `.background`,
@@ -338,37 +307,51 @@ struct CarMainView: View {
 
     // MARK: - Шапка: название, номер, фото, пейдж-контрол
 
-    private func header(addNew: Bool, pin: CGFloat, visible: Double) -> some View {
+    private func header(progress p: Double, width: CGFloat) -> some View {
         VStack(spacing: 12) {
             VStack(spacing: 24) {
-                // Гаснет всё, кроме фото машины и точек
+                // Заголовок и номер стоят на месте, текст перекрёстно меняется
                 VStack(spacing: 16) {
-                    Text(addNew ? "Добавьте новый авто" : "Mercedes-Benz GL-класс")
-                        .font(.system(size: 26, weight: .bold))
-                        .figmaLineHeight(31.2, fontSize: 26, weight: .bold)
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
+                    ZStack {
+                        title("Mercedes-Benz GL-класс").opacity(1 - p)
+                        title("Добавьте новый авто").opacity(p)
+                    }
 
-                    // Номер не убирается, а гасится в 0 — элементы остаются на месте
-                    plate
-                        .opacity(addNew ? 0 : 1)
+                    plate.opacity(1 - p)
                 }
-                .opacity(visible)
 
-                Image("CarPhoto")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 295.736, height: 152.196)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 190.415)
+                // Единственный едущий элемент: две карточки в ряд,
+                // обрезанные по рамке макета.
+                HStack(spacing: 0) {
+                    carPhoto
+                    carPhoto.opacity(0)
+                }
+                .frame(width: width * 2)
+                .offset(x: -CGFloat(p) * width)
+                .frame(width: width, alignment: .leading)
+                .clipped()
+                .frame(height: 190.415)
             }
 
-            // Точки не едут за пальцем: компенсируем сдвиг карусели.
-            pageControl(addNew: addNew)
-                .offset(x: pin)
-                .opacity(visible)
+            pageControl(addNew: p > 0.5)
         }
+    }
+
+    private func title(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 26, weight: .bold))
+            .figmaLineHeight(31.2, fontSize: 26, weight: .bold)
+            .foregroundStyle(.white)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+    }
+
+    private var carPhoto: some View {
+        Image("CarPhoto")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 295.736, height: 152.196)
+            .frame(maxWidth: .infinity)
     }
 
     private var plate: some View {
@@ -424,20 +407,22 @@ struct CarMainView: View {
 
     // MARK: - Карточки
 
-    private func addServiceCard(visible: Double) -> some View {
-        darkCard(symbol: "plus", title: "Добавить ТО", visible: visible)
-    }
 
-    private func darkCard(symbol: String, title: String, visible: Double) -> some View {
+    private func darkCard(symbol: String, title: String,
+                          altTitle: String? = nil, progress: Double = 0,
+                          visible: Double = 1) -> some View {
         HStack(spacing: 10) {
             Image(systemName: symbol)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
 
-            Text(title)
-                .font(.system(size: 17, weight: .semibold))
-                .tracking(-0.43)
-                .foregroundStyle(.white)
+            ZStack {
+                Text(title).opacity(altTitle == nil ? 1 : 1 - progress)
+                if let altTitle { Text(altTitle).opacity(progress) }
+            }
+            .font(.system(size: 17, weight: .semibold))
+            .tracking(-0.43)
+            .foregroundStyle(.white)
         }
         .padding(24)
         .frame(maxWidth: .infinity)
