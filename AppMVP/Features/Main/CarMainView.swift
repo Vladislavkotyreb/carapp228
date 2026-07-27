@@ -26,6 +26,24 @@ private enum ScrollHeader {
     }
 }
 
+/// Пружина под фото машины: чем сильнее оттянут список, тем крупнее картинка.
+/// Константы вне вью по той же причине, что и у `ScrollHeader`.
+private enum PhotoStretch {
+    /// Положение блока фото от верха контента в покое: 103 (отступ страницы)
+    /// + заголовок 31.2 + 16 + номер 32 + 24. Из текущего положения вычитается
+    /// это — разница и есть натяжка. Ошибка в константе видна сразу: фото
+    /// окажется увеличенным уже в покое, поэтому она проверяется кадром.
+    static let restingY: CGFloat = 206.2
+
+    /// Прирост масштаба на точку натяжки и потолок роста.
+    static let perPoint: CGFloat = 1 / 500
+    static let maxGain: CGFloat = 0.35
+
+    static func scale(pull: CGFloat) -> CGFloat {
+        1 + min(max(0, pull) * perPoint, maxGain)
+    }
+}
+
 /// Figma «раздел «машина»»: «главная» (45854:3547), «главная_то_добавлено» (45867:3007),
 /// «добавление то» (45870:2868) и «сакцесс» (45887:3561).
 struct CarMainView: View {
@@ -265,22 +283,29 @@ struct CarMainView: View {
         let visible = 1 - p
         return VStack(alignment: .leading, spacing: 32) {
             VStack(spacing: 24) {
-                header(progress: p)
+                header(progress: p, stretches: false)
 
                 Button { p > 0.5 ? (showAddCar = true) : (showServiceChoice = true) } label: {
-                    darkCard(symbol: "plus", title: "Добавить ТО",
-                             altTitle: "Добавить авто", progress: p)
+                    darkCard(title: "Добавить ТО", altTitle: "Добавить авто", progress: p)
                 }
                     .buttonStyle(.plain)
                     .accessibilityLabel(p > 0.5 ? "Добавить авто" : "Добавить ТО")
 
+                // Белые карточки уходят целиком: на странице «добавить новую»
+                // (нода 45949:3265) их нет вовсе, остаётся одна тёмная.
                 HStack(spacing: 16) {
-                    statCard(title: "Цена авто", value: "4 269 999 ₽ ", visible: visible)
-                    statCard(title: "Пробег", value: "\(formattedNumber(odometer)) км ", visible: visible)
+                    statCard(title: "Цена авто", value: "4 269 999 ₽ ")
+                    statCard(title: "Пробег", value: "\(formattedNumber(odometer)) км ")
                 }
+                .opacity(visible)
             }
 
-            deleteButton(visible: visible)
+            deleteButton()
+                .opacity(visible)
+                // Погашенная вьюха в SwiftUI продолжает принимать касания —
+                // без этого на странице добавления авто можно нажать
+                // невидимое «Удалить авто».
+                .allowsHitTesting(visible > 0.5)
         }
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
@@ -296,21 +321,36 @@ struct CarMainView: View {
         let visible = 1 - p
         return ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                header(progress: p)
+                header(progress: p, stretches: true)
 
                 VStack(spacing: 32) {
                     VStack(spacing: 16) {
-                        nextServiceCard(visible: visible)
-
-                        HStack(spacing: 16) {
-                            statCard(title: "Цена авто", value: "4 269 999 ₽ ", visible: visible)
-                            statCard(title: "Пробег", value: "\(formattedNumber(odometer)) км ", visible: visible)
+                        // На второй странице карточка превращается в кнопку
+                        // добавления авто; при p = 0 это просто сводка.
+                        Button { if p > 0.5 { showAddCar = true } } label: {
+                            nextServiceCard(progress: p)
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(p > 0.5 ? "Добавить авто" : "ТО через")
+
+                        // Белые карточки уходят целиком: на странице
+                        // «добавить новую» их нет вовсе.
+                        HStack(spacing: 16) {
+                            statCard(title: "Цена авто", value: "4 269 999 ₽ ")
+                            statCard(title: "Пробег", value: "\(formattedNumber(odometer)) км ")
+                        }
+                        .opacity(visible)
                     }
 
-                    historyCard(visible: visible)
+                    historyCard()
+                        .opacity(visible)
+                        // Погашенная вьюха продолжает принимать касания —
+                        // иначе «Добавить ТО» внутри неё нажимается вслепую.
+                        .allowsHitTesting(visible > 0.5)
 
-                    deleteButton(visible: visible)
+                    deleteButton()
+                        .opacity(visible)
+                        .allowsHitTesting(visible > 0.5)
                 }
             }
             .padding(.horizontal, 16)
@@ -434,7 +474,10 @@ struct CarMainView: View {
 
     // MARK: - Шапка: название, номер, фото, пейдж-контрол
 
-    private func header(progress p: Double) -> some View {
+    /// `stretches` включает пружину. На экране без ТО прокрутки нет, а
+    /// пространства координат `ScrollHeader.space` не существует вовсе —
+    /// `frame(in:)` по неизвестному имени вернул бы мусор.
+    private func header(progress p: Double, stretches: Bool) -> some View {
         VStack(spacing: 12) {
             VStack(spacing: 24) {
                 // Заголовок и номер стоят на месте, текст перекрёстно меняется
@@ -455,12 +498,24 @@ struct CarMainView: View {
                 GeometryReader { g in
                     HStack(spacing: 0) {
                         carPhoto.frame(width: g.size.width)
-                        carPhoto.frame(width: g.size.width).opacity(0)
+                        carPhoto.frame(width: g.size.width)
                     }
                     .offset(x: -CGFloat(p) * g.size.width)
                 }
                 .frame(height: 190.415)
                 .clipped()
+                // Масштаб навешен ПОСЛЕ .clipped(): эффект применяется к уже
+                // обрезанному результату, поэтому вторая копия фото из-под
+                // клипа не вылезает.
+                //
+                // visualEffect, а не @State: геометрия читается на этапе
+                // отрисовки и не пересобирает ScrollView — см. журнал.
+                .visualEffect { content, proxy in
+                    let pull = stretches
+                        ? proxy.frame(in: .named(ScrollHeader.space)).minY - PhotoStretch.restingY
+                        : 0
+                    return content.scaleEffect(PhotoStretch.scale(pull: pull), anchor: .center)
+                }
             }
 
             pageControl(addNew: p > 0.5)
@@ -542,11 +597,13 @@ struct CarMainView: View {
     // MARK: - Карточки
 
 
-    private func darkCard(symbol: String, title: String,
-                          altTitle: String? = nil, progress: Double = 0,
-                          visible: Double = 1) -> some View {
+    /// Содержимое кнопки добавления (нода 45949:3290): плюс, гэп 10, подпись
+    /// 17pt semibold. Плюс один на оба состояния — он одинаков, а перекрёстное
+    /// гашение двух копий давало бы на середине лишнюю яркость.
+    private func addLabel(_ title: String, altTitle: String? = nil,
+                          progress: Double = 0) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: symbol)
+            Image(systemName: "plus")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
 
@@ -558,11 +615,15 @@ struct CarMainView: View {
             .tracking(-0.43)
             .foregroundStyle(.white)
         }
+    }
+
+    /// Кнопка-карточка 92pt. Надписи перекрёстно меняются, подложка целая.
+    private func darkCard(title: String, altTitle: String,
+                          progress: Double) -> some View {
+        addLabel(title, altTitle: altTitle, progress: progress)
         .padding(24)
         .frame(maxWidth: .infinity)
         .frame(height: 92)
-        // Гаснут только надписи, подложка остаётся целой
-        .opacity(visible)
         // Figma 45867:2944 — системный «Liquid Glass - Regular - Medium».
         // Кромку даёт стекло, а не нарисованная обводка; раньше здесь
         // расходились радиусы заливки (36) и обводки (34).
@@ -576,8 +637,32 @@ struct CarMainView: View {
         .shadow(color: .black.opacity(0.45), radius: 24, y: 8)
     }
 
-    /// Карточка «ТО через» с прогрессом (Figma 45867:3026).
-    private func nextServiceCard(visible: Double) -> some View {
+    /// Карточка «ТО через» с прогрессом (Figma 45867:3026). На странице
+    /// «добавить новую» подложка остаётся ровно на месте, а содержимое
+    /// перекрёстно меняется на «+ Добавить авто» (нода 45949:3288) — тот же
+    /// принцип, что и у статичной карусели. Высоту задаёт «ТО через»:
+    /// он заведомо выше подписи, поэтому ZStack ничего не двигает.
+    private func nextServiceCard(progress p: Double) -> some View {
+        ZStack {
+            serviceProgressContent.opacity(1 - p)
+            addLabel("Добавить авто").opacity(p)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity)
+        // Figma 45867:2944 — системный «Liquid Glass - Regular - Medium».
+        // Кромку даёт стекло, а не нарисованная обводка; раньше здесь
+        // расходились радиусы заливки (36) и обводки (34).
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 36), tint: Figma.darkCard) {
+            RoundedRectangle(cornerRadius: 36)
+                .fill(Figma.darkCard)
+                .overlay(RoundedRectangle(cornerRadius: 36)
+                    .stroke(Color(white: 166 / 255), lineWidth: 0.5))
+        }
+        .motionRim(in: RoundedRectangle(cornerRadius: 36))
+        .shadow(color: .black.opacity(0.45), radius: 24, y: 8)
+    }
+
+    private var serviceProgressContent: some View {
         VStack(spacing: 12) {
             VStack(spacing: 4) {
                 Text("ТО через")
@@ -604,23 +689,9 @@ struct CarMainView: View {
             }
             .frame(height: 30)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity)
-        .opacity(visible)
-        // Figma 45867:2944 — системный «Liquid Glass - Regular - Medium».
-        // Кромку даёт стекло, а не нарисованная обводка; раньше здесь
-        // расходились радиусы заливки (36) и обводки (34).
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 36), tint: Figma.darkCard) {
-            RoundedRectangle(cornerRadius: 36)
-                .fill(Figma.darkCard)
-                .overlay(RoundedRectangle(cornerRadius: 36)
-                    .stroke(Color(white: 166 / 255), lineWidth: 0.5))
-        }
-        .motionRim(in: RoundedRectangle(cornerRadius: 36))
-        .shadow(color: .black.opacity(0.45), radius: 24, y: 8)
     }
 
-    private func statCard(title: String, value: String, visible: Double) -> some View {
+    private func statCard(title: String, value: String) -> some View {
         VStack(spacing: 0) {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
@@ -637,7 +708,6 @@ struct CarMainView: View {
         .frame(height: 47)
         .frame(maxWidth: .infinity)
         .frame(height: 96)
-        .opacity(visible)
         // Figma: 0/0/32 #EBEBEB — мягкая подложка, а не свечение вокруг плитки
         .background(
             RoundedRectangle(cornerRadius: 34)
@@ -648,25 +718,23 @@ struct CarMainView: View {
 
     /// Figma «Frame 2608897» (45893:3541): вся история в одной белой карточке
     /// 370×350, padding 16, radius 34, тень 0/0/32 #EBEBEB.
-    private func historyCard(visible: Double) -> some View {
+    private func historyCard() -> some View {
         VStack(spacing: 20) {
             VStack(spacing: 16) {
                 VStack(spacing: 24) {
                     Text("История обслуживания")
-                        .opacity(visible)
                         .font(.system(size: 22, weight: .bold))
                         .figmaLineHeight(28, fontSize: 22, weight: .bold)
                         .foregroundStyle(Figma.labelsPrimary)
                         .frame(maxWidth: .infinity)
 
                     HStack(spacing: 16) {
-                        statCard(title: "Всего потрачено", value: totalSpent, visible: visible)
-                        statCard(title: "Количество ТО", value: "\(services.count)", visible: visible)
+                        statCard(title: "Всего потрачено", value: totalSpent)
+                        statCard(title: "Количество ТО", value: "\(services.count)")
                     }
                 }
 
                 historyStrip
-                    .opacity(visible)
             }
 
             // «Добавить ТО» внутри карточки — синяя, на Fills/Tertiary
@@ -734,7 +802,7 @@ struct CarMainView: View {
     private let shadowInset: CGFloat = 16
 
     /// Деструктивное действие — по HIG требует подтверждения.
-    private func deleteButton(visible: Double) -> some View {
+    private func deleteButton() -> some View {
         Button(role: .destructive) { showDeleteConfirm = true } label: {
             Text("Удалить авто")
                 .font(.system(size: 17))
@@ -743,7 +811,6 @@ struct CarMainView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity)
-                .opacity(visible)
                 .background(Figma.fillsQuaternary, in: Capsule())
         }
         .buttonStyle(.plain)
