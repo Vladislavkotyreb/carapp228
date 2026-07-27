@@ -69,6 +69,10 @@ struct CarMainView: View {
     @State private var carName = ""
     @State private var carMileage = ""
     @State private var showToast = false
+    /// Запись, которую сейчас правят. nil — значит шторка создаёт новую.
+    @State private var editingRecord: ServiceRecord?
+    @State private var toastMessage = "ТО добавлено!"
+
     @State private var showDeleteConfirm = false
     /// Смещение прокрутки заполненной страницы. Управляет двумя вещами:
     /// запретом свайпа карусели и появлением шапки.
@@ -262,12 +266,17 @@ struct CarMainView: View {
         }
         .bottomSheet(isPresented: $showAddService) {
             AddServiceSheet(
+                title: editingRecord == nil ? "Добавление ТО" : "Изменение ТО",
                 date: $serviceDate,
                 mileage: $serviceMileage,
                 works: $works,
                 photoItems: $photoItems,
                 photos: $photos,
-                onClose: { showAddService = false },
+                onClose: {
+                    showAddService = false
+                    // Иначе следующее «Добавить ТО» молча перезапишет запись
+                    editingRecord = nil
+                },
                 onSave: saveService
             )
             .padding(.top, 62)
@@ -823,6 +832,24 @@ struct CarMainView: View {
                             .fill(.white)
                             .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
                     )
+                    // Без этого система поднимает карточку прямоугольником
+                    // и по углам вылезают белые уши вместо скругления 34.
+                    .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 34))
+                    // HIG: действия над конкретным элементом — контекстное
+                    // меню. Подъём карточки и хаптик даёт сама система,
+                    // добавлять sensoryFeedback не нужно.
+                    .contextMenu {
+                        Button { startEditing(record) } label: {
+                            Label("Изменить", systemImage: "pencil")
+                        }
+
+                        Button(role: .destructive) {
+                            // Работы уходят каскадом — правило в модели
+                            modelContext.delete(record)
+                        } label: {
+                            Label("Удалить", systemImage: "trash")
+                        }
+                    }
                 }
             }
             .padding(shadowInset)
@@ -857,7 +884,7 @@ struct CarMainView: View {
                 .font(.system(size: 17))
                 .foregroundStyle(Figma.accentsGreen)
 
-            Text("ТО добавлено!")
+            Text(toastMessage)
                 .font(.system(size: 15, weight: .semibold))
                 .tracking(-0.23)
                 .foregroundStyle(.white)
@@ -921,19 +948,43 @@ struct CarMainView: View {
         modelContext.delete(car)
     }
 
+    /// Открывает шторку с полями, заполненными из записи.
+    private func startEditing(_ record: ServiceRecord) {
+        serviceDate = record.date
+        serviceMileage = "\(record.mileage)"
+        // Форма рассчитана минимум на одну группу полей: пустой список её ломает
+        let rows = record.works.map { ServiceWork(title: $0.title, amount: "\($0.amount)") }
+        works = rows.isEmpty ? [ServiceWork()] : rows
+        editingRecord = record
+        showAddService = true
+    }
+
     private func saveService() {
         guard let car else { return }
         let mileage = Int(serviceMileage.filter(\.isNumber)) ?? odometer
-
-        let record = ServiceRecord(date: serviceDate, mileage: mileage)
-        record.works = works.compactMap { work in
+        let items = works.compactMap { work -> ServiceWorkItem? in
             let amount = Int(work.amount.filter(\.isNumber)) ?? 0
             let title = work.title.trimmingCharacters(in: .whitespaces)
             guard !title.isEmpty || amount > 0 else { return nil }
             return ServiceWorkItem(title: title, amount: amount)
         }
-        record.car = car
-        modelContext.insert(record)
+
+        if let record = editingRecord {
+            record.date = serviceDate
+            record.mileage = mileage
+            // Старые работы удаляем явно: подмена массива оставила бы их
+            // сиротами в базе — каскад срабатывает только на удаление записи.
+            record.works.forEach { modelContext.delete($0) }
+            record.works = items
+            toastMessage = "ТО изменено!"
+        } else {
+            let record = ServiceRecord(date: serviceDate, mileage: mileage)
+            record.works = items
+            record.car = car
+            modelContext.insert(record)
+            toastMessage = "ТО добавлено!"
+        }
+        editingRecord = nil
 
         // Одометр не может быть меньше пробега на последнем ТО
         car.odometer = max(car.odometer, mileage)

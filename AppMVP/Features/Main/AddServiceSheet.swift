@@ -10,6 +10,8 @@ struct ServiceWork: Identifiable {
 /// Figma «добавление то» (node 45870:2868 → Sheet 45882:5275), Detent = Large.
 /// Кнопка «+» добавляет ещё пару полей — состояние «добавление то много сущностей».
 struct AddServiceSheet: View {
+    /// «Добавление ТО» или «Изменение ТО» — шторка одна на оба случая.
+    var title = "Добавление ТО"
     @Binding var date: Date
     @Binding var mileage: String
     @Binding var works: [ServiceWork]
@@ -181,7 +183,7 @@ struct AddServiceSheet: View {
 
     private var toolbar: some View {
         ZStack {
-            Text("Добавление ТО")
+            Text(title)
                 .font(.system(size: 17, weight: .semibold))
                 .tracking(-0.43)
                 .foregroundStyle(Figma.vibrantControlsPrimary)
