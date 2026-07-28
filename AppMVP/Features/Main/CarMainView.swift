@@ -74,6 +74,9 @@ struct CarMainView: View {
     /// слушает поток ТО, — выбор фото открывал чужую модалку и терялся.
     @State private var carPhotoItems: [PhotosPickerItem] = []
     @State private var newCarPhoto: UIImage?
+    /// Раскодированный снимок текущей машины. Держим готовым: `body`
+    /// пересобирается на каждом кадре свайпа, декодировать в нём нельзя.
+    @State private var carImage: UIImage?
     @State private var showToast = false
     /// Запись, которую сейчас правят. nil — значит шторка создаёт новую.
     @State private var editingRecord: ServiceRecord?
@@ -327,6 +330,10 @@ struct CarMainView: View {
         // после выбора открываем форму с уже прикреплённым файлом.
         .animation(Motion.toast(reduceMotion: reduceMotion), value: showToast)
         .sensoryFeedback(.success, trigger: services.count)
+        // Декодирование вне главного актора, как и у чеков ТО
+        .task(id: carPhotoKey) {
+            carImage = await ImageLoader.decode(car?.photo.map { [$0] } ?? []).first
+        }
         // Отклик при смене машины: мягкий удар, а не сухой щелчок пикера —
         // перелистывание карточки ощущается «мясистее». Срабатывает на
         // защёлкивании страницы, а не по ходу пальца: незасчитанный свайп
@@ -577,12 +584,27 @@ struct CarMainView: View {
             .frame(maxWidth: .infinity)
     }
 
+    /// Снимок машины, если он есть, иначе макетный ассет. `scaledToFit`
+    /// намеренно: кадр из галереи бывает любой пропорции, и обрезать его по
+    /// рамке макета — значит отрезать пользователю его же машину.
     private var carPhoto: some View {
-        Image("CarPhoto")
-            .resizable()
-            .scaledToFit()
-            .frame(width: 295.736, height: 152.196)
-            .frame(maxWidth: .infinity)
+        Group {
+            if let carImage {
+                Image(uiImage: carImage).resizable().scaledToFit()
+            } else {
+                Image("CarPhoto").resizable().scaledToFit()
+            }
+        }
+        .frame(width: 295.736, height: 152.196)
+        .frame(maxWidth: .infinity)
+    }
+
+    /// Ключ перезагрузки: меняется и при смене машины, и при замене снимка.
+    /// Сам `Data` в качестве id брать нельзя — сравнивать блоб на каждом
+    /// обновлении вью бессмысленно дорого.
+    private var carPhotoKey: String {
+        guard let car else { return "none" }
+        return "\(car.persistentModelID.hashValue)-\(car.photo?.count ?? 0)"
     }
 
     private var plate: some View {
