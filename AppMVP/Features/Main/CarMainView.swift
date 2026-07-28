@@ -86,6 +86,12 @@ struct CarMainView: View {
     /// Таймер скрытия. Хранится, чтобы его можно было отменить: без этого
     /// таймер предыдущего тоста гасил следующий почти сразу после появления.
     @State private var toastTask: Task<Void, Never>?
+    /// Счётчик добавленных ТО. Именно он, а не `services.count`, запускает
+    /// отклик успеха: число ТО принадлежит текущей машине и меняется при
+    /// свайпе между машинами с разной историей — поверх отклика карусели
+    /// прилетал чужой «успех», и перелистывание ощущалось по-разному.
+    /// Удаление записи по той же причине больше не отдаёт «успех».
+    @State private var addedServiceTick = 0
 
     @State private var showDeleteConfirm = false
     /// Смещение прокрутки заполненной страницы. Управляет двумя вещами:
@@ -354,7 +360,7 @@ struct CarMainView: View {
         // «нативная штука добавления фото» (45885:3279) — системный пикер,
         // после выбора открываем форму с уже прикреплённым файлом.
         .animation(Motion.toast(reduceMotion: reduceMotion), value: showToast)
-        .sensoryFeedback(.success, trigger: services.count)
+        .sensoryFeedback(.success, trigger: addedServiceTick)
         // Декодирование вне главного актора, как и у чеков ТО
         .task(id: carPhotoKey) {
             var decoded: [PersistentIdentifier: UIImage] = [:]
@@ -1201,6 +1207,7 @@ struct CarMainView: View {
             record.works = items
             record.car = car
             modelContext.insert(record)
+            addedServiceTick += 1
             savedMessage = "ТО добавлено!"
         }
         editingRecord = nil
