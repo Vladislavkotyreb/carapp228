@@ -10,6 +10,9 @@ struct AddCarSheet: View {
     @Binding var name: String
     @Binding var mileage: String
     @Binding var photoItems: [PhotosPickerItem]
+    /// Выбранный снимок. Раньше форма его не показывала вовсе — о чём и был
+    /// пункт «нет самого фото».
+    var photo: UIImage?
 
     let onClose: () -> Void
     let onSubmit: () -> Void
@@ -43,8 +46,18 @@ struct AddCarSheet: View {
                                 onSubmit: onSubmit
                             )
 
+                            if let photo {
+                                Image(uiImage: photo)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(height: 160)
+                                    .frame(maxWidth: .infinity)
+                                    .clipShape(RoundedRectangle(cornerRadius: 26))
+                            }
+
                             PhotosPicker(selection: $photoItems, matching: .images) {
-                                FigmaRowLabel(systemImage: "photo", title: "Выбрать фото")
+                                FigmaRowLabel(systemImage: "photo",
+                                              title: photo == nil ? "Выбрать фото" : "Заменить фото")
                             }
                         }
                     }

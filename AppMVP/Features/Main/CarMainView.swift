@@ -16,9 +16,10 @@ func formattedNumber(_ value: Int) -> String {
 private enum ScrollHeader {
     static let space = "carScroll"
 
-    /// Отрезок появления. В покое шапки нет: на её месте стоит заголовок самой
-    /// страницы, который при прокрутке уходит под неё.
-    static let fadeStart: CGFloat = 8
+    /// Отрезок появления. Заголовок страницы стоит на 103 и высотой 31, шапка
+    /// теперь 86 — значит он начинает уходить под неё на смещении 17 и полностью
+    /// скрывается на 48. Раньше шапка проявлялась раньше, чем ей было что закрыть.
+    static let fadeStart: CGFloat = 17
     static let fadeEnd: CGFloat = 48
 
     static func visibility(at offset: CGFloat) -> Double {
@@ -69,6 +70,10 @@ struct CarMainView: View {
     @State private var carPlate = ""
     @State private var carName = ""
     @State private var carMileage = ""
+    /// Свой пикер у формы авто. Раньше она писала в общий photoItems, который
+    /// слушает поток ТО, — выбор фото открывал чужую модалку и терялся.
+    @State private var carPhotoItems: [PhotosPickerItem] = []
+    @State private var newCarPhoto: UIImage?
     @State private var showToast = false
     /// Запись, которую сейчас правят. nil — значит шторка создаёт новую.
     @State private var editingRecord: ServiceRecord?
@@ -103,6 +108,9 @@ struct CarMainView: View {
         scroll.view?.panGestureRecognizer.isEnabled = enabled
     }
 
+
+    /// Тот же поставщик, что и на первом экране добавления.
+    private let lookup: any VehicleLookup = StubVehicleLookup()
 
     /// Межсервисный интервал: ТО через 10 000 км от последнего.
     private let serviceInterval = 10_000
@@ -199,7 +207,10 @@ struct CarMainView: View {
             }
     }
 
-    private var car: Car? { cars.first }
+    /// Последняя добавленная: иначе новая машина попадала бы в базу, а на
+    /// экране оставалась бы старая, и добавление выглядело бы как «не сработало».
+    /// Карусель по нескольким машинам — отдельная задача.
+    private var car: Car? { cars.last }
     private var services: [ServiceRecord] { car?.sortedServices ?? [] }
     private var odometer: Int { car?.odometer ?? 0 }
 
@@ -297,7 +308,10 @@ struct CarMainView: View {
             carPlate: $carPlate,
             carName: $carName,
             carMileage: $carMileage,
-            carPage: $carPage,
+            carPhotoItems: $carPhotoItems,
+            carPhoto: newCarPhoto,
+            onCarPhotoLoaded: { newCarPhoto = $0 },
+            onSubmitCar: addCar,
             onPhotosLoaded: { loaded in
                 photos = loaded
                 if !loaded.isEmpty { applyParsedService() }
@@ -421,6 +435,10 @@ struct CarMainView: View {
             .overlay(alignment: .top) { scrollHeader(progress: p) }
         }
         .coordinateSpace(name: ScrollHeader.space)
+        // На странице «Добавить авто» белые карточки погашены, но место
+        // занимают — прокрутка открывала под тёмной карточкой пустоту.
+        // Флаг считается из carPage и dragX, залипнуть не может.
+        .scrollDisabled(p > 0.5)
         // HIG: форму со списком клавиатура должна отпускать скроллом
         .scrollDismissesKeyboard(.interactively)
     }
@@ -438,28 +456,21 @@ struct CarMainView: View {
 
     // MARK: - Шапка при прокрутке
 
-    /// Figma «header» (46001:6457): чёрная плашка 402×137 поверх статус-бара,
-    /// контент прижат к низу — название модели и уменьшенный номер.
+    /// Figma «header» (46012:1815): чёрная плашка 402×86 поверх статус-бара,
+    /// контент прижат к низу. Только название — номера в новой ноде нет.
     private func scrollHeader(progress p: Double) -> some View {
-        VStack(spacing: 6) {
-            // Высота 22 (leading/headline) вместо figmaLineHeight: строка
-            // одна, и Figma центрирует её в line box — то же самое делает
-            // фиксированная высота.
-            //
-            // Трекинга нет намеренно: токен Headline объявляет −0.43, но нода
-            // отрисована без него. Ширина ноды 208 — это ровно ширина строки
-            // с трекингом 0 (208.02), с −0.43 вышло бы 197.
-            Text(Self.carTitle)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
-                .frame(height: 22)
-
-            compactPlate
-        }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 6)
-        .frame(maxWidth: .infinity)
+        // Высота 20 (leading/subheadline) вместо figmaLineHeight: строка одна,
+        // и Figma центрирует её в line box — то же делает фиксированная высота.
+        // Трекинга нет: токен Subheadline объявляет −0.23, но нода отрисована
+        // без него — ширина чернил на рендере 182pt против 178 с трекингом.
+        // Та же история была у прошлой шапки, проверять замером обязательно.
+        Text(Self.carTitle)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(.white)
+            .multilineTextAlignment(.center)
+            .frame(height: 20)
+            .padding(.bottom, 4)
+            .frame(maxWidth: .infinity)
         .frame(height: Figma.scrollHeaderHeight, alignment: .bottom)
         .background(Figma.graysBlack)
         // Шапка декоративная: касания должны доходить до контента под ней
@@ -479,30 +490,6 @@ struct CarMainView: View {
         }
     }
 
-    /// Номер в шапке — не тот же `plate`, а уменьшенная копия (46001:6482):
-    /// 11pt против 17, паддинги 6/2 против 12/4, разделитель 0.5pt.
-    private var compactPlate: some View {
-        HStack(spacing: 2) {
-            HStack(spacing: 4) {
-                Text("В")
-                Text("777")
-                Text("ОР")
-            }
-
-            Rectangle()
-                .fill(Figma.labelsVibrantTertiary)
-                .frame(width: 0.5, height: 20.117)
-                .blendMode(.softLight)
-
-            Text("777")
-        }
-        .font(.system(size: 11, weight: .semibold))
-        .tracking(0.06)
-        .foregroundStyle(Figma.graysGray2)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(Figma.fillsPrimary, in: RoundedRectangle(cornerRadius: 12))
-    }
 
     /// Градиентный слой под контентом: 934pt от верха. Именно `.background`,
     /// иначе слой увеличил бы высоту страницы и контент бы отцентрировался.
@@ -686,7 +673,7 @@ struct CarMainView: View {
             RoundedRectangle(cornerRadius: 36)
                 .fill(Figma.darkCard)
                 .overlay(RoundedRectangle(cornerRadius: 36)
-                    .stroke(Color(white: 166 / 255), lineWidth: 0.5))
+                    .stroke(Color.white.opacity(0.18), lineWidth: 0.5))
         }
         .motionRim(in: RoundedRectangle(cornerRadius: 36))
         .shadow(color: .black.opacity(0.45), radius: 24, y: 8)
@@ -711,7 +698,7 @@ struct CarMainView: View {
             RoundedRectangle(cornerRadius: 36)
                 .fill(Figma.darkCard)
                 .overlay(RoundedRectangle(cornerRadius: 36)
-                    .stroke(Color(white: 166 / 255), lineWidth: 0.5))
+                    .stroke(Color.white.opacity(0.18), lineWidth: 0.5))
         }
         .motionRim(in: RoundedRectangle(cornerRadius: 36))
         .shadow(color: .black.opacity(0.45), radius: 24, y: 8)
@@ -815,55 +802,71 @@ struct CarMainView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
                 ForEach(services) { record in
-                    VStack(spacing: 6) {
-                        Text(record.date, format: .dateTime.day(.twoDigits)
-                            .month(.twoDigits).year())
-                            .font(.system(size: 15, weight: .semibold))
-                            .tracking(-0.23)
-                            .foregroundStyle(Figma.vibrantControlsPrimary)
+                    serviceCard(record)
+                        // HIG: действия над конкретным элементом — контекстное
+                        // меню. Подъём карточки и хаптик даёт сама система,
+                        // добавлять sensoryFeedback не нужно.
+                        .contextMenu {
+                            Button { startEditing(record) } label: {
+                                Label("Изменить", systemImage: "pencil")
+                            }
 
-                        HStack(spacing: 4) {
-                            Text("\(formattedNumber(record.mileage)) км ")
-                            Circle()
-                                .fill(Figma.vibrantSecondary)
-                                .frame(width: 4, height: 4)
-                            Text("\(formattedNumber(record.amount)) ₽ ")
+                            Button(role: .destructive) {
+                                // Работы уходят каскадом — правило в модели
+                                modelContext.delete(record)
+                            } label: {
+                                Label("Удалить", systemImage: "trash")
+                            }
+                        } preview: {
+                            // Своё превью, а не подъём оригинала: у карточки
+                            // тень нарисована за пределами её формы, а лента
+                            // компенсирует её отрицательным отступом. Границы
+                            // снимка не совпадали с формой, и касание давало
+                            // сжатие-отскок не по той геометрии.
+                            serviceCardBody(record)
+                                .frame(width: 230, height: 84)
+                                .background(RoundedRectangle(cornerRadius: 34).fill(.white))
                         }
-                        .font(.system(size: 13))
-                        .tracking(-0.08)
-                        .foregroundStyle(Figma.vibrantSecondary)
-                    }
-                    .padding(20)
-                    .frame(width: 230, height: 84)
-                    .background(
-                        RoundedRectangle(cornerRadius: 34)
-                            .fill(.white)
-                            .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
-                    )
-                    // Без этого система поднимает карточку прямоугольником
-                    // и по углам вылезают белые уши вместо скругления 34.
-                    .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 34))
-                    // HIG: действия над конкретным элементом — контекстное
-                    // меню. Подъём карточки и хаптик даёт сама система,
-                    // добавлять sensoryFeedback не нужно.
-                    .contextMenu {
-                        Button { startEditing(record) } label: {
-                            Label("Изменить", systemImage: "pencil")
-                        }
-
-                        Button(role: .destructive) {
-                            // Работы уходят каскадом — правило в модели
-                            modelContext.delete(record)
-                        } label: {
-                            Label("Удалить", systemImage: "trash")
-                        }
-                    }
                 }
             }
             .padding(shadowInset)
         }
         .frame(height: 84 + shadowInset * 2)
         .padding(-shadowInset)
+    }
+
+    private func serviceCard(_ record: ServiceRecord) -> some View {
+        serviceCardBody(record)
+            .frame(width: 230, height: 84)
+            .background(
+                RoundedRectangle(cornerRadius: 34)
+                    .fill(.white)
+                    .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
+            )
+    }
+
+    /// Содержимое карточки без подложки: одно и то же рисуют лента и превью
+    /// контекстного меню, поэтому оно вынесено.
+    private func serviceCardBody(_ record: ServiceRecord) -> some View {
+        VStack(spacing: 6) {
+            Text(record.date, format: .dateTime.day(.twoDigits)
+                .month(.twoDigits).year())
+                .font(.system(size: 15, weight: .semibold))
+                .tracking(-0.23)
+                .foregroundStyle(Figma.vibrantControlsPrimary)
+
+            HStack(spacing: 4) {
+                Text("\(formattedNumber(record.mileage)) км ")
+                Circle()
+                    .fill(Figma.vibrantSecondary)
+                    .frame(width: 4, height: 4)
+                Text("\(formattedNumber(record.amount)) ₽ ")
+            }
+            .font(.system(size: 13))
+            .tracking(-0.08)
+            .foregroundStyle(Figma.vibrantSecondary)
+        }
+        .padding(20)
     }
 
     /// Запас вокруг ленты, чтобы тени карточек не обрезались.
@@ -980,6 +983,42 @@ struct CarMainView: View {
         serviceMileage = "\(odometer)"
         works = [ServiceWork(title: "Замена масла", amount: "12000")]
         showAddService = true
+    }
+
+    /// Создаёт машину из формы «Добавить авто». Раньше onSubmit только
+    /// закрывал шторку, и всё введённое выбрасывалось.
+    ///
+    /// Подтверждения «Это ваш автомобиль?» здесь нет намеренно: на первом
+    /// экране оно уточняет найденное по номеру, а тут человек уже нажал
+    /// «Добавить» осознанно, из своей же карусели.
+    private func addCar() {
+        let tab = carTab
+        let plate = carPlate
+        let name = carName.trimmingCharacters(in: .whitespaces)
+        let mileage = Int(carMileage.filter(\.isNumber)) ?? 0
+        let photoData = newCarPhoto.flatMap { ImageLoader.encode([$0]).first }
+
+        Task {
+            let car: Car
+            if tab == 0 {
+                guard PlateFormat.isValid(plate),
+                      let found = try? await lookup.lookup(plate: plate) else { return }
+                car = Car(plate: PlateFormat.format(plate), name: found.name,
+                          vin: found.displayVIN, generation: found.generation,
+                          odometer: found.odometer ?? 0, photo: photoData)
+            } else {
+                guard !name.isEmpty else { return }
+                car = Car(plate: "", name: name, odometer: mileage, photo: photoData)
+            }
+
+            modelContext.insert(car)
+            carPlate = ""
+            carName = ""
+            carMileage = ""
+            newCarPhoto = nil
+            carPhotoItems = []
+            carPage = 0
+        }
     }
 
     private func deleteCar() {
@@ -1112,7 +1151,10 @@ private struct CarMainChrome: ViewModifier {
     @Binding var carPlate: String
     @Binding var carName: String
     @Binding var carMileage: String
-    @Binding var carPage: Int
+    @Binding var carPhotoItems: [PhotosPickerItem]
+    let carPhoto: UIImage?
+    let onCarPhotoLoaded: (UIImage?) -> Void
+    let onSubmitCar: () -> Void
     let onPhotosLoaded: ([UIImage]) -> Void
 
     func body(content: Content) -> some View {
@@ -1125,16 +1167,23 @@ private struct CarMainChrome: ViewModifier {
                     plate: $carPlate,
                     name: $carName,
                     mileage: $carMileage,
-                    photoItems: $photoItems,
+                    photoItems: $carPhotoItems,
+                    photo: carPhoto,
                     onClose: { showAddCar = false },
                     onSubmit: {
                         showAddCar = false
-                        carPage = 0
+                        onSubmitCar()
                     }
                 )
                 .presentationDetents([.large])
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(.clear)
+            }
+            // Свой обработчик у формы авто: общий с потоком ТО открывал
+            // модалку «Добавление ТО» вместо показа фото в форме машины.
+            .onChange(of: carPhotoItems) { _, items in
+                guard let item = items.first else { return }
+                Task { onCarPhotoLoaded(await ImageLoader.load(item)) }
             }
             // «нативная штука добавления фото» (45885:3279) — системный пикер
             .photosPicker(isPresented: $showPhotoPicker, selection: $photoItems, matching: .images)

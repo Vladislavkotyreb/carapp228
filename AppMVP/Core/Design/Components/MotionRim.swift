@@ -116,7 +116,10 @@ private struct MotionRimOverlay<S: Shape>: View {
 
 extension View {
     /// Кромка со бликом, который следует за наклоном устройства.
-    func motionRim<S: Shape>(in shape: S, lineWidth: CGFloat = 1, intensity: Double = 0.7) -> some View {
+    /// Толщина и яркость намеренно скромные: вместе с кромкой системного
+    /// стекла блик складывался в заметную двойную обводку — на разборе багов
+    /// её сравнили с волосяной линией в Гараже и признали толстой.
+    func motionRim<S: Shape>(in shape: S, lineWidth: CGFloat = 0.5, intensity: Double = 0.5) -> some View {
         overlay {
             MotionRimOverlay(shape: shape, lineWidth: lineWidth, intensity: intensity)
         }
