@@ -69,27 +69,42 @@ enum Figma {
     static let mainBackground = Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255) // #F2F2F7
 
     /// Высота градиентного слоя: 52.98% от контейнера 1763.
-    static let mainGradientHeight: CGFloat = 934
+    /// Высота градиентного блока: точка, где фон становится полностью светлым.
+    static let mainGradientHeight: CGFloat = 656
 
     /// Фон главного экрана: чёрный сверху → #F2F2F7 снизу, пинится к верху экрана.
+    ///
+    /// Стопы сняты с отрисовки **экрана** (нода 45867:3007), а не с ноды
+    /// градиента и тем более не по CSS. Причин две: слоёв там теперь два и
+    /// экспорт не отдаёт ни прозрачности, ни режима наложения; и сам инстанс
+    /// градиента на экране другого размера, чем компонент, — пересчёт через
+    /// ноду промахнулся на 200pt. Экран — единственный надёжный источник.
+    ///
+    /// Переход стал заметно короче прежнего: чёрное держится до y = 367,
+    /// полностью светлым фон становится к y = 656.
+    ///
+    /// Точного совпадения тут не будет: SwiftUI смешивает цвета не в том же
+    /// пространстве, что Figma, и тёмная часть тянется чуть дольше. Попытка
+    /// скомпенсировать сдвигом стопов на 12pt сделала хуже (22.1 против 21.3),
+    /// поэтому стопы стоят там, где они на рендере.
     static let mainGradient = LinearGradient(
         stops: [
-            .init(color: Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255), location: 0.13544),
-            .init(color: Color(red: 241 / 255, green: 241 / 255, blue: 245 / 255), location: 0.18833),
-            .init(color: Color(red: 236 / 255, green: 236 / 255, blue: 241 / 255), location: 0.22785),
-            .init(color: Color(red: 229 / 255, green: 229 / 255, blue: 234 / 255), location: 0.25677),
-            .init(color: Color(red: 220 / 255, green: 220 / 255, blue: 224 / 255), location: 0.27784),
-            .init(color: Color(red: 208 / 255, green: 208 / 255, blue: 212 / 255), location: 0.29385),
-            .init(color: Color(red: 194 / 255, green: 194 / 255, blue: 198 / 255), location: 0.30754),
-            .init(color: Color(red: 178 / 255, green: 178 / 255, blue: 182 / 255), location: 0.32168),
-            .init(color: Color(red: 160 / 255, green: 160 / 255, blue: 164 / 255), location: 0.33905),
-            .init(color: Color(red: 141 / 255, green: 141 / 255, blue: 144 / 255), location: 0.36239),
-            .init(color: Color(red: 120 / 255, green: 120 / 255, blue: 123 / 255), location: 0.39448),
-            .init(color: Color(red: 98 / 255, green: 98 / 255, blue: 100 / 255), location: 0.43808),
-            .init(color: Color(red: 75 / 255, green: 75 / 255, blue: 76 / 255), location: 0.49595),
-            .init(color: Color(red: 50 / 255, green: 50 / 255, blue: 52 / 255), location: 0.57086),
-            .init(color: Color(red: 26 / 255, green: 26 / 255, blue: 26 / 255), location: 0.66557),
-            .init(color: .black, location: 0.78285)
+            .init(color: Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255), location: 0.0008),
+            .init(color: Color(red: 241 / 255, green: 241 / 255, blue: 245 / 255), location: 0.0168),
+            .init(color: Color(red: 236 / 255, green: 236 / 255, blue: 241 / 255), location: 0.0259),
+            .init(color: Color(red: 229 / 255, green: 229 / 255, blue: 234 / 255), location: 0.0616),
+            .init(color: Color(red: 220 / 255, green: 220 / 255, blue: 224 / 255), location: 0.0805),
+            .init(color: Color(red: 208 / 255, green: 208 / 255, blue: 212 / 255), location: 0.1128),
+            .init(color: Color(red: 194 / 255, green: 194 / 255, blue: 198 / 255), location: 0.1936),
+            .init(color: Color(red: 178 / 255, green: 178 / 255, blue: 182 / 255), location: 0.2175),
+            .init(color: Color(red: 160 / 255, green: 160 / 255, blue: 164 / 255), location: 0.2293),
+            .init(color: Color(red: 141 / 255, green: 141 / 255, blue: 144 / 255), location: 0.2402),
+            .init(color: Color(red: 120 / 255, green: 120 / 255, blue: 123 / 255), location: 0.2584),
+            .init(color: Color(red: 98 / 255, green: 98 / 255, blue: 100 / 255), location: 0.284),
+            .init(color: Color(red: 75 / 255, green: 75 / 255, blue: 76 / 255), location: 0.3163),
+            .init(color: Color(red: 50 / 255, green: 50 / 255, blue: 52 / 255), location: 0.3567),
+            .init(color: Color(red: 26 / 255, green: 26 / 255, blue: 26 / 255), location: 0.3973),
+            .init(color: .black, location: 0.4405)
         ],
         startPoint: .bottom,
         endPoint: .top
