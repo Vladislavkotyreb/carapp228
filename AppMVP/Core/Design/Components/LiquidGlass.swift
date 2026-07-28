@@ -31,14 +31,29 @@ enum Motion {
 
 /// Настоящий Liquid Glass на iOS 26 и вид из макета на более ранних версиях.
 /// Таргет проекта — iOS 17, поэтому API закрыт проверкой доступности.
+/// Вариант стекла. Отдельный тип, а не `Glass`: тот доступен только с iOS 26,
+/// и его нельзя упомянуть в сигнатуре, которая компилируется под 17.
+enum GlassKind {
+    /// Как в макете — «Liquid Glass - Regular».
+    case regular
+    /// Тоньше и прозрачнее. Замер показал, что кромку он не утоньшает —
+    /// просто равномерно осветляет всю поверхность.
+    case clear
+    /// Совсем без системного стекла: рисуем сами через `fallback`. Только так
+    /// кромка становится волосяной — у `glassEffect` её толщину наружу не
+    /// отдают, а именно она читалась как толстая рамка.
+    case painted
+}
+
 struct LiquidGlassBackground<S: Shape, Fallback: View>: ViewModifier {
     let shape: S
     var tint: Color?
+    var kind: GlassKind = .regular
     var isInteractive: Bool = false
     @ViewBuilder let fallback: () -> Fallback
 
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, *), kind != .painted {
             content.glassEffect(glass, in: shape)
         } else {
             content.background { fallback() }
@@ -47,7 +62,7 @@ struct LiquidGlassBackground<S: Shape, Fallback: View>: ViewModifier {
 
     @available(iOS 26.0, *)
     private var glass: Glass {
-        var value = Glass.regular
+        var value = kind == .clear ? Glass.clear : Glass.regular
         if let tint { value = value.tint(tint) }
         if isInteractive { value = value.interactive() }
         return value
@@ -60,10 +75,11 @@ extension View {
     func liquidGlass<S: Shape, Fallback: View>(
         in shape: S,
         tint: Color? = nil,
+        kind: GlassKind = .regular,
         isInteractive: Bool = false,
         @ViewBuilder fallback: @escaping () -> Fallback
     ) -> some View {
-        modifier(LiquidGlassBackground(shape: shape, tint: tint,
+        modifier(LiquidGlassBackground(shape: shape, tint: tint, kind: kind,
                                        isInteractive: isInteractive, fallback: fallback))
     }
 }
