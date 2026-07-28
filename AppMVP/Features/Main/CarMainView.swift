@@ -76,7 +76,9 @@ struct CarMainView: View {
     @State private var newCarPhoto: UIImage?
     /// Раскодированный снимок текущей машины. Держим готовым: `body`
     /// пересобирается на каждом кадре свайпа, декодировать в нём нельзя.
-    @State private var carImage: UIImage?
+    /// Раскодированные снимки машин. Держим готовыми: `body` пересобирается
+    /// на каждом кадре свайпа, декодировать в нём нельзя.
+    @State private var carImages: [PersistentIdentifier: UIImage] = [:]
     @State private var showToast = false
     /// Запись, которую сейчас правят. nil — значит шторка создаёт новую.
     @State private var editingRecord: ServiceRecord?
@@ -118,13 +120,41 @@ struct CarMainView: View {
     /// Межсервисный интервал: ТО через 10 000 км от последнего.
     private let serviceInterval = 10_000
 
-    /// Прогресс свайпа: 0 — машина, 1 — «добавить новую».
+    /// Индекс страницы добавления: она всегда последняя, после всех машин.
+    private var addPageIndex: Int { cars.count }
+
+    /// Непрерывное положение карусели, 0…addPageIndex. Ширина взята
+    /// постоянной: карусель равна ширине экрана, а точность здесь нужна лишь
+    /// чтобы поймать середину свайпа. Реальная ширина остаётся у порогов жеста.
+    private var position: Double {
+        min(Double(addPageIndex),
+            max(0, Double(CGFloat(carPage) - dragX / Figma.frameWidth)))
+    }
+
+    /// Вклад страницы в то, что сейчас на экране: 1 — мы ровно на ней,
+    /// 0 — дальше соседней. Этим перекрёстно гаснут названия и номера.
+    private func weight(of page: Int) -> Double {
+        max(0, 1 - abs(position - Double(page)))
+    }
+
+    private func index(of car: Car) -> Int {
+        cars.firstIndex(where: { $0.persistentModelID == car.persistentModelID }) ?? 0
+    }
+
+    /// Ближайшая страница — по ней подсвечена точка и ей принадлежит тело.
+    private var nearestPage: Int { Int(position.rounded()) }
+
+    /// Насколько мы на странице добавления. Всё, что было завязано на прежний
+    /// прогресс 0…1, продолжает работать без правок: он по-прежнему 0 на
+    /// машинах и 1 на последней странице.
+    private var addProgress: Double {
+        min(1, max(0, position - Double(addPageIndex - 1)))
+    }
+
+    /// Машина, которой принадлежит тело экрана. Меняется ровно на середине
+    /// свайпа — там, где обе надписи наполовину прозрачны и подмена не видна.
     /// Аннотация макета 45895:3569 — «все элементы остаются на месте и просто
     /// меняются надписи», поэтому страница неподвижна, едет только фото.
-    private func swipeProgress(width: CGFloat) -> Double {
-        guard width > 0 else { return Double(carPage) }
-        return min(1, max(0, Double(CGFloat(carPage) - dragX / width)))
-    }
 
     private enum SwipeAxis { case horizontal, vertical }
 
@@ -180,7 +210,8 @@ struct CarMainView: View {
                 // контента), поэтому вместо неё резинка сделана совсем
                 // короткой — обнажается лишь пара точек, отдача есть,
                 // а фона за краем не видно.
-                let atEdge = (carPage == 0 && dx > 0) || (carPage == 1 && dx < 0)
+                let atEdge = (carPage == 0 && dx > 0)
+                    || (carPage == addPageIndex && dx < 0)
                 dragX = atEdge ? dx / 10 : dx
             }
             .onEnded { value in
@@ -201,7 +232,7 @@ struct CarMainView: View {
 
                 let threshold = width * 0.22
                 var page = carPage
-                if value.translation.width < -threshold { page = min(1, carPage + 1) }
+                if value.translation.width < -threshold { page = min(addPageIndex, carPage + 1) }
                 if value.translation.width > threshold { page = max(0, carPage - 1) }
                 withAnimation(Motion.page) {
                     carPage = page
@@ -210,10 +241,10 @@ struct CarMainView: View {
             }
     }
 
-    /// Последняя добавленная: иначе новая машина попадала бы в базу, а на
-    /// экране оставалась бы старая, и добавление выглядело бы как «не сработало».
-    /// Карусель по нескольким машинам — отдельная задача.
-    private var car: Car? { cars.last }
+    private var car: Car? {
+        let index = min(max(0, nearestPage), cars.count - 1)
+        return cars.indices.contains(index) ? cars[index] : nil
+    }
     private var services: [ServiceRecord] { car?.sortedServices ?? [] }
     private var odometer: Int { car?.odometer ?? 0 }
 
@@ -232,9 +263,9 @@ struct CarMainView: View {
             // меняются надписи» — раскладка страниц идентична, разъезжаться нечему.
             GeometryReader { geo in
                 let width = geo.size.width
-                // Прогресс свайпа 0…1. Страница НЕ едет: он управляет только
-                // содержимым — фото, текстами и видимостью блоков.
-                let p = swipeProgress(width: width)
+                // Прогресс страницы добавления, 0…1. Страница НЕ едет: он
+                // управляет только содержимым — текстами и видимостью блоков.
+                let p = addProgress
 
                 Group {
                     if services.isEmpty {
@@ -332,7 +363,14 @@ struct CarMainView: View {
         .sensoryFeedback(.success, trigger: services.count)
         // Декодирование вне главного актора, как и у чеков ТО
         .task(id: carPhotoKey) {
-            carImage = await ImageLoader.decode(car?.photo.map { [$0] } ?? []).first
+            var decoded: [PersistentIdentifier: UIImage] = [:]
+            for car in cars {
+                guard let data = car.photo else { continue }
+                if let image = await ImageLoader.decode([data]).first {
+                    decoded[car.persistentModelID] = image
+                }
+            }
+            carImages = decoded
         }
         // Отклик при смене машины: мягкий удар, а не сухой щелчок пикера —
         // перелистывание карточки ощущается «мясистее». Срабатывает на
@@ -471,7 +509,7 @@ struct CarMainView: View {
         // Трекинга нет: токен Subheadline объявляет −0.23, но нода отрисована
         // без него — ширина чернил на рендере 182pt против 178 с трекингом.
         // Та же история была у прошлой шапки, проверять замером обязательно.
-        Text(Self.carTitle)
+        Text(car?.name ?? "")
             .font(.system(size: 15, weight: .semibold))
             .foregroundStyle(.white)
             .multilineTextAlignment(.center)
@@ -532,11 +570,18 @@ struct CarMainView: View {
                 // Заголовок и номер стоят на месте, текст перекрёстно меняется
                 VStack(spacing: 16) {
                     ZStack {
-                        title(Self.carTitle).opacity(1 - p)
-                        title("Добавьте новый авто").opacity(p)
+                        ForEach(cars) { car in
+                            title(car.name).opacity(weight(of: index(of: car)))
+                        }
+                        title("Добавьте новый авто").opacity(weight(of: addPageIndex))
                     }
 
-                    plate.opacity(1 - p)
+                    ZStack {
+                        ForEach(cars) { car in
+                            plate(car.plate).opacity(weight(of: index(of: car)))
+                        }
+                    }
+                    .frame(height: 32)
                 }
 
                 // Единственный едущий элемент. Локальный GeometryReader
@@ -546,10 +591,13 @@ struct CarMainView: View {
                 // за края на 16pt с каждой стороны.
                 GeometryReader { g in
                     HStack(spacing: 0) {
-                        carPhoto.frame(width: g.size.width)
-                        carPhoto.frame(width: g.size.width)
+                        ForEach(cars) { car in
+                            carPhoto(for: car).frame(width: g.size.width)
+                        }
+                        // Страница добавления: у неё своей машины нет
+                        carPhoto(for: nil).frame(width: g.size.width)
                     }
-                    .offset(x: -CGFloat(p) * g.size.width)
+                    .offset(x: -CGFloat(position) * g.size.width)
                 }
                 .frame(height: 190.415)
                 .clipped()
@@ -567,7 +615,7 @@ struct CarMainView: View {
                 }
             }
 
-            pageControl(addNew: p > 0.5)
+            pageControl
         }
     }
 
@@ -587,10 +635,10 @@ struct CarMainView: View {
     /// Снимок машины, если он есть, иначе макетный ассет. `scaledToFit`
     /// намеренно: кадр из галереи бывает любой пропорции, и обрезать его по
     /// рамке макета — значит отрезать пользователю его же машину.
-    private var carPhoto: some View {
+    private func carPhoto(for car: Car?) -> some View {
         Group {
-            if let carImage {
-                Image(uiImage: carImage).resizable().scaledToFit()
+            if let car, let image = carImages[car.persistentModelID] {
+                Image(uiImage: image).resizable().scaledToFit()
             } else {
                 Image("CarPhoto").resizable().scaledToFit()
             }
@@ -603,42 +651,50 @@ struct CarMainView: View {
     /// Сам `Data` в качестве id брать нельзя — сравнивать блоб на каждом
     /// обновлении вью бессмысленно дорого.
     private var carPhotoKey: String {
-        guard let car else { return "none" }
-        return "\(car.persistentModelID.hashValue)-\(car.photo?.count ?? 0)"
+        cars.map { "\($0.persistentModelID.hashValue)-\($0.photo?.count ?? 0)" }
+            .joined(separator: "|")
     }
 
-    private var plate: some View {
-        HStack(spacing: 4) {
+    /// Номер разбирается на группы «В 777 ОР | 777». У машины, добавленной
+    /// по названию, номера нет вовсе — тогда плашки просто не будет.
+    @ViewBuilder
+    private func plate(_ raw: String) -> some View {
+        let parts = raw.split(separator: " ").map(String.init)
+        if parts.count == 4 {
             HStack(spacing: 4) {
-                Text("В")
-                Text("777")
-                Text("ОР")
+                HStack(spacing: 4) {
+                    Text(parts[0])
+                    Text(parts[1])
+                    Text(parts[2])
+                }
+
+                Rectangle()
+                    .fill(Figma.separatorsVibrant)
+                    .frame(width: 1, height: 20.117)
+                    .blendMode(.softLight)
+
+                Text(parts[3])
             }
-
-            Rectangle()
-                .fill(Figma.separatorsVibrant)
-                .frame(width: 1, height: 20.117)
-                .blendMode(.softLight)
-
-            Text("777")
+            .font(.system(size: 17, weight: .semibold))
+            .tracking(-0.43)
+            .foregroundStyle(Figma.graysGray2)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .frame(height: 32)
+            .background(Figma.fillsPrimary, in: RoundedRectangle(cornerRadius: 12))
         }
-        .font(.system(size: 17, weight: .semibold))
-        .tracking(-0.43)
-        .foregroundStyle(Figma.graysGray2)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
-        .frame(height: 32)
-        .background(Figma.fillsPrimary, in: RoundedRectangle(cornerRadius: 12))
     }
 
-    private func pageControl(addNew: Bool) -> some View {
+    private var pageControl: some View {
         HStack(spacing: 8) {
             // Точка не исчезает, а гаснет до Fills/Primary
-            Circle()
-                .fill(addNew ? Figma.fillsPrimary : .white)
-                .frame(width: 8, height: 8)
+            ForEach(cars) { car in
+                Circle()
+                    .fill(nearestPage == index(of: car) ? .white : Figma.fillsPrimary)
+                    .frame(width: 8, height: 8)
+            }
 
-            incrementGlyph(active: addNew)
+            incrementGlyph(active: nearestPage == addPageIndex)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -1033,18 +1089,23 @@ struct CarMainView: View {
                 car = Car(plate: "", name: name, odometer: mileage, photo: photoData)
             }
 
+            // Индекс берём до вставки: это и есть номер страницы новой машины
+            let newPage = cars.count
             modelContext.insert(car)
+            carPage = newPage
             carPlate = ""
             carName = ""
             carMileage = ""
             newCarPhoto = nil
             carPhotoItems = []
-            carPage = 0
         }
     }
 
     private func deleteCar() {
         guard let car else { return }
+        // После удаления машин станет на одну меньше — страницу подтягиваем,
+        // иначе карусель окажется за последней страницей.
+        carPage = max(0, min(carPage, cars.count - 2))
         // ТО и чеки уходят каскадом — правило задано в модели Car.services
         modelContext.delete(car)
     }
