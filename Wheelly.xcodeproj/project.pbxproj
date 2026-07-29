@@ -32,6 +32,9 @@
 		AA00000100000000000000B1 /* VehicleLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000100000000000000B1 /* VehicleLookup.swift */; };
 		AA0000010000000000000026 /* PlateFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000026 /* PlateFormat.swift */; };
 		AA00000100000000000000A1 /* ServiceRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000100000000000000A1 /* ServiceRecord.swift */; };
+		9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */ = {isa = PBXBuildFile; productRef = 9A0000010000000000000002 /* YandexMapsMobileFull */; };
+		9B0000010000000000000001 /* MapKitKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000001 /* MapKitKey.swift */; };
+		9B0000010000000000000002 /* MapScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000002 /* MapScreen.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -62,6 +65,8 @@
 		BB0000010000000000000026 /* PlateFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateFormat.swift; sourceTree = "<group>"; };
 		BB0000010000000000000099 /* Wheelly.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wheelly.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB00000100000000000000A1 /* ServiceRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceRecord.swift; sourceTree = "<group>"; };
+		9C0000010000000000000001 /* MapKitKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitKey.swift; sourceTree = "<group>"; };
+		9C0000010000000000000002 /* MapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapScreen.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +74,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -117,6 +123,7 @@
 		EE0000010000000000000005 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				9D0000010000000000000001 /* Map */,
 				EE000001000000000000000D /* Onboarding */,
 				EE0000010000000000000011 /* AddCar */,
 				EE0000010000000000000012 /* Main */,
@@ -154,6 +161,7 @@
 			isa = PBXGroup;
 			children = (
 				BB00000100000000000000B1 /* VehicleLookup.swift */,
+				9C0000010000000000000001 /* MapKitKey.swift */,
 				BB00000100000000000000B2 /* ImageLoader.swift */,
 			);
 			path = Services;
@@ -220,6 +228,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		9D0000010000000000000001 /* Map */ = {
+			isa = PBXGroup;
+			children = (
+				9C0000010000000000000002 /* MapScreen.swift */,
+			);
+			path = Map;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -236,6 +252,9 @@
 			dependencies = (
 			);
 			name = Wheelly;
+			packageProductDependencies = (
+				9A0000010000000000000002 /* YandexMapsMobileFull */,
+			);
 			productName = AppMVP;
 			productReference = BB0000010000000000000099 /* Wheelly.app */;
 			productType = "com.apple.product-type.application";
@@ -265,6 +284,9 @@
 				Base,
 			);
 			mainGroup = EE0000010000000000000001;
+			packageReferences = (
+				9A0000010000000000000001 /* XCRemoteSwiftPackageReference "mapkit-ios" */,
+			);
 			productRefGroup = EE0000010000000000000099 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -314,6 +336,8 @@
 				AA00000100000000000000B1 /* VehicleLookup.swift in Sources */,
 				AA00000100000000000000B2 /* ImageLoader.swift in Sources */,
 				AA00000100000000000000B3 /* MotionRim.swift in Sources */,
+				9B0000010000000000000002 /* MapScreen.swift in Sources */,
+				9B0000010000000000000001 /* MapKitKey.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -431,6 +455,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вашу позицию на карте";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -457,6 +482,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вашу позицию на карте";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -495,6 +521,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9A0000010000000000000001 /* XCRemoteSwiftPackageReference "mapkit-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/yandex/mapkit-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		9A0000010000000000000002 /* YandexMapsMobileFull */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A0000010000000000000001 /* XCRemoteSwiftPackageReference "mapkit-ios" */;
+			productName = YandexMapsMobileFull;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = GG0000010000000000000001 /* Project object */;
 }

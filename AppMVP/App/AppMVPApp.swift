@@ -1,8 +1,19 @@
 import SwiftData
 import SwiftUI
+import YandexMapsMobile
 
 @main
 struct AppMVPApp: App {
+    init() {
+        // Ключ ставится один раз до первого обращения к MapKit, иначе
+        // sharedInstance() бросает исключение. Пустой ключ не передаём:
+        // раздел «Карта» в этом случае показывает объяснение.
+        if MapKitKey.isConfigured {
+            YMKMapKit.setApiKey(MapKitKey.value)
+            YMKMapKit.setLocale("ru_RU")
+        }
+    }
+
     @StateObject private var appState = AppState()
     @StateObject private var metrics = DeviceMetrics()
 
