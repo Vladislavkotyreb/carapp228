@@ -62,6 +62,9 @@ enum Figma {
     static let orbGreen = Color(red: 88 / 255, green: 240 / 255, blue: 168 / 255)
     static let orbTeal = Color(red: 64 / 255, green: 210 / 255, blue: 224 / 255)
     static let orbViolet = Color(red: 132 / 255, green: 116 / 255, blue: 232 / 255)
+    /// Тон облака частиц. У автора демо фиолетовый на белом фоне; у нас фон
+    /// чёрный, поэтому взят светлее — исходный на нём проваливается.
+    static let orbParticle = Color(red: 155 / 255, green: 140 / 255, blue: 255 / 255)
     static let darkCard = Color(red: 26 / 255, green: 26 / 255, blue: 26 / 255)      // #1A1A1A
     static let accentsGreen = Color(red: 52 / 255, green: 199 / 255, blue: 89 / 255) // Accents/Green #34C759
     static let fillsSecondary = Color(red: 120 / 255, green: 120 / 255, blue: 128 / 255)

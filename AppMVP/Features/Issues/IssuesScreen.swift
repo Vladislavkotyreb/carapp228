@@ -10,6 +10,11 @@ import SwiftUI
 /// 4. «Да, добавить ошибки» → находки уходят в историю и она появляется;
 ///    «Нет, не добавлять» → история не меняется.
 struct IssuesScreen: View {
+    /// Пока шторка находок открыта, таббар должен уйти: модалка накрывает
+    /// экран целиком, а таббар рисуется в `CarMainView` поверх нас и
+    /// закрывал нижнюю кнопку «Нет, не добавлять».
+    @Binding var hidesTabBar: Bool
+
     @StateObject private var meter = AudioLevelMeter()
 
     /// История пуста на старте и растёт только после подтверждения находок.
@@ -53,6 +58,7 @@ struct IssuesScreen: View {
         .animation(Motion.sheet, value: history.count)
         .onDisappear { meter.stop() }
         .bottomSheet(isPresented: $showFindings) { findingsSheet }
+        .onChange(of: showFindings) { _, shown in hidesTabBar = shown }
     }
 
     // MARK: - Экран
@@ -241,8 +247,61 @@ struct IssuesScreen: View {
 
     // MARK: - Шторка «Вот что мы нашли» (нода 46102:3369)
 
+    /// Форма и подача как у остальных шторок проекта — образец
+    /// `AddServiceChoiceSheet`. Своя версия была голым `VStack` без контейнера:
+    /// без формы, без белой заливки, без грабера и с растягивающимся
+    /// `Spacer`, из-за которого кнопки уезжали за нижний край экрана.
+    private static let sheetShape = UnevenRoundedRectangle(
+        topLeadingRadius: 34, bottomLeadingRadius: 58,
+        bottomTrailingRadius: 58, topTrailingRadius: 34
+    )
+
     private var findingsSheet: some View {
         VStack(spacing: 0) {
+            sheetToolbar
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 16) {
+                    ForEach(IssuesStub.findings) { issue in
+                        issueBody(issue, title: Figma.labelsPrimary,
+                                  detail: Figma.vibrantSecondary)
+                            .background(RoundedRectangle(cornerRadius: 26)
+                                .fill(Figma.backgroundsPrimary))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+            }
+
+            VStack(spacing: 12) {
+                GlassProminentButton(title: "Да, добавить ошибки", action: approveFindings)
+                GlassButton(title: "Нет, не добавлять") { showFindings = false }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 34)
+        }
+        // Высота по ноде: шторка занимает 812 из 874.
+        .frame(height: 812)
+        .frame(maxWidth: .infinity)
+        .liquidGlass(in: Self.sheetShape, tint: .white) { Self.sheetShape.fill(.white) }
+        .environment(\.colorScheme, .light)
+        .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
+        .overlay(alignment: .top) {
+            Capsule()
+                .fill(Figma.grabber)
+                .frame(width: 58, height: 4)
+                .padding(.top, 6)
+        }
+    }
+
+    /// Тулбар: крестик слева, заголовок по центру, чёрная галочка справа.
+    private var sheetToolbar: some View {
+        ZStack {
+            Text("Вот что мы нашли")
+                .font(.system(size: 17, weight: .semibold))
+                .tracking(-0.43)
+                .foregroundStyle(Figma.labelsPrimary)
+
             HStack {
                 Button { showFindings = false } label: {
                     Image(systemName: "xmark")
@@ -251,13 +310,7 @@ struct IssuesScreen: View {
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
-
-                Spacer(minLength: 0)
-
-                Text("Вот что мы нашли")
-                    .font(.system(size: 17, weight: .semibold))
-                    .tracking(-0.43)
-                    .foregroundStyle(Figma.labelsPrimary)
+                .accessibilityLabel("Закрыть")
 
                 Spacer(minLength: 0)
 
@@ -269,24 +322,11 @@ struct IssuesScreen: View {
                         .background(Circle().fill(Figma.graysBlack))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Добавить ошибки")
             }
-
-            Spacer(minLength: 0).frame(height: 16)
-
-            VStack(spacing: 16) {
-                ForEach(IssuesStub.findings) { issue in
-                    issueBody(issue, title: Figma.labelsPrimary, detail: Figma.vibrantSecondary)
-                        .background(RoundedRectangle(cornerRadius: 26).fill(.white))
-                }
-            }
-
-            Spacer(minLength: 24)
-
-            GlassProminentButton(title: "Да, добавить ошибки", action: approveFindings)
-            Spacer(minLength: 0).frame(height: 12)
-            GlassButton(title: "Нет, не добавлять") { showFindings = false }
         }
-        .padding(16)
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
     }
 
     // MARK: - Действия

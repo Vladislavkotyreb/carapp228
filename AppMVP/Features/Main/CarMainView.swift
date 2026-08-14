@@ -94,6 +94,8 @@ struct CarMainView: View {
     @State private var addedServiceTick = 0
 
     @State private var showDeleteConfirm = false
+    /// Модалка раздела «Ошибки» накрывает экран целиком, включая таббар.
+    @State private var hidesTabBar = false
     /// Смещение прокрутки заполненной страницы. Управляет двумя вещами:
     /// запретом свайпа карусели и появлением шапки.
     ///
@@ -273,7 +275,7 @@ struct CarMainView: View {
             }
 
             if tab == 2 {
-                IssuesScreen()
+                IssuesScreen(hidesTabBar: $hidesTabBar)
                     .ignoresSafeArea()
             }
 
@@ -300,6 +302,8 @@ struct CarMainView: View {
             // в 7pt над home indicator. Прижимаем к нижней safe area, чтобы
             // этот зазор сохранялся на экранах любой высоты.
             FloatingTabBar(selection: $tab)
+                .opacity(hidesTabBar ? 0 : 1)
+                .allowsHitTesting(!hidesTabBar)
                 .frame(maxWidth: .infinity)
                 .offset(y: metrics.bottomAnchoredY(designY: 779, height: 54))
 

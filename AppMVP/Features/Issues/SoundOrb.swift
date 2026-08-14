@@ -201,59 +201,96 @@ extension SoundOrb {
     }
 }
 
+/// Одна точка облака. Набор считается один раз и живёт статически: если
+/// пересоздавать его каждый кадр, облако мерцает телевизионным шумом вместо
+/// того чтобы вращаться.
+private struct Particle {
+    let x, y, z: Double
+    /// Своя фаза турбулентности — иначе всё облако дышит синхронно.
+    let phase: Double
+    let jitter: Double
+}
+
+private enum ParticleCloud {
+    /// Девять тысяч точек: на скриншоте у автора демо облако плотное, из
+    /// десятков тысяч крошечных точек. Меньше — видно отдельные точки,
+    /// заметно больше — кадр перестаёт держать 30 fps.
+    static let points: [Particle] = build(count: 9000)
+
+    private static func build(count: Int) -> [Particle] {
+        // Фиксированное зерно: облако должно быть одинаковым между запусками,
+        // иначе не сверить кадры.
+        var seed: UInt64 = 0x5EED_1234
+        func random() -> Double {
+            seed = seed &* 6364136223846793005 &+ 1442695040888963407
+            return Double((seed >> 11) & 0xFFFF_FFFF) / Double(0xFFFF_FFFF)
+        }
+
+        return (0..<count).map { index in
+            // Направление равномерно по сфере
+            let u = random() * 2 - 1
+            let theta = random() * 2 * .pi
+            let ring = sqrt(max(0, 1 - u * u))
+
+            // Радиус со смещением к поверхности, а каждая десятая точка
+            // улетает наружу — это и даёт рассеянный ореол вокруг шара.
+            let halo = index % 10 == 0
+            let base = pow(random(), 1.0 / 2.2)
+            let radius = halo ? 1.0 + random() * 0.45 : base
+
+            return Particle(x: cos(theta) * ring * radius,
+                            y: u * radius,
+                            z: sin(theta) * ring * radius,
+                            phase: random() * 2 * .pi,
+                            jitter: 0.01 + random() * 0.03)
+        }
+    }
+}
+
 extension SoundOrb {
-    /// Точки распределены по сфере спиралью Фибоначчи — так они лежат ровно,
-    /// без сгущения у полюсов, — сфера медленно вращается, а громкость
-    /// раздвигает её и добавляет точкам яркости.
+    /// Плотное облако точек. Рисуется **двумя** заливками, а не шестью
+    /// тысячами: каждый вызов `fill` дорог, поэтому все точки собираются в
+    /// один `Path` мелкими прямоугольниками. Ближняя треть идёт вторым
+    /// проходом ярче — от этого появляется объём.
     fileprivate func drawParticles(in context: inout GraphicsContext,
                                    size: CGSize, time: Double) {
-        let count = 420
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
         let stretch = size.width / size.height
-        let radius = size.height / 2 * (0.66 + 0.16 * level)
-        let spin = time * 0.32
-        let golden = Double.pi * (3 - sqrt(5))
+        let radius = size.height / 2 * (0.62 + 0.14 * level)
+        let spin = time * 0.28
+        let sway = 0.35 + level
 
-        var glow = context
-        glow.addFilter(.blur(radius: 12))
-        glow.opacity = 0.5
+        var far = Path()
+        var near = Path()
 
-        for index in 0..<count {
-            // Широта равномерно по высоте сферы, долгота — золотым углом
-            let y = 1 - 2 * (Double(index) + 0.5) / Double(count)
-            let ring = sqrt(max(0, 1 - y * y))
-            let angle = golden * Double(index) + spin
+        for particle in ParticleCloud.points {
+            // Поворот вокруг вертикальной оси
+            let angle = atan2(particle.z, particle.x) + spin
+            let plane = sqrt(particle.x * particle.x + particle.z * particle.z)
+            let wobble = sin(time * 1.6 + particle.phase) * particle.jitter * sway
 
-            let x = cos(angle) * ring
-            let z = sin(angle) * ring
+            let x = cos(angle) * (plane + wobble)
+            let z = sin(angle) * (plane + wobble)
+            let y = particle.y + wobble
 
-            // Ортографическая проекция: z нужен только для глубины
-            let depth = (z + 1) / 2
             let point = CGPoint(x: center.x + x * radius * stretch,
                                 y: center.y + y * radius)
 
-            // Дальние точки мельче и тусклее — иначе сфера читается плоским
-            // диском без объёма.
-            let dot = 0.6 + 1.5 * depth + 1.2 * level
-            let rect = CGRect(x: point.x - dot / 2, y: point.y - dot / 2,
-                              width: dot, height: dot)
+            // Дальние точки мельче: без этого шар читается плоским диском
+            let depth = (z / max(plane, 0.001) + 1) / 2
+            let dot = depth > 0.66 ? 1.3 : 1.0
+            let rect = CGRect(x: point.x, y: point.y, width: dot, height: dot)
 
-            let color = particleColor(at: depth)
-            let opacity = (0.16 + 0.74 * depth) * (0.55 + 0.45 * level)
-
-            context.fill(Path(ellipseIn: rect), with: .color(color.opacity(opacity)))
-            if depth > 0.72 {
-                glow.fill(Path(ellipseIn: rect.insetBy(dx: -dot, dy: -dot)),
-                          with: .color(color.opacity(opacity * 0.7)))
-            }
+            if depth > 0.66 { near.addRect(rect) } else { far.addRect(rect) }
         }
-    }
 
-    /// Цвет по глубине: ближние точки зеленее, дальние уходят в фиолетовый.
-    private func particleColor(at depth: Double) -> Color {
-        if depth > 0.66 { return Figma.orbGreen }
-        if depth > 0.33 { return Figma.orbTeal }
-        return Figma.orbViolet
+        context.fill(far, with: .color(Figma.orbParticle.opacity(0.32 + 0.2 * level)))
+        context.fill(near, with: .color(Figma.orbParticle.opacity(0.7 + 0.3 * level)))
+
+        var glow = context
+        glow.addFilter(.blur(radius: 18))
+        glow.opacity = 0.35 + 0.25 * level
+        glow.fill(near, with: .color(Figma.orbParticle))
     }
 }
 
