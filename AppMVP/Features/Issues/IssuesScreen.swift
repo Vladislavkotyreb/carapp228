@@ -10,14 +10,47 @@ struct IssuesScreen: View {
 
     private enum Stage { case idle, recording, results }
 
-    /// Отступы блока из ноды `46096:2554`: паддинг 16, между заголовком и
-    /// шаром 48, шаром и описанием 24, описанием и кнопкой 206. В состоянии
-    /// с историей последний зазор сжимается до 48 — нода `46093:2453`.
+    /// Зазор от описания до кнопки: 206 пока слушать нечего (`46096:2555`)
+    /// и 48, когда снизу появилась история (`46105:4251`).
     private var buttonGap: CGFloat { stage == .results ? 48 : 206 }
+
+    /// Верх блока: 62 + 16 у экрана с историей, 64.5 + 16 у пустого.
+    private var blockTop: CGFloat { stage == .results ? 78 : 80.5 }
+
+    /// На записи блок поднимается на карточку Liquid Glass Clear и получает
+    /// внутри свои 16 отступа — контент сужается с 370 до 338 (нода
+    /// `46105:4087`), а остальной экран притемняется. Это и есть та самая
+    /// переработанная логика: запись больше не просто смена подписи кнопки.
+    private var isLifted: Bool { stage == .recording }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
+                topBlock
+
+                if stage == .results {
+                    Spacer(minLength: 0).frame(height: 48)
+                    history.opacity(isLifted ? 0.25 : 1)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, blockTop)
+            .padding(.bottom, 140)
+        }
+        // Пока слушать нечего, прокручивать тоже нечего — иначе экран
+        // оттягивается в пустоту, как это было на странице «Добавить авто».
+        .scrollDisabled(stage != .results)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Figma.graysBlack)
+        .animation(Motion.sheet, value: stage)
+        .onDisappear { meter.stop() }
+        .bottomSheet(isPresented: $showFindings) { findingsSheet }
+    }
+
+    /// Заголовок, шар, описание и кнопка. На записи всё это лежит на
+    /// стеклянной карточке — отсюда внутренний отступ и своя подложка.
+    private var topBlock: some View {
+        VStack(spacing: 0) {
                 Text("Поднесите телефон \nк двигателю")
                     .font(.system(size: 26, weight: .bold))
                     .figmaLineHeight(31.2, fontSize: 26, weight: .bold)
@@ -42,24 +75,16 @@ struct IssuesScreen: View {
                 Spacer(minLength: 0).frame(height: buttonGap)
 
                 listenButton
-
-                if stage == .results {
-                    Spacer(minLength: 0).frame(height: 48)
-                    history
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 65.076)
-            .padding(.bottom, 140)
         }
-        // Пока слушать нечего, прокручивать тоже нечего — иначе экран
-        // оттягивается в пустоту, как это было на странице «Добавить авто».
-        .scrollDisabled(stage != .results)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Figma.graysBlack)
-        .animation(Motion.sheet, value: stage)
-        .onDisappear { meter.stop() }
-        .bottomSheet(isPresented: $showFindings) { findingsSheet }
+        .padding(isLifted ? 16 : 0)
+        .background {
+            if isLifted {
+                RoundedRectangle(cornerRadius: 36, style: .continuous)
+                    .fill(Color.white.opacity(0.06))
+                    .overlay(RoundedRectangle(cornerRadius: 36, style: .continuous)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 0.5))
+            }
+        }
     }
 
     /// Своя кнопка, а не `GlassProminentButton`: тот рассчитан на светлый фон

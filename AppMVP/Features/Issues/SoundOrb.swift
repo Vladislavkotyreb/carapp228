@@ -23,8 +23,15 @@ struct SoundOrb: View {
             }
         }
         .aspectRatio(Self.aspectRatio, contentMode: .fit)
-        .background(Figma.graysBlack)
+        // Подложка не плоско-чёрная: в макете у шара виден объём, к краям
+        // он темнее фона экрана, отсюда радиальная заливка.
+        .background(
+            RadialGradient(colors: [Color(white: 0.10), Figma.graysBlack],
+                           center: .center, startRadius: 0, endRadius: 210)
+        )
         .clipShape(OrbShape())
+        // Тонкая кромка — та же волосяная линия, что у тёмных карточек
+        .overlay(OrbShape().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
         .accessibilityLabel("Индикатор прослушивания")
     }
 
@@ -38,12 +45,19 @@ struct SoundOrb: View {
 
     /// Ленты рисуются от дальней к ближней: у дальних больше размытие и
     /// меньше непрозрачность, отсюда ощущение глубины.
+    ///
+    /// Пропорции подобраны по макету: рассеянного свечения там мало, а сама
+    /// волна собранная и яркая. Первая версия была наоборот — облако без
+    /// формы, — поэтому ядро сделано тонким и почти без размытия.
     private func draw(in context: inout GraphicsContext, size: CGSize, time: Double) {
         let ribbons: [(color: Color, speed: Double, frequency: Double,
                        amplitude: Double, thickness: Double, blur: Double, opacity: Double)] = [
-            (Figma.orbViolet, 0.35, 1.1, 0.30, 0.42, 26, 0.55),
-            (Figma.orbTeal,   0.55, 1.6, 0.24, 0.30, 16, 0.70),
-            (Figma.orbGreen,  0.80, 2.1, 0.18, 0.18,  9, 0.95)
+            // дальнее свечение — задаёт цветовое пятно, формы не несёт
+            (Figma.orbViolet, 0.30, 0.9, 0.26, 0.30, 30, 0.40),
+            (Figma.orbTeal,   0.45, 1.3, 0.20, 0.16, 14, 0.55),
+            // ядро: тонкое и резкое, именно оно читается как волна
+            (Figma.orbGreen,  0.70, 1.7, 0.15, 0.045, 2.5, 1.0),
+            (Color.white,     0.70, 1.7, 0.15, 0.014, 1.0, 0.85)
         ]
 
         for ribbon in ribbons {
