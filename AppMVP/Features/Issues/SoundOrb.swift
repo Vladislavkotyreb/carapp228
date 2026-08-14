@@ -6,7 +6,22 @@ import SwiftUI
 /// Через `Canvas` и `TimelineView`, а не `MeshGradient`: последний требует
 /// iOS 18, а таргет проекта 17.0. Заодно волной можно управлять точно —
 /// mesh пришлось бы подгонять контрольными точками.
+/// Какой шар рисуем. Переключается одной константой ниже — откат к прежнему
+/// виду это замена `.blob` на `.wave`, ничего больше трогать не надо.
+enum OrbStyle {
+    /// Волна внутри пузыря — то, что было сделано по макету.
+    case wave
+    /// Морфящийся контур: 24 радиальные точки, радиус гнут три синусоиды,
+    /// точки соединены квадратичными кривыми. Подход взят из
+    /// voice-orb-visualizer (MIT, OrbitingBucket) — это веб-библиотека на
+    /// Canvas 2D, поэтому не подключена, а переписана под наш Canvas.
+    case blob
+}
+
 struct SoundOrb: View {
+    /// Единственное место переключения.
+    static let style: OrbStyle = .blob
+
     /// Громкость 0…1. В тишине шар всё равно дышит: мёртвая картинка на
     /// экране про прослушивание двигателя выглядит как сломанная.
     var level: Double
@@ -19,7 +34,11 @@ struct SoundOrb: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
             Canvas { context, size in
-                draw(in: &context, size: size, time: phase(at: timeline.date))
+                let t = phase(at: timeline.date)
+                switch Self.style {
+                case .wave: draw(in: &context, size: size, time: t)
+                case .blob: drawBlob(in: &context, size: size, time: t)
+                }
             }
         }
         .aspectRatio(Self.aspectRatio, contentMode: .fit)
@@ -101,6 +120,77 @@ struct SoundOrb: View {
             let point = CGPoint(x: x, y: y)
             if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
         }
+        return path
+    }
+}
+
+extension SoundOrb {
+    /// Морфящийся контур. Радиус в каждой из 24 точек гнут три синусоиды с
+    /// разной частотой и направлением — так контур не пульсирует «дыркой», а
+    /// перекатывается. Пропорции коэффициентов взяты из voice-orb-visualizer.
+    fileprivate func drawBlob(in context: inout GraphicsContext, size: CGSize, time: Double) {
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        // Контур круглый, а место у нас вытянутое — растягиваем по x, иначе
+        // шар займёт лишь среднюю треть.
+        let stretch = size.width / size.height
+        let base = size.height / 2 * 0.78
+
+        // В тишине контур почти ровный, звук раскачивает его.
+        let amplitude = size.height * (0.02 + 0.16 * level)
+
+        let path = blobPath(center: center, base: base, stretch: stretch,
+                            amplitude: amplitude, time: time)
+
+        // Мягкое свечение позади и плотное ядро поверх — на плоской заливке,
+        // как в оригинале, шар выглядит наклейкой.
+        var glow = context
+        glow.addFilter(.blur(radius: 34))
+        glow.opacity = 0.55
+        glow.fill(path, with: .linearGradient(orbGradient, startPoint: .zero,
+                                              endPoint: CGPoint(x: size.width, y: size.height)))
+
+        context.fill(path, with: .linearGradient(orbGradient, startPoint: .zero,
+                                                 endPoint: CGPoint(x: size.width, y: size.height)))
+
+        var sheen = context
+        sheen.addFilter(.blur(radius: 12))
+        sheen.opacity = 0.5
+        sheen.stroke(path, with: .color(.white), lineWidth: 2)
+    }
+
+    private var orbGradient: Gradient {
+        Gradient(colors: [Figma.orbViolet, Figma.orbTeal, Figma.orbGreen])
+    }
+
+    /// Точки соединяются квадратичными кривыми через середины отрезков —
+    /// иначе на 24 точках виден многоугольник.
+    private func blobPath(center: CGPoint, base: Double, stretch: Double,
+                          amplitude: Double, time: Double) -> Path {
+        let count = 24
+        var points: [CGPoint] = []
+        points.reserveCapacity(count)
+
+        for index in 0..<count {
+            let angle = Double(index) / Double(count) * 2 * .pi
+            let wave = sin(angle * 2 + time * 2) * amplitude
+                + sin(angle * 3 - time * 1.5) * amplitude * 0.6
+                + sin(angle * 1.5 + time * 2.5) * amplitude * 0.4
+            let radius = base + wave
+            points.append(CGPoint(x: center.x + cos(angle) * radius * stretch,
+                                  y: center.y + sin(angle) * radius))
+        }
+
+        var path = Path()
+        let midpoint: (CGPoint, CGPoint) -> CGPoint = { a, b in
+            CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+        }
+        path.move(to: midpoint(points[count - 1], points[0]))
+        for index in 0..<count {
+            let current = points[index]
+            let next = points[(index + 1) % count]
+            path.addQuadCurve(to: midpoint(current, next), control: current)
+        }
+        path.closeSubpath()
         return path
     }
 }
