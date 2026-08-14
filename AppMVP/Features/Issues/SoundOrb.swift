@@ -16,11 +16,16 @@ enum OrbStyle {
     /// voice-orb-visualizer (MIT, OrbitingBucket) — это веб-библиотека на
     /// Canvas 2D, поэтому не подключена, а переписана под наш Canvas.
     case blob
+    /// Облако точек на сфере — вариант «particles» из демо voice-orb.
+    /// Кода частиц в репозитории библиотеки нет (в `src/core` только
+    /// `VoiceOrb`, `audio-pipeline`, `forces`, `utils`), поэтому перенесён
+    /// приём, а не реализация.
+    case particles
 }
 
 struct SoundOrb: View {
     /// Единственное место переключения.
-    static let style: OrbStyle = .blob
+    static let style: OrbStyle = .particles
 
     /// Громкость 0…1. В тишине шар всё равно дышит: мёртвая картинка на
     /// экране про прослушивание двигателя выглядит как сломанная.
@@ -38,6 +43,7 @@ struct SoundOrb: View {
                 switch Self.style {
                 case .wave: draw(in: &context, size: size, time: t)
                 case .blob: drawBlob(in: &context, size: size, time: t)
+                case .particles: drawParticles(in: &context, size: size, time: t)
                 }
             }
         }
@@ -192,6 +198,62 @@ extension SoundOrb {
         }
         path.closeSubpath()
         return path
+    }
+}
+
+extension SoundOrb {
+    /// Точки распределены по сфере спиралью Фибоначчи — так они лежат ровно,
+    /// без сгущения у полюсов, — сфера медленно вращается, а громкость
+    /// раздвигает её и добавляет точкам яркости.
+    fileprivate func drawParticles(in context: inout GraphicsContext,
+                                   size: CGSize, time: Double) {
+        let count = 420
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let stretch = size.width / size.height
+        let radius = size.height / 2 * (0.66 + 0.16 * level)
+        let spin = time * 0.32
+        let golden = Double.pi * (3 - sqrt(5))
+
+        var glow = context
+        glow.addFilter(.blur(radius: 12))
+        glow.opacity = 0.5
+
+        for index in 0..<count {
+            // Широта равномерно по высоте сферы, долгота — золотым углом
+            let y = 1 - 2 * (Double(index) + 0.5) / Double(count)
+            let ring = sqrt(max(0, 1 - y * y))
+            let angle = golden * Double(index) + spin
+
+            let x = cos(angle) * ring
+            let z = sin(angle) * ring
+
+            // Ортографическая проекция: z нужен только для глубины
+            let depth = (z + 1) / 2
+            let point = CGPoint(x: center.x + x * radius * stretch,
+                                y: center.y + y * radius)
+
+            // Дальние точки мельче и тусклее — иначе сфера читается плоским
+            // диском без объёма.
+            let dot = 0.6 + 1.5 * depth + 1.2 * level
+            let rect = CGRect(x: point.x - dot / 2, y: point.y - dot / 2,
+                              width: dot, height: dot)
+
+            let color = particleColor(at: depth)
+            let opacity = (0.16 + 0.74 * depth) * (0.55 + 0.45 * level)
+
+            context.fill(Path(ellipseIn: rect), with: .color(color.opacity(opacity)))
+            if depth > 0.72 {
+                glow.fill(Path(ellipseIn: rect.insetBy(dx: -dot, dy: -dot)),
+                          with: .color(color.opacity(opacity * 0.7)))
+            }
+        }
+    }
+
+    /// Цвет по глубине: ближние точки зеленее, дальние уходят в фиолетовый.
+    private func particleColor(at depth: Double) -> Color {
+        if depth > 0.66 { return Figma.orbGreen }
+        if depth > 0.33 { return Figma.orbTeal }
+        return Figma.orbViolet
     }
 }
 

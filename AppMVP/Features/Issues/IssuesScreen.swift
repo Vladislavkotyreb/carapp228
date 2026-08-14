@@ -1,50 +1,42 @@
 import SwiftUI
 
-/// Раздел «Ошибки» — Figma секция `46084:1942`. Три состояния одного экрана:
-/// `46096:2551` (пусто), `46098:2666` (идёт запись), `46084:2014` (с историей)
-/// плюс шторка `46102:3005`.
+/// Раздел «Ошибки» — Figma секция `46084:1942`.
+///
+/// Флоу целиком:
+/// 1. история пуста → «Слушать» пишет **на месте**, без модалки;
+/// 2. история есть → запись идёт в **модалке** поверх притемнённого экрана
+///    (нода `46105:3970`): модалка нужна, чтобы закрыть уже непустой экран;
+/// 3. «Стоп» → снизу выезжает шторка «Вот что мы нашли» (нода `46102:3369`);
+/// 4. «Да, добавить ошибки» → находки уходят в историю и она появляется;
+///    «Нет, не добавлять» → история не меняется.
 struct IssuesScreen: View {
     @StateObject private var meter = AudioLevelMeter()
-    /// Нижний экран знает только, есть ли уже история. Запись — отдельное
-    /// состояние: по ноде `46105:3970` это **модалка поверх экрана**, а не
-    /// другая раскладка. Нижний экран при ней не перестраивается вовсе.
-    @State private var hasResults = false
+
+    /// История пуста на старте и растёт только после подтверждения находок.
+    @State private var history: [IssueGroup] = []
     @State private var isRecording = false
     @State private var showFindings = false
 
-    /// Зазор от описания до кнопки: 206 пока слушать нечего (`46096:2555`)
-    /// и 48, когда снизу появилась история (`46105:4251`).
-    private var buttonGap: CGFloat { hasResults ? 48 : 206 }
+    private var hasHistory: Bool { !history.isEmpty }
+
+    /// Модалка только когда под ней есть что притемнять. На пустом экране она
+    /// не нужна и мешает: закрывать нечего.
+    private var isModalRecording: Bool { isRecording && hasHistory }
+
+    /// Зазор от описания до кнопки: 206 пока истории нет (`46096:2555`)
+    /// и 48, когда она появилась (`46105:4251`).
+    private var buttonGap: CGFloat { hasHistory ? 48 : 206 }
 
     /// Верх блока: 62 + 16 у экрана с историей, 64.5 + 16 у пустого.
-    private var blockTop: CGFloat { hasResults ? 78 : 80.5 }
+    private var blockTop: CGFloat { hasHistory ? 78 : 80.5 }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                topBlock
+            screen
 
-                if hasResults {
-                    Spacer(minLength: 0).frame(height: 48)
-                    history
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, blockTop)
-            .padding(.bottom, 140)
-        }
-        // Пока слушать нечего, прокручивать тоже нечего — иначе экран
-        // оттягивается в пустоту, как это было на странице «Добавить авто».
-        .scrollDisabled(!hasResults)
-
-            if isRecording {
-                // Затемнение (инстанс `Overlay` в ноде) и панель поверх него.
-                // Экран под ними остаётся ровно таким, каким был.
-                // Затемнение плотнее, чем кажется по макету: там панель лежит
-                // ровно поверх такого же блока, и просвечивать нечему. У нас
-                // под ней экран с историей, и на 0.55 сквозь панель читался
-                // чужой текст.
+            if isModalRecording {
+                // Затемнение плотнее макетного: там панель лежит поверх такого
+                // же блока и просвечивать нечему, а у нас под ней история.
                 Figma.graysBlack.opacity(0.78)
                     .ignoresSafeArea()
                     .transition(.opacity)
@@ -58,14 +50,41 @@ struct IssuesScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Figma.graysBlack)
         .animation(Motion.sheet, value: isRecording)
-        .animation(Motion.sheet, value: hasResults)
+        .animation(Motion.sheet, value: history.count)
         .onDisappear { meter.stop() }
         .bottomSheet(isPresented: $showFindings) { findingsSheet }
     }
 
-    /// Модалка записи, нода `46105:4087`: карточка 370×549.289 на стекле,
-    /// внутри отступ 16, поэтому контент 338. Содержимое то же, что на
-    /// экране, — но это отдельная копия, а не переехавшие туда элементы.
+    // MARK: - Экран
+
+    private var screen: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                heading
+                Spacer(minLength: 0).frame(height: 48)
+                // Пока истории нет, шар оживает прямо здесь: модалки не будет.
+                SoundOrb(level: isRecording && !hasHistory ? meter.level : 0)
+                Spacer(minLength: 0).frame(height: 24)
+                caption
+                Spacer(minLength: 0).frame(height: buttonGap)
+                listenButton
+
+                if hasHistory {
+                    Spacer(minLength: 0).frame(height: 48)
+                    historySection
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, blockTop)
+            .padding(.bottom, 140)
+        }
+        // Пока истории нет, прокручивать нечего — иначе экран оттягивается
+        // в пустоту, как это было на странице «Добавить авто».
+        .scrollDisabled(!hasHistory)
+    }
+
+    /// Модалка записи, нода `46105:4087`: карточка 370×549.289, внутри
+    /// отступ 16, поэтому контент 338.
     private var recordingPanel: some View {
         VStack(spacing: 0) {
             heading
@@ -78,28 +97,13 @@ struct IssuesScreen: View {
         }
         .padding(16)
         .background {
-            // Своя заливка, а не одно стекло: «Liquid Glass - Clear» почти
-            // прозрачен, и содержимое под панелью просвечивало насквозь.
+            // Плотнее, чем «Liquid Glass - Clear» в макете: сквозь него
+            // читался текст экрана под панелью.
             RoundedRectangle(cornerRadius: 36, style: .continuous)
                 .fill(Color(white: 0.11))
                 .overlay(RoundedRectangle(cornerRadius: 36, style: .continuous)
                     .stroke(Color.white.opacity(0.14), lineWidth: 0.5))
                 .shadow(color: .black.opacity(0.6), radius: 40, y: 12)
-        }
-    }
-
-    /// Заголовок, шар, описание и кнопка. На записи всё это лежит на
-    /// стеклянной карточке — отсюда внутренний отступ и своя подложка.
-    private var topBlock: some View {
-        VStack(spacing: 0) {
-                heading
-                Spacer(minLength: 0).frame(height: 48)
-                SoundOrb(level: 0)
-                Spacer(minLength: 0).frame(height: 24)
-                caption
-                Spacer(minLength: 0).frame(height: buttonGap)
-
-                listenButton
         }
     }
 
@@ -122,9 +126,12 @@ struct IssuesScreen: View {
             .frame(maxWidth: .infinity)
     }
 
-    /// Своя кнопка, а не `GlassProminentButton`: тот рассчитан на светлый фон
-    /// онбординга и на чёрном исчезает — остаётся голый текст без пилюли.
-    /// Здесь поверхность как у тёмных карточек: заливка плюс волосяная кромка.
+    /// Аннотация макета к ноде `46105:4259`: «кнопка работает по принципу
+    /// старт стоп».
+    ///
+    /// Стиль — Glass Prominent в светлом режиме, то есть **чёрная** пилюля со
+    /// стеклом. Раньше стояла заливка `darkCard` (#1A1A1A) с обводкой, и она
+    /// читалась серой.
     private var listenButton: some View {
         Button(action: toggleRecording) {
             Text(isRecording ? "Стоп" : "Слушать")
@@ -133,18 +140,18 @@ struct IssuesScreen: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
-                .background(
+                .liquidGlass(in: Capsule(), tint: Figma.graysBlack) {
                     Capsule()
-                        .fill(Figma.darkCard)
-                        .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
-                )
+                        .fill(Figma.graysBlack)
+                        .overlay(Capsule().stroke(Color.white.opacity(0.14), lineWidth: 0.5))
+                }
         }
         .buttonStyle(.plain)
     }
 
     // MARK: - История (нода 46090:2356)
 
-    private var history: some View {
+    private var historySection: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("История")
                 .font(.system(size: 22, weight: .bold))
@@ -156,7 +163,7 @@ struct IssuesScreen: View {
 
             statsCard
 
-            ForEach(IssuesStub.groups) { group in
+            ForEach(history) { group in
                 Spacer(minLength: 0).frame(height: 24)
 
                 Text(group.date)
@@ -167,7 +174,7 @@ struct IssuesScreen: View {
 
                 ForEach(group.issues) { issue in
                     Spacer(minLength: 0).frame(height: 16)
-                    issueCard(issue)
+                    darkIssueCard(issue)
                 }
             }
         }
@@ -176,17 +183,12 @@ struct IssuesScreen: View {
     /// Карточка со счётчиками, нода `46093:2410`: 370×96, две половины.
     private var statsCard: some View {
         HStack(spacing: 0) {
-            counter(title: "Прослушиваний", value: IssuesStub.listenCount)
-            counter(title: "Неисправности", value: IssuesStub.issueCount)
+            counter(title: "Прослушиваний", value: history.count)
+            counter(title: "Неисправности", value: history.reduce(0) { $0 + $1.issues.count })
         }
         .frame(maxWidth: .infinity)
         .frame(height: 96)
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 26), tint: Figma.darkCard, kind: .painted) {
-            RoundedRectangle(cornerRadius: 26)
-                .fill(Figma.darkCard)
-                .overlay(RoundedRectangle(cornerRadius: 26)
-                    .stroke(Color.white.opacity(0.10), lineWidth: 0.5))
-        }
+        .background(darkCardSurface)
     }
 
     private func counter(title: String, value: Int) -> some View {
@@ -204,51 +206,85 @@ struct IssuesScreen: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// Карточка неисправности, нода `46093:2421`: 370×102, паддинг 20.
-    private func issueCard(_ issue: EngineIssue) -> some View {
-        Button { showFindings = true } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(issue.title)
-                    .font(.system(size: 17, weight: .semibold))
-                    .tracking(-0.43)
-                    .foregroundStyle(.white)
-
-                Text(issue.detail)
-                    .font(.system(size: 13))
-                    .tracking(-0.08)
-                    .figmaLineHeight(18, fontSize: 13)
-                    .foregroundStyle(Figma.vibrantSecondary)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: 26), tint: Figma.darkCard, kind: .painted) {
-                RoundedRectangle(cornerRadius: 26)
-                    .fill(Figma.darkCard)
-                    .overlay(RoundedRectangle(cornerRadius: 26)
-                        .stroke(Color.white.opacity(0.10), lineWidth: 0.5))
-            }
-        }
-        .buttonStyle(.plain)
+    /// Карточка неисправности на тёмном экране, нода `46093:2421`: 370×102.
+    private func darkIssueCard(_ issue: EngineIssue) -> some View {
+        issueBody(issue, title: .white, detail: Figma.vibrantSecondary)
+            .background(darkCardSurface)
     }
 
-    // MARK: - Шторка «вот что мы нашли» (нода 46102:3369)
+    private var darkCardSurface: some View {
+        RoundedRectangle(cornerRadius: 26)
+            .fill(Figma.darkCard)
+            .overlay(RoundedRectangle(cornerRadius: 26)
+                .stroke(Color.white.opacity(0.10), lineWidth: 0.5))
+    }
 
-    private var findingsSheet: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Итог")
+    private func issueBody(_ issue: EngineIssue,
+                           title: Color, detail: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(issue.title)
                 .font(.system(size: 17, weight: .semibold))
                 .tracking(-0.43)
-                .foregroundStyle(Figma.labelsPrimary)
-                .frame(maxWidth: .infinity)
+                .foregroundStyle(title)
 
-            ForEach(IssuesStub.findings) { issue in
-                issueCard(issue)
+            Text(issue.detail)
+                .font(.system(size: 13))
+                .tracking(-0.08)
+                .figmaLineHeight(18, fontSize: 13)
+                .foregroundStyle(detail)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Шторка «Вот что мы нашли» (нода 46102:3369)
+
+    private var findingsSheet: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button { showFindings = false } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Figma.vibrantSecondary)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
+
+                Text("Вот что мы нашли")
+                    .font(.system(size: 17, weight: .semibold))
+                    .tracking(-0.43)
+                    .foregroundStyle(Figma.labelsPrimary)
+
+                Spacer(minLength: 0)
+
+                Button(action: approveFindings) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(Figma.graysBlack))
+                }
+                .buttonStyle(.plain)
             }
 
-            GlassProminentButton(title: "Записаться на ТО") { showFindings = false }
-            GlassButton(title: "Закрыть") { showFindings = false }
+            Spacer(minLength: 0).frame(height: 16)
+
+            VStack(spacing: 16) {
+                ForEach(IssuesStub.findings) { issue in
+                    issueBody(issue, title: Figma.labelsPrimary, detail: Figma.vibrantSecondary)
+                        .background(RoundedRectangle(cornerRadius: 26).fill(.white))
+                }
+            }
+
+            Spacer(minLength: 24)
+
+            GlassProminentButton(title: "Да, добавить ошибки", action: approveFindings)
+            Spacer(minLength: 0).frame(height: 12)
+            GlassButton(title: "Нет, не добавлять") { showFindings = false }
         }
         .padding(16)
     }
@@ -259,11 +295,21 @@ struct IssuesScreen: View {
         if isRecording {
             meter.stop()
             isRecording = false
-            hasResults = true
+            // Останавливаем — и сразу показываем, что нашли. История сама по
+            // себе не появляется: её наполняет только подтверждение.
+            showFindings = true
         } else {
             isRecording = true
             meter.start()
         }
+    }
+
+    private func approveFindings() {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd.MM.yyyy"
+        history.append(IssueGroup(date: formatter.string(from: .now),
+                                  issues: IssuesStub.findings))
+        showFindings = false
     }
 }
 
@@ -281,27 +327,14 @@ struct IssueGroup: Identifiable {
     let issues: [EngineIssue]
 }
 
-/// Заглушка. Настоящего разбора звука двигателя нет и близко: он требует
-/// модели на сервере и размеченных записей. Держим отдельно, чтобы выкинуть
-/// одним файлом, — так же как `StubVehicleLookup`.
+/// Заглушка. Настоящего разбора звука двигателя нет: он требует модели на
+/// сервере и размеченных записей. Держим отдельно, чтобы выкинуть одним
+/// куском, — так же как `StubVehicleLookup`.
 enum IssuesStub {
-    static let listenCount = 10
-    static let issueCount = 10
-
-    static let groups: [IssueGroup] = [
-        IssueGroup(date: "15.07.2025", issues: [
-            EngineIssue(title: "Проблемы с трансмиссией",
-                        detail: "Проблемы с переключением передач, слышим скрежещущий звук"),
-            EngineIssue(title: "Проблемы с трансмиссией",
-                        detail: "Проблемы с переключением передач, слышим скрежещущий звук")
-        ]),
-        IssueGroup(date: "30.08.2025", issues: [
-            EngineIssue(title: "Проверка системы охлаждения",
-                        detail: "Температура двигателя выше нормы, возможна утечка"),
-            EngineIssue(title: "Проверка системы охлаждения",
-                        detail: "Температура двигателя выше нормы, возможна утечка")
-        ])
+    static let findings: [EngineIssue] = [
+        EngineIssue(title: "Проблемы с трансмиссией",
+                    detail: "Проблемы с переключением передач, слышим скрежещущий звук"),
+        EngineIssue(title: "Проверка системы охлаждения",
+                    detail: "Температура двигателя выше нормы, возможна утечка")
     ]
-
-    static var findings: [EngineIssue] { groups.flatMap(\.issues) }
 }
