@@ -5,32 +5,29 @@ import SwiftUI
 /// плюс шторка `46102:3005`.
 struct IssuesScreen: View {
     @StateObject private var meter = AudioLevelMeter()
-    @State private var stage: Stage = .idle
+    /// Нижний экран знает только, есть ли уже история. Запись — отдельное
+    /// состояние: по ноде `46105:3970` это **модалка поверх экрана**, а не
+    /// другая раскладка. Нижний экран при ней не перестраивается вовсе.
+    @State private var hasResults = false
+    @State private var isRecording = false
     @State private var showFindings = false
-
-    private enum Stage { case idle, recording, results }
 
     /// Зазор от описания до кнопки: 206 пока слушать нечего (`46096:2555`)
     /// и 48, когда снизу появилась история (`46105:4251`).
-    private var buttonGap: CGFloat { stage == .results ? 48 : 206 }
+    private var buttonGap: CGFloat { hasResults ? 48 : 206 }
 
     /// Верх блока: 62 + 16 у экрана с историей, 64.5 + 16 у пустого.
-    private var blockTop: CGFloat { stage == .results ? 78 : 80.5 }
-
-    /// На записи блок поднимается на карточку Liquid Glass Clear и получает
-    /// внутри свои 16 отступа — контент сужается с 370 до 338 (нода
-    /// `46105:4087`), а остальной экран притемняется. Это и есть та самая
-    /// переработанная логика: запись больше не просто смена подписи кнопки.
-    private var isLifted: Bool { stage == .recording }
+    private var blockTop: CGFloat { hasResults ? 78 : 80.5 }
 
     var body: some View {
+        ZStack(alignment: .topLeading) {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
                 topBlock
 
-                if stage == .results {
+                if hasResults {
                     Spacer(minLength: 0).frame(height: 48)
-                    history.opacity(isLifted ? 0.25 : 1)
+                    history
                 }
             }
             .padding(.horizontal, 16)
@@ -39,52 +36,90 @@ struct IssuesScreen: View {
         }
         // Пока слушать нечего, прокручивать тоже нечего — иначе экран
         // оттягивается в пустоту, как это было на странице «Добавить авто».
-        .scrollDisabled(stage != .results)
+        .scrollDisabled(!hasResults)
+
+            if isRecording {
+                // Затемнение (инстанс `Overlay` в ноде) и панель поверх него.
+                // Экран под ними остаётся ровно таким, каким был.
+                // Затемнение плотнее, чем кажется по макету: там панель лежит
+                // ровно поверх такого же блока, и просвечивать нечему. У нас
+                // под ней экран с историей, и на 0.55 сквозь панель читался
+                // чужой текст.
+                Figma.graysBlack.opacity(0.78)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+
+                recordingPanel
+                    .frame(width: 370, height: 549.289, alignment: .top)
+                    .offset(x: 16, y: 65.076)
+                    .transition(.scale(scale: 0.96).combined(with: .opacity))
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Figma.graysBlack)
-        .animation(Motion.sheet, value: stage)
+        .animation(Motion.sheet, value: isRecording)
+        .animation(Motion.sheet, value: hasResults)
         .onDisappear { meter.stop() }
         .bottomSheet(isPresented: $showFindings) { findingsSheet }
+    }
+
+    /// Модалка записи, нода `46105:4087`: карточка 370×549.289 на стекле,
+    /// внутри отступ 16, поэтому контент 338. Содержимое то же, что на
+    /// экране, — но это отдельная копия, а не переехавшие туда элементы.
+    private var recordingPanel: some View {
+        VStack(spacing: 0) {
+            heading
+            Spacer(minLength: 0).frame(height: 48)
+            SoundOrb(level: meter.level)
+            Spacer(minLength: 0).frame(height: 24)
+            caption
+            Spacer(minLength: 0).frame(height: 48)
+            listenButton
+        }
+        .padding(16)
+        .background {
+            // Своя заливка, а не одно стекло: «Liquid Glass - Clear» почти
+            // прозрачен, и содержимое под панелью просвечивало насквозь.
+            RoundedRectangle(cornerRadius: 36, style: .continuous)
+                .fill(Color(white: 0.11))
+                .overlay(RoundedRectangle(cornerRadius: 36, style: .continuous)
+                    .stroke(Color.white.opacity(0.14), lineWidth: 0.5))
+                .shadow(color: .black.opacity(0.6), radius: 40, y: 12)
+        }
     }
 
     /// Заголовок, шар, описание и кнопка. На записи всё это лежит на
     /// стеклянной карточке — отсюда внутренний отступ и своя подложка.
     private var topBlock: some View {
         VStack(spacing: 0) {
-                Text("Поднесите телефон \nк двигателю")
-                    .font(.system(size: 26, weight: .bold))
-                    .figmaLineHeight(31.2, fontSize: 26, weight: .bold)
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-
+                heading
                 Spacer(minLength: 0).frame(height: 48)
-
-                SoundOrb(level: stage == .recording ? meter.level : 0)
-
+                SoundOrb(level: 0)
                 Spacer(minLength: 0).frame(height: 24)
-
-                Text("Поднесите телефон к двигателю или выхлопной трубе и нажмите кнопку для начала диагностики")
-                    .font(.system(size: 16))
-                    .tracking(-0.31)
-                    .figmaLineHeight(21, fontSize: 16)
-                    .foregroundStyle(Figma.vibrantSecondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-
+                caption
                 Spacer(minLength: 0).frame(height: buttonGap)
 
                 listenButton
         }
-        .padding(isLifted ? 16 : 0)
-        .background {
-            if isLifted {
-                RoundedRectangle(cornerRadius: 36, style: .continuous)
-                    .fill(Color.white.opacity(0.06))
-                    .overlay(RoundedRectangle(cornerRadius: 36, style: .continuous)
-                        .stroke(Color.white.opacity(0.12), lineWidth: 0.5))
-            }
-        }
+    }
+
+    private var heading: some View {
+        Text("Поднесите телефон \nк двигателю")
+            .font(.system(size: 26, weight: .bold))
+            .figmaLineHeight(31.2, fontSize: 26, weight: .bold)
+            .foregroundStyle(.white)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+    }
+
+    private var caption: some View {
+        Text("Поднесите телефон к двигателю или выхлопной трубе и нажмите кнопку для начала диагностики")
+            .font(.system(size: 16))
+            .tracking(-0.31)
+            .figmaLineHeight(21, fontSize: 16)
+            .foregroundStyle(Figma.vibrantSecondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
     }
 
     /// Своя кнопка, а не `GlassProminentButton`: тот рассчитан на светлый фон
@@ -92,7 +127,7 @@ struct IssuesScreen: View {
     /// Здесь поверхность как у тёмных карточек: заливка плюс волосяная кромка.
     private var listenButton: some View {
         Button(action: toggleRecording) {
-            Text(stage == .recording ? "Стоп" : "Слушать")
+            Text(isRecording ? "Стоп" : "Слушать")
                 .font(.system(size: 17))
                 .tracking(-0.43)
                 .foregroundStyle(.white)
@@ -221,13 +256,13 @@ struct IssuesScreen: View {
     // MARK: - Действия
 
     private func toggleRecording() {
-        switch stage {
-        case .idle, .results:
-            stage = .recording
-            meter.start()
-        case .recording:
+        if isRecording {
             meter.stop()
-            stage = .results
+            isRecording = false
+            hasResults = true
+        } else {
+            isRecording = true
+            meter.start()
         }
     }
 }
