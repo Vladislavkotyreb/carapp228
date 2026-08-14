@@ -3,10 +3,13 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 100;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */ = {isa = PBXBuildFile; productRef = 9A0000010000000000000002 /* YandexMapsMobileFull */; };
+		9B0000010000000000000001 /* MapKitKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000001 /* MapKitKey.swift */; };
+		9B0000010000000000000002 /* MapScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000002 /* MapScreen.swift */; };
 		AA0000010000000000000001 /* AppMVPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000001 /* AppMVPApp.swift */; };
 		AA0000010000000000000003 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000003 /* Theme.swift */; };
 		AA0000010000000000000006 /* Car.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000006 /* Car.swift */; };
@@ -27,17 +30,19 @@
 		AA0000010000000000000023 /* AddCarSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000023 /* AddCarSheet.swift */; };
 		AA0000010000000000000024 /* LiquidGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000024 /* LiquidGlass.swift */; };
 		AA0000010000000000000025 /* BottomSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000025 /* BottomSheet.swift */; };
-		AA00000100000000000000B3 /* MotionRim.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000100000000000000B3 /* MotionRim.swift */; };
-		AA00000100000000000000B2 /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000100000000000000B2 /* ImageLoader.swift */; };
-		AA00000100000000000000B1 /* VehicleLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000100000000000000B1 /* VehicleLookup.swift */; };
 		AA0000010000000000000026 /* PlateFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000026 /* PlateFormat.swift */; };
 		AA00000100000000000000A1 /* ServiceRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000100000000000000A1 /* ServiceRecord.swift */; };
-		9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */ = {isa = PBXBuildFile; productRef = 9A0000010000000000000002 /* YandexMapsMobileFull */; };
-		9B0000010000000000000001 /* MapKitKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000001 /* MapKitKey.swift */; };
-		9B0000010000000000000002 /* MapScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000002 /* MapScreen.swift */; };
+		AA00000100000000000000B1 /* VehicleLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000100000000000000B1 /* VehicleLookup.swift */; };
+		AA00000100000000000000B2 /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000100000000000000B2 /* ImageLoader.swift */; };
+		AA00000100000000000000B3 /* MotionRim.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000100000000000000B3 /* MotionRim.swift */; };
+		8A0000010000000000000001 /* AudioLevelMeter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000010000000000000001 /* AudioLevelMeter.swift */; };
+		8A0000010000000000000002 /* SoundOrb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000010000000000000002 /* SoundOrb.swift */; };
+		8A0000010000000000000003 /* IssuesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000010000000000000003 /* IssuesScreen.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		9C0000010000000000000001 /* MapKitKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitKey.swift; sourceTree = "<group>"; };
+		9C0000010000000000000002 /* MapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapScreen.swift; sourceTree = "<group>"; };
 		BB0000010000000000000001 /* AppMVPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMVPApp.swift; sourceTree = "<group>"; };
 		BB0000010000000000000003 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		BB0000010000000000000006 /* Car.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Car.swift; sourceTree = "<group>"; };
@@ -47,7 +52,7 @@
 		BB0000010000000000000015 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BB0000010000000000000017 /* OnboardingButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingButtons.swift; sourceTree = "<group>"; };
 		BB0000010000000000000018 /* PageIndicatorDots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageIndicatorDots.swift; sourceTree = "<group>"; };
-		BB000001000000000000001A /* AppleSignInButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInButton.swift; sourceTree = "<group>"; };
+		BB000001000000000000001A /* AppleSignInButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInButton.swift; sourceTree = "<group>"; usesTabs = 0; };
 		BB000001000000000000001B /* AppMVP.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AppMVP.entitlements; sourceTree = "<group>"; };
 		BB000001000000000000001C /* FormControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormControls.swift; sourceTree = "<group>"; };
 		BB000001000000000000001D /* AddCarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCarView.swift; sourceTree = "<group>"; };
@@ -59,28 +64,35 @@
 		BB0000010000000000000023 /* AddCarSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCarSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000024 /* LiquidGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlass.swift; sourceTree = "<group>"; };
 		BB0000010000000000000025 /* BottomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomSheet.swift; sourceTree = "<group>"; };
-		BB00000100000000000000B3 /* MotionRim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionRim.swift; sourceTree = "<group>"; };
-		BB00000100000000000000B2 /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
-		BB00000100000000000000B1 /* VehicleLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleLookup.swift; sourceTree = "<group>"; };
 		BB0000010000000000000026 /* PlateFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateFormat.swift; sourceTree = "<group>"; };
 		BB0000010000000000000099 /* Wheelly.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wheelly.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB00000100000000000000A1 /* ServiceRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceRecord.swift; sourceTree = "<group>"; };
-		9C0000010000000000000001 /* MapKitKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitKey.swift; sourceTree = "<group>"; };
-		9C0000010000000000000002 /* MapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapScreen.swift; sourceTree = "<group>"; };
+		BB00000100000000000000B1 /* VehicleLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleLookup.swift; sourceTree = "<group>"; };
+		BB00000100000000000000B2 /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
+		BB00000100000000000000B3 /* MotionRim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionRim.swift; sourceTree = "<group>"; };
+		8B0000010000000000000001 /* AudioLevelMeter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelMeter.swift; sourceTree = "<group>"; };
+		8B0000010000000000000002 /* SoundOrb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundOrb.swift; sourceTree = "<group>"; };
+		8B0000010000000000000003 /* IssuesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssuesScreen.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		DD0000010000000000000003 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		9D0000010000000000000001 /* Map */ = {
+			isa = PBXGroup;
+			children = (
+				9C0000010000000000000002 /* MapScreen.swift */,
+			);
+			path = Map;
+			sourceTree = "<group>";
+		};
 		EE0000010000000000000001 = {
 			isa = PBXGroup;
 			children = (
@@ -124,6 +136,7 @@
 			isa = PBXGroup;
 			children = (
 				9D0000010000000000000001 /* Map */,
+				8D0000010000000000000001 /* Issues */,
 				EE000001000000000000000D /* Onboarding */,
 				EE0000010000000000000011 /* AddCar */,
 				EE0000010000000000000012 /* Main */,
@@ -155,16 +168,6 @@
 				BB0000010000000000000015 /* Assets.xcassets */,
 			);
 			path = Resources;
-			sourceTree = "<group>";
-		};
-		EE00000100000000000000B0 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-				BB00000100000000000000B1 /* VehicleLookup.swift */,
-				9C0000010000000000000001 /* MapKitKey.swift */,
-				BB00000100000000000000B2 /* ImageLoader.swift */,
-			);
-			path = Services;
 			sourceTree = "<group>";
 		};
 		EE000001000000000000000A /* Design */ = {
@@ -228,12 +231,24 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		9D0000010000000000000001 /* Map */ = {
+		EE00000100000000000000B0 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				9C0000010000000000000002 /* MapScreen.swift */,
+				BB00000100000000000000B1 /* VehicleLookup.swift */,
+				9C0000010000000000000001 /* MapKitKey.swift */,
+				8B0000010000000000000001 /* AudioLevelMeter.swift */,
+				BB00000100000000000000B2 /* ImageLoader.swift */,
 			);
-			path = Map;
+			path = Services;
+			sourceTree = "<group>";
+		};
+		8D0000010000000000000001 /* Issues */ = {
+			isa = PBXGroup;
+			children = (
+				8B0000010000000000000002 /* SoundOrb.swift */,
+				8B0000010000000000000003 /* IssuesScreen.swift */,
+			);
+			path = Issues;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -248,8 +263,6 @@
 				DD0000010000000000000002 /* Resources */,
 			);
 			buildRules = (
-			);
-			dependencies = (
 			);
 			name = Wheelly;
 			packageProductDependencies = (
@@ -275,7 +288,6 @@
 				};
 			};
 			buildConfigurationList = GG0000010000000000000002 /* Build configuration list for PBXProject "Wheelly" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = ru;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -287,6 +299,7 @@
 			packageReferences = (
 				9A0000010000000000000001 /* XCRemoteSwiftPackageReference "mapkit-ios" */,
 			);
+			preferredProjectObjectVersion = 100;
 			productRefGroup = EE0000010000000000000099 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -299,18 +312,15 @@
 /* Begin PBXResourcesBuildPhase section */
 		DD0000010000000000000002 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				AA0000010000000000000015 /* Assets.xcassets in Resources */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		DD0000010000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				AA0000010000000000000001 /* AppMVPApp.swift in Sources */,
 				AA0000010000000000000003 /* Theme.swift in Sources */,
@@ -336,15 +346,17 @@
 				AA00000100000000000000B1 /* VehicleLookup.swift in Sources */,
 				AA00000100000000000000B2 /* ImageLoader.swift in Sources */,
 				AA00000100000000000000B3 /* MotionRim.swift in Sources */,
+				8A0000010000000000000003 /* IssuesScreen.swift in Sources */,
+				8A0000010000000000000002 /* SoundOrb.swift in Sources */,
+				8A0000010000000000000001 /* AudioLevelMeter.swift in Sources */,
 				9B0000010000000000000002 /* MapScreen.swift in Sources */,
 				9B0000010000000000000001 /* MapKitKey.swift in Sources */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		II0000010000000000000001 /* Debug */ = {
+		II0000010000000000000001 /* Debug configuration for PBXProject "Wheelly" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -398,7 +410,7 @@
 			};
 			name = Debug;
 		};
-		II0000010000000000000002 /* Release */ = {
+		II0000010000000000000002 /* Release configuration for PBXProject "Wheelly" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -445,17 +457,19 @@
 			};
 			name = Release;
 		};
-		II0000010000000000000003 /* Debug */ = {
+		II0000010000000000000003 /* Debug configuration for PBXNativeTarget "Wheelly" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5BK4R35RB8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вашу позицию на карте";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Чтобы слушать двигатель и находить неисправности";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -472,7 +486,7 @@
 			};
 			name = Debug;
 		};
-		II0000010000000000000004 /* Release */ = {
+		II0000010000000000000004 /* Release configuration for PBXNativeTarget "Wheelly" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -483,6 +497,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вашу позицию на карте";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Чтобы слушать двигатель и находить неисправности";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -505,19 +520,17 @@
 		FF0000010000000000000002 /* Build configuration list for PBXNativeTarget "Wheelly" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				II0000010000000000000003 /* Debug */,
-				II0000010000000000000004 /* Release */,
+				II0000010000000000000003 /* Debug configuration for PBXNativeTarget "Wheelly" */,
+				II0000010000000000000004 /* Release configuration for PBXNativeTarget "Wheelly" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		GG0000010000000000000002 /* Build configuration list for PBXProject "Wheelly" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				II0000010000000000000001 /* Debug */,
-				II0000010000000000000002 /* Release */,
+				II0000010000000000000001 /* Debug configuration for PBXProject "Wheelly" */,
+				II0000010000000000000002 /* Release configuration for PBXProject "Wheelly" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */

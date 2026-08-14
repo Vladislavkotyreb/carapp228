@@ -272,6 +272,11 @@ struct CarMainView: View {
                     .ignoresSafeArea()
             }
 
+            if tab == 2 {
+                IssuesScreen()
+                    .ignoresSafeArea()
+            }
+
             if tab == 0 {
             GeometryReader { geo in
                 let width = geo.size.width
