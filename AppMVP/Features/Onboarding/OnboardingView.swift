@@ -41,25 +41,35 @@ struct OnboardingView: View {
 
             // Перелистывание: страница уезжает в сторону перехода, следующая
             // приходит с противоположной. Назад — зеркально.
-            Group {
-                if step == 0 {
-                    welcome
-                } else {
-                    survey(pages[step - 1], index: step - 1)
-                        .id(step)
-                }
+            // Переход навешен на содержимое, а не на Group. Идентичность
+            // меняется здесь же, на .id(step); когда .transition висел
+            // снаружи, он отрабатывал только на смене ветки if/else, то есть
+            // ровно на одном переходе из трёх — между страницами опроса
+            // страница подменялась мгновенно.
+            if step == 0 {
+                welcome
+                    .id(step)
+                    .transition(pageTransition)
+            } else {
+                survey(pages[step - 1], index: step - 1)
+                    .id(step)
+                    .transition(pageTransition)
             }
-            .transition(
-                .asymmetric(
-                    insertion: .move(edge: goingForward ? .trailing : .leading)
-                        .combined(with: .opacity),
-                    removal: .move(edge: goingForward ? .leading : .trailing)
-                        .combined(with: .opacity)
-                )
-            )
         }
         .ignoresSafeArea()
         .animation(.interpolatingSpring(stiffness: 220, damping: 26), value: step)
+    }
+
+    /// Страница уезжает в сторону перехода, следующая приходит с
+    /// противоположной. Назад из онбординга сейчас не ходят, но зеркальная
+    /// ветка оставлена: кнопка «назад» появится вместе с шагами добавления.
+    private var pageTransition: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: goingForward ? .trailing : .leading)
+                .combined(with: .opacity),
+            removal: .move(edge: goingForward ? .leading : .trailing)
+                .combined(with: .opacity)
+        )
     }
 
     // MARK: - онбординг/велком скрин (node 45822:3995)
@@ -68,6 +78,13 @@ struct OnboardingView: View {
         // Content container (45822:3998): x = 32, ширина 338 — по 32 с каждой
         // стороны, блок ровно по центру.
         ZStack(alignment: .topLeading) {
+            // Декоративная подложка из макета (45822:4013). Почти незаметна —
+            // светлое пятно на светлом фоне, — но в макете она есть.
+            Image("Dimmerwelcome")
+                .resizable()
+                .frame(width: 310.579, height: 95.997)
+                .figmaBlock(x: 40.627, width: 310.579, y: 367.618)
+
             title("Привет!")
                 .figmaBlock(x: 32, width: 338, y: 528.75)
 
@@ -84,6 +101,12 @@ struct OnboardingView: View {
     private func survey(_ page: SurveyPage, index: Int) -> some View {
         // Form Container: x = 16, ширина 370. Заголовок 529.5, описание +96, кнопки +201.
         ZStack(alignment: .topLeading) {
+            // Декоративная подложка из макета (45822:4022)
+            Image("Dimmersurvey")
+                .resizable()
+                .frame(width: 298, height: 38)
+                .figmaBlock(x: 52, width: 298, y: 294.5)
+
             // Page Control: frame y = 61.5, h = 44; пилюля 24 по центру → 61.5 + 10
             PageIndicatorDots(count: pages.count, currentIndex: index)
                 .frame(maxWidth: .infinity)
@@ -95,10 +118,12 @@ struct OnboardingView: View {
             description(page.description)
                 .figmaBlock(x: 16, width: 370, y: 625.5)
 
-            // Кнопки прижаты к низу safe area. Слот «Пропустить» держится
-            // всегда, даже на последней странице, иначе основная кнопка
-            // прыгала бы по вертикали при перелистывании.
-            VStack(spacing: 16) {
+            // Кнопки стоят в координатах макета: первая на 730.5, вторая на
+            // 796.5, зазор 12 (нода 45822:4058). Раньше они прижимались к
+            // нижней safe area и из-за клампа поднимались на 21pt выше макета.
+            // Слот «Пропустить» держится всегда, даже на последней странице,
+            // иначе основная кнопка прыгала бы при перелистывании.
+            VStack(spacing: 12) {
                 GlassProminentButton(title: page.primaryTitle, action: advance)
 
                 if page.hasSkip {
@@ -107,11 +132,7 @@ struct OnboardingView: View {
                     Color.clear.frame(height: 50)
                 }
             }
-            .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity)
-            // Кнопки 54pt (lineHeight 22 + padding 32), между ними 16.
-            // Якорим нижнюю, верхняя встаёт на 54 + 16 выше.
-            .offset(y: metrics.bottomAnchoredY(designY: 796.5, height: 54) - 70)
+            .figmaBlock(x: 16, width: 370, y: 730.5)
         }
     }
 
