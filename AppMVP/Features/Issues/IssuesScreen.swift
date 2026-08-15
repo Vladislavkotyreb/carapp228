@@ -225,24 +225,33 @@ struct IssuesScreen: View {
                 .stroke(Color.white.opacity(0.10), lineWidth: 0.5))
     }
 
+    /// Заголовок здесь Subheadline/Emphasized (15pt), а не Body: с 17pt
+    /// карточка вырастала до 104 вместо заявленных в макете 102. Описание
+    /// ровно в две строки — в макете под него отведено 36pt, то есть 2 × 18.
     private func issueBody(_ issue: EngineIssue,
                            title: Color, detail: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(issue.title)
-                .font(.system(size: 17, weight: .semibold))
-                .tracking(-0.43)
+                .font(.system(size: 15, weight: .semibold))
+                .tracking(-0.23)
+                .figmaLineHeight(20, fontSize: 15, weight: .semibold)
                 .foregroundStyle(title)
 
             Text(issue.detail)
                 .font(.system(size: 13))
                 .tracking(-0.08)
                 .figmaLineHeight(18, fontSize: 13)
+                .lineLimit(2)
                 .foregroundStyle(detail)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // Высота карточки объявлена в макете: 102. Сложением строк она не
+        // получается — системные метрики SF дают 100.7, и на шестой карточке
+        // список уезжает вверх на 6pt. Добор идёт снизу, поэтому текст
+        // остаётся ровно там, где в макете.
+        .frame(maxWidth: .infinity, minHeight: 102, alignment: .topLeading)
     }
 
     // MARK: - Шторка «Вот что мы нашли» (нода 46102:3369)
@@ -256,10 +265,30 @@ struct IssuesScreen: View {
         bottomTrailingRadius: 58, topTrailingRadius: 34
     )
 
+    /// Геометрия шторки из ноды `46102:3369`. Вынесена в константы, потому что
+    /// два числа связаны: под последней карточкой оставляется ровно блок
+    /// кнопок, иначе она навсегда остаётся под ними.
+    private enum Findings {
+        /// Шторка занимает 812 из 874
+        static let height: CGFloat = 812
+        /// Тулбар: отступ сверху 16, высота 54
+        static let toolbarTop: CGFloat = 16
+        static let toolbarHeight: CGFloat = 54
+        /// Список начинается на 86 от верха шторки, то есть через 16 после тулбара
+        static let listTop: CGFloat = 16
+        /// Кнопки: 54 + 12 + 54 и 22 до низа шторки — итого 142
+        static let buttonsBlock: CGFloat = 142
+        static let buttonsBottom: CGFloat = 22
+    }
+
     private var findingsSheet: some View {
         VStack(spacing: 0) {
             sheetToolbar
 
+            // Список едет **под** кнопками, а не упирается в них: в макете
+            // блок кнопок начинается на 584 при высоте списка 692, то есть
+            // перекрывает его. Отсюда оверлей, а не соседний блок в стопке —
+            // иначе под кнопками остаётся пустая белая плита.
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 16) {
                     ForEach(IssuesStub.findings) { issue in
@@ -270,27 +299,28 @@ struct IssuesScreen: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 16)
+                .padding(.bottom, Findings.buttonsBlock)
             }
-
+            .padding(.top, Findings.listTop)
+        }
+        .frame(height: Findings.height)
+        .frame(maxWidth: .infinity)
+        .liquidGlass(in: Self.sheetShape, tint: .white) { Self.sheetShape.fill(.white) }
+        .environment(\.colorScheme, .light)
+        .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
+        .overlay(alignment: .bottom) {
             VStack(spacing: 12) {
                 GlassProminentButton(title: "Да, добавить ошибки", action: approveFindings)
                 GlassButton(title: "Нет, не добавлять") { showFindings = false }
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 34)
+            .padding(.bottom, Findings.buttonsBottom)
         }
-        // Высота по ноде: шторка занимает 812 из 874.
-        .frame(height: 812)
-        .frame(maxWidth: .infinity)
-        .liquidGlass(in: Self.sheetShape, tint: .white) { Self.sheetShape.fill(.white) }
-        .environment(\.colorScheme, .light)
-        .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
             Capsule()
                 .fill(Figma.grabber)
                 .frame(width: 58, height: 4)
-                .padding(.top, 6)
+                .padding(.top, 5)
         }
     }
 
@@ -308,6 +338,14 @@ struct IssuesScreen: View {
                         .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(Figma.vibrantSecondary)
                         .frame(width: 44, height: 44)
+                        // Кружок под крестиком в макете есть — Button Group со
+                        // стеклом без prominent. Подача та же, что у крестика
+                        // остальных шторок проекта.
+                        .liquidGlass(in: Circle()) {
+                            Circle()
+                                .fill(.white)
+                                .overlay(Circle().stroke(Color(white: 232 / 255), lineWidth: 0.5))
+                        }
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Закрыть")
@@ -325,8 +363,9 @@ struct IssuesScreen: View {
                 .accessibilityLabel("Добавить ошибки")
             }
         }
+        .frame(height: Findings.toolbarHeight)
         .padding(.horizontal, 16)
-        .padding(.top, 16)
+        .padding(.top, Findings.toolbarTop)
     }
 
     // MARK: - Действия
@@ -371,10 +410,22 @@ struct IssueGroup: Identifiable {
 /// сервере и размеченных записей. Держим отдельно, чтобы выкинуть одним
 /// куском, — так же как `StubVehicleLookup`.
 enum IssuesStub {
+    /// Шесть находок — столько карточек в шторке макета (`46102:3369`): шесть
+    /// по 102 плюс пять отступов по 16 как раз дают её 692. В самом макете все
+    /// шесть с одинаковым текстом, то есть это наполнитель; здесь они разные,
+    /// чтобы список не выглядел сломанным повтором.
     static let findings: [EngineIssue] = [
         EngineIssue(title: "Проблемы с трансмиссией",
-                    detail: "Проблемы с переключением передач, слышим скрежещущий звук"),
+                    detail: "Проблемы с переключением передач, слышен скрежещущий звук"),
         EngineIssue(title: "Проверка системы охлаждения",
-                    detail: "Температура двигателя выше нормы, возможна утечка")
+                    detail: "Температура двигателя выше нормы, возможны утечки"),
+        EngineIssue(title: "Стук в подвеске",
+                    detail: "На неровностях слышен стук спереди, возможен износ стоек"),
+        EngineIssue(title: "Свист ремня привода",
+                    detail: "Свист на холодном пуске, ремень навесного оборудования"),
+        EngineIssue(title: "Неровный холостой ход",
+                    detail: "Обороты плавают на прогретом двигателе, возможен подсос воздуха"),
+        EngineIssue(title: "Шум подшипника",
+                    detail: "Гул нарастает с оборотами, похоже на подшипник помпы")
     ]
 }
