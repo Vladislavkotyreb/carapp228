@@ -62,6 +62,12 @@ enum Figma {
     static let orbGreen = Color(red: 88 / 255, green: 240 / 255, blue: 168 / 255)
     static let orbTeal = Color(red: 64 / 255, green: 210 / 255, blue: 224 / 255)
     static let orbViolet = Color(red: 132 / 255, green: 116 / 255, blue: 232 / 255)
+    // Палитра живой волны снята пипеткой с самого ассета из макета
+    // (нода 46102:2999), чтобы анимация продолжала ровно его цвета.
+    static let orbCore = Color(red: 144 / 255, green: 251 / 255, blue: 244 / 255)
+    static let orbBody = Color(red: 87 / 255, green: 200 / 255, blue: 179 / 255)
+    static let orbDeep = Color(red: 50 / 255, green: 144 / 255, blue: 105 / 255)
+
     /// Тон облака частиц. У автора демо фиолетовый на белом фоне; у нас фон
     /// чёрный, поэтому взят светлее — исходный на нём проваливается.
     static let orbParticle = Color(red: 155 / 255, green: 140 / 255, blue: 255 / 255)

@@ -9,6 +9,9 @@ import SwiftUI
 /// Какой шар рисуем. Переключается одной константой ниже — откат к прежнему
 /// виду это замена `.blob` на `.wave`, ничего больше трогать не надо.
 enum OrbStyle {
+    /// Растр из макета плюс живая волна поверх. В покое совпадает с Figma
+    /// точь в точь, потому что это буквально тот же файл.
+    case figma
     /// Волна внутри пузыря — то, что было сделано по макету.
     case wave
     /// Морфящийся контур: 24 радиальные точки, радиус гнут три синусоиды,
@@ -25,7 +28,7 @@ enum OrbStyle {
 
 struct SoundOrb: View {
     /// Единственное место переключения.
-    static let style: OrbStyle = .particles
+    static let style: OrbStyle = .figma
 
     /// Громкость 0…1. В тишине шар всё равно дышит: мёртвая картинка на
     /// экране про прослушивание двигателя выглядит как сломанная.
@@ -37,11 +40,55 @@ struct SoundOrb: View {
     static let aspectRatio: CGFloat = 370 / 238.955
 
     var body: some View {
+        if Self.style == .figma {
+            figmaOrb
+        } else {
+            generated
+        }
+    }
+
+    /// Ассет из макета как основа, живая волна — сверху. При нулевой громкости
+    /// волны нет вовсе, и на экране ровно то, что нарисовано в Figma.
+    private var figmaOrb: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
+            let t = phase(at: timeline.date)
+
+            GeometryReader { geo in
+                ZStack {
+                    // Геометрия из ноды: картинка выше кадра на 24.3 % и
+                    // сдвинута вверх на 15.9 %, лишнее обрезается рамкой.
+                    Image("SoundOrbBase")
+                        .resizable()
+                        .frame(width: geo.size.width, height: geo.size.height * 1.243)
+                        .offset(y: -geo.size.height * 0.159)
+                        // Статичная лента с картинки гаснет по мере того, как
+                        // разгорается живая: иначе две ленты спорят.
+                        .opacity(1 - 0.55 * min(1, level * 2.2))
+
+                    Canvas { context, size in
+                        drawLiveWave(in: &context, size: size, time: t)
+                    }
+                }
+            }
+            .aspectRatio(Self.aspectRatio, contentMode: .fit)
+            .clipShape(OrbShape())
+            // Оболочка горит зелёным тем ярче, чем громче звук
+            .overlay(
+                OrbShape()
+                    .stroke(Figma.orbBody, lineWidth: 1)
+                    .blur(radius: 6)
+                    .opacity(0.15 + 0.85 * level)
+            )
+            .overlay(OrbShape().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
+        }
+    }
+
+    private var generated: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
             Canvas { context, size in
                 let t = phase(at: timeline.date)
                 switch Self.style {
-                case .wave: draw(in: &context, size: size, time: t)
+                case .figma, .wave: draw(in: &context, size: size, time: t)
                 case .blob: drawBlob(in: &context, size: size, time: t)
                 case .particles: drawParticles(in: &context, size: size, time: t)
                 }
@@ -119,7 +166,9 @@ struct SoundOrb: View {
             let ratio = Double(step) / Double(steps)
             let x = size.width * ratio
             // Затухание к краям — половина периода синуса по всей ширине
-            let envelope = sin(ratio * .pi)
+            // Степень выше единицы поджимает волну к центру: у пузыря концы
+            // скруглены, и на громком звуке гребни вылезали за его край.
+            let envelope = pow(sin(ratio * .pi), 1.4)
             let y = size.height / 2
                 + sin(ratio * .pi * 2 * frequency + time * 2) * swing * envelope
 
@@ -291,6 +340,57 @@ extension SoundOrb {
         glow.addFilter(.blur(radius: 18))
         glow.opacity = 0.35 + 0.25 * level
         glow.fill(near, with: .color(Figma.orbParticle))
+    }
+}
+
+extension SoundOrb {
+    /// Живая лента поверх растра. Появляется только со звуком: при нулевой
+    /// громкости прозрачна целиком, и макет остаётся нетронутым.
+    ///
+    /// Перелив сделан отдельным бликом со своей фазой — одной синусоиды для
+    /// него мало, она даёт только колебание, но не перетекание света.
+    fileprivate func drawLiveWave(in context: inout GraphicsContext,
+                                  size: CGSize, time: Double) {
+        guard level > 0.01 else { return }
+        let strength = min(1, level * 2.2)
+
+        let ribbons: [(color: Color, speed: Double, frequency: Double,
+                       thickness: Double, blur: Double, opacity: Double)] = [
+            (Figma.orbDeep, 0.30, 0.9, 0.26, 26, 0.55),
+            (Figma.orbBody, 0.48, 1.3, 0.13, 12, 0.75),
+            (Figma.orbCore, 0.70, 1.7, 0.035, 2, 1.0)
+        ]
+
+        for ribbon in ribbons {
+            var layer = context
+            layer.addFilter(.blur(radius: ribbon.blur))
+            layer.opacity = ribbon.opacity * strength
+
+            let path = wave(in: size, time: time * ribbon.speed,
+                            frequency: ribbon.frequency, amplitude: 0.17)
+            layer.stroke(path, with: .color(ribbon.color),
+                         style: StrokeStyle(lineWidth: size.height * ribbon.thickness,
+                                            lineCap: .round))
+        }
+
+        // Перелив: узкий яркий блик бежит вдоль ленты своим темпом
+        var sheen = context
+        sheen.addFilter(.blur(radius: 6))
+        sheen.opacity = strength * 0.9
+        let shine = wave(in: size, time: time * 1.15, frequency: 1.7, amplitude: 0.17)
+        sheen.stroke(shine, with: .linearGradient(
+            Gradient(stops: [
+                .init(color: .clear, location: 0),
+                .init(color: Figma.orbCore, location: shinePosition(at: time)),
+                .init(color: .clear, location: 1)
+            ]),
+            startPoint: .zero, endPoint: CGPoint(x: size.width, y: 0)),
+                     style: StrokeStyle(lineWidth: size.height * 0.06, lineCap: .round))
+    }
+
+    /// Положение блика 0…1, ходит туда-сюда, а не прыгает с края на край.
+    private func shinePosition(at time: Double) -> Double {
+        0.5 + 0.45 * sin(time * 0.8)
     }
 }
 
