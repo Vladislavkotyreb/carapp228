@@ -72,14 +72,15 @@ struct SoundOrb: View {
             }
             .aspectRatio(Self.aspectRatio, contentMode: .fit)
             .clipShape(OrbShape())
-            // Оболочка горит зелёным тем ярче, чем громче звук
+            // Оболочка горит зелёным тем ярче, чем громче звук — по кромке
+            // самого пузыря, а не кадра.
             .overlay(
-                OrbShape()
-                    .stroke(Figma.orbBody, lineWidth: 1)
-                    .blur(radius: 6)
-                    .opacity(0.15 + 0.85 * level)
+                BubbleShape()
+                    .stroke(Figma.orbBody, lineWidth: 1.5)
+                    .blur(radius: 5)
+                    .opacity(0.10 + 0.40 * level)
             )
-            .overlay(OrbShape().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
+            .overlay(BubbleShape().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
         }
     }
 
@@ -347,45 +348,143 @@ extension SoundOrb {
     /// Живая лента поверх растра. Появляется только со звуком: при нулевой
     /// громкости прозрачна целиком, и макет остаётся нетронутым.
     ///
-    /// Перелив сделан отдельным бликом со своей фазой — одной синусоиды для
-    /// него мало, она даёт только колебание, но не перетекание света.
+    /// Разбор референсной записи (24 кадра за 14 с) показал, что двигается там
+    /// не средняя линия, а **толщина**: центр тяжести ленты гуляет всего на
+    /// ±3 px из 106, тогда как её полувысота ходит от 7 до 75 px, и утолщение
+    /// переезжает вдоль оси. Поэтому лента здесь — заливаемая фигура с
+    /// переменной толщиной, а не обводка постоянной ширины: штрихом такое
+    /// «набухание» не нарисовать в принципе.
+    ///
+    /// Второе наблюдение — цвет распределён по вертикали: сверху бирюзовая
+    /// кромка (154,255,254), в середине мята (117,247,148), внизу зелень
+    /// (79,174,105). Отсюда вертикальный градиент в каждом слое.
     fileprivate func drawLiveWave(in context: inout GraphicsContext,
                                   size: CGSize, time: Double) {
         guard level > 0.01 else { return }
         let strength = min(1, level * 2.2)
 
-        let ribbons: [(color: Color, speed: Double, frequency: Double,
-                       thickness: Double, blur: Double, opacity: Double)] = [
-            (Figma.orbDeep, 0.30, 0.9, 0.26, 26, 0.55),
-            (Figma.orbBody, 0.48, 1.3, 0.13, 12, 0.75),
-            (Figma.orbCore, 0.70, 1.7, 0.035, 2, 1.0)
+        // Свет живёт внутри пузыря: на записи наружу не выходит ничего.
+        let bubble = OrbBubble.rect(in: size)
+
+        // Слои складываются светом: там, где ленты перекрываются, канал уходит
+        // в потолок — ровно так на записи середина выбита в почти белый.
+        var stack = context
+        stack.blendMode = .plusLighter
+        stack.clip(to: RoundedRectangle(cornerRadius: bubble.height / 2, style: .continuous)
+            .path(in: bubble))
+        stack.translateBy(x: bubble.minX, y: bubble.minY)
+
+        let layers: [AuroraLayer] = [
+            // Дальнее свечение: широкое, размытое, оно и красит весь пузырь
+            AuroraLayer(thickness: 0.60, swing: 0.05, frequency: 0.8, speed: 0.5,
+                        swell: 0.40, swellSpeed: 0.8, offset: -0.08, blur: 22,
+                        opacity: 0.42, top: Figma.orbBody, middle: Figma.orbDeep,
+                        bottom: Figma.orbGrass),
+            // Тело ленты — то, что читается как волна
+            AuroraLayer(thickness: 0.32, swing: 0.07, frequency: 1.2, speed: 0.75,
+                        swell: 0.50, swellSpeed: 1.3, offset: -0.10, blur: 10,
+                        opacity: 0.60, top: Figma.orbCore, middle: Figma.orbMint,
+                        bottom: Figma.orbGrass),
+            // Бирюзовая кромка поверху: на записи она отдельной тонкой полосой
+            AuroraLayer(thickness: 0.07, swing: 0.07, frequency: 1.2, speed: 0.75,
+                        swell: 0.45, swellSpeed: 1.3, offset: -0.175, blur: 4,
+                        opacity: 0.75, top: Color.white, middle: Figma.orbCore,
+                        bottom: Figma.orbCore)
         ]
 
-        for ribbon in ribbons {
-            var layer = context
-            layer.addFilter(.blur(radius: ribbon.blur))
-            layer.opacity = ribbon.opacity * strength
+        for layer in layers {
+            var pass = stack
+            pass.addFilter(.blur(radius: layer.blur))
+            pass.opacity = layer.opacity * strength
 
-            let path = wave(in: size, time: time * ribbon.speed,
-                            frequency: ribbon.frequency, amplitude: 0.17)
-            layer.stroke(path, with: .color(ribbon.color),
-                         style: StrokeStyle(lineWidth: size.height * ribbon.thickness,
-                                            lineCap: .round))
+            let path = ribbon(in: bubble.size, layer: layer, time: time)
+            pass.fill(path, with: .linearGradient(
+                Gradient(colors: [layer.top, layer.middle, layer.bottom]),
+                startPoint: CGPoint(x: 0, y: bubble.height * 0.22),
+                endPoint: CGPoint(x: 0, y: bubble.height * 0.78)))
         }
 
-        // Перелив: узкий яркий блик бежит вдоль ленты своим темпом
-        var sheen = context
-        sheen.addFilter(.blur(radius: 6))
-        sheen.opacity = strength * 0.9
-        let shine = wave(in: size, time: time * 1.15, frequency: 1.7, amplitude: 0.17)
-        sheen.stroke(shine, with: .linearGradient(
+        // Перелив: яркое пятно бежит вдоль ленты своим темпом. Без него лента
+        // колеблется, но не переливается — это разные ощущения.
+        var sheen = stack
+        sheen.addFilter(.blur(radius: 9))
+        sheen.opacity = strength * 0.5
+        let shine = ribbon(in: bubble.size, layer: layers[1], time: time)
+        let centre = shinePosition(at: time)
+        sheen.fill(shine, with: .linearGradient(
             Gradient(stops: [
-                .init(color: .clear, location: 0),
-                .init(color: Figma.orbCore, location: shinePosition(at: time)),
-                .init(color: .clear, location: 1)
+                .init(color: .clear, location: max(0, centre - 0.3)),
+                .init(color: Figma.orbCore, location: centre),
+                .init(color: .clear, location: min(1, centre + 0.3))
             ]),
-            startPoint: .zero, endPoint: CGPoint(x: size.width, y: 0)),
-                     style: StrokeStyle(lineWidth: size.height * 0.06, lineCap: .round))
+            startPoint: .zero, endPoint: CGPoint(x: bubble.width, y: 0)))
+    }
+
+    /// Настройки одной ленты. Собраны в тип, а не в кортеж: полей стало восемь,
+    /// и на кортеже позиционные аргументы перестают читаться.
+    fileprivate struct AuroraLayer {
+        /// Доля высоты шара в самом толстом месте
+        let thickness: Double
+        /// Размах средней линии в долях высоты
+        let swing: Double
+        let frequency: Double
+        let speed: Double
+        /// Насколько сильно толщина гуляет вдоль оси, 0…1
+        let swell: Double
+        let swellSpeed: Double
+        /// Сдвиг ленты по вертикали в долях высоты
+        let offset: Double
+        let blur: Double
+        let opacity: Double
+        let top, middle, bottom: Color
+    }
+
+    /// Фигура ленты: верхняя кромка слева направо, нижняя — обратно.
+    ///
+    /// Толщина в точке это произведение трёх множителей: затухание к краям
+    /// пузыря, набегающая волна утолщения и громкость. В тишине лента почти
+    /// нитка, на громком звуке занимает больше половины высоты — тот же разброс
+    /// 7…75 px, что и на записи.
+    fileprivate func ribbon(in size: CGSize, layer: AuroraLayer, time: Double) -> Path {
+        let steps = 72
+        var top: [CGPoint] = []
+        var bottom: [CGPoint] = []
+        top.reserveCapacity(steps + 1)
+        bottom.reserveCapacity(steps + 1)
+
+        // Дыхание держит ленту живой на паузах между словами
+        let loudness = 0.22 + 0.78 * min(1, level * 1.6)
+
+        for step in 0...steps {
+            let ratio = Double(step) / Double(steps)
+            let x = size.width * ratio
+
+            // Концы ленты уходят в ничто: у пузыря скруглённые бока, и прямой
+            // обрубок об них читается как ошибка отрисовки.
+            let envelope = pow(sin(ratio * .pi), 1.6)
+
+            let centre = size.height * (0.5 + layer.offset)
+                + sin(ratio * .pi * 2 * layer.frequency + time * layer.speed * 2)
+                * size.height * layer.swing * envelope * loudness
+
+            // Два набегания с разной скоростью — с одним утолщение ходило бы
+            // маятником, а на записи оно переезжает неравномерно.
+            let travel = sin(ratio * .pi * 2 - time * layer.swellSpeed)
+                + 0.6 * sin(ratio * .pi * 3.4 + time * layer.swellSpeed * 0.7)
+            let swell = 1 + layer.swell * travel / 1.6
+
+            let half = size.height * layer.thickness / 2
+                * envelope * loudness * max(0.12, swell)
+
+            top.append(CGPoint(x: x, y: centre - half))
+            bottom.append(CGPoint(x: x, y: centre + half))
+        }
+
+        var path = Path()
+        path.addLines(top)
+        path.addLines(bottom.reversed())
+        path.closeSubpath()
+        return path
     }
 
     /// Положение блика 0…1, ходит туда-сюда, а не прыгает с края на край.
@@ -399,5 +498,33 @@ extension SoundOrb {
 private struct OrbShape: Shape {
     func path(in rect: CGRect) -> Path {
         RoundedRectangle(cornerRadius: rect.height * 0.5, style: .continuous).path(in: rect)
+    }
+}
+
+/// Сам пузырь внутри кадра. Он заметно меньше кадра: на растре из макета тело
+/// занимает 783 × 573 из 1024 × 822, а картинка ещё и растянута по высоте на
+/// 124.3 % и поднята на 15.9 %. Отсюда доли ниже — они пересчитаны из этих
+/// чисел и сходятся с замером по рендеру.
+///
+/// Знать их обязательно: и лента, и свечение кромки, нарисованные по краю
+/// кадра, оказываются вокруг пустоты, а не вокруг пузыря. На тихом звуке это
+/// незаметно, на громком читается как лишняя рамка вокруг шара.
+enum OrbBubble {
+    static let left = 0.115
+    static let width = 0.764
+    static let top = 0.063
+    static let height = 0.865
+
+    static func rect(in size: CGSize) -> CGRect {
+        CGRect(x: size.width * left, y: size.height * top,
+               width: size.width * width, height: size.height * height)
+    }
+}
+
+private struct BubbleShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let bubble = OrbBubble.rect(in: rect.size).offsetBy(dx: rect.minX, dy: rect.minY)
+        return RoundedRectangle(cornerRadius: bubble.height * 0.5, style: .continuous)
+            .path(in: bubble)
     }
 }
