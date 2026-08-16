@@ -36,6 +36,13 @@ struct Diagnosis: Decodable {
     let causes: [Cause]
     /// Оговорка самого пайплайна про то, что это триаж, а не приговор.
     let note: String
+    /// Сколько чистых механических кусков каскад выделил из записи.
+    ///
+    /// Ноль — важный сигнал, а не мелочь: значит звука двигателя в записи не
+    /// нашлось и разбирали её целиком. Голова причин при этом всё равно
+    /// раскладывает свои 100 % по деталям — на пятисекундной тишине она даёт
+    /// «выхлоп 100 %». Без этой проверки экран уверенно показывал бы выдумку.
+    let segmentCount: Int
     /// В ответе без модели приходит `false` и одна только чистка звука.
     let modelLoaded: Bool
 
@@ -57,9 +64,13 @@ struct Diagnosis: Decodable {
         case verdict
         case faultProbability = "fault_probability"
         case engineKnockProbability = "engine_knock_probability"
-        case regions, causes, note
+        case regions, causes, note, segments
         case modelLoaded = "model_loaded"
     }
+
+    /// Куски нужны только числом, поэтому декодируем их как непрозрачный
+    /// список: полей у сегмента шесть, и ни одно на экран не идёт.
+    private struct AnySegment: Decodable {}
 
     init(from decoder: Decoder) throws {
         let box = try decoder.container(keyedBy: CodingKeys.self)
@@ -71,6 +82,7 @@ struct Diagnosis: Decodable {
         causes = try box.decodeIfPresent([Cause].self, forKey: .causes) ?? []
         note = try box.decodeIfPresent(String.self, forKey: .note) ?? ""
         modelLoaded = try box.decodeIfPresent(Bool.self, forKey: .modelLoaded) ?? false
+        segmentCount = (try box.decodeIfPresent([AnySegment].self, forKey: .segments) ?? []).count
     }
 }
 
