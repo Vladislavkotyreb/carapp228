@@ -115,7 +115,12 @@ struct CarMainView: View {
     /// Свёрнутость таббара. В `@State` лежит только ссылка — экран на объект
     /// не подписан, иначе прокрутка снова начала бы пересобирать `body`.
     /// Подписан сам `FloatingTabBar`; см. комментарий у `TabBarState`.
+    /// Нужен только ветке iOS 17–25: на 26 сворачиванием занимается система.
     @State private var tabBar = TabBarState()
+
+    /// Громкость с микрофона для рамки по краям экрана. Экран держит ссылку и
+    /// НЕ подписан — иначе он пересобирался бы на каждом аудиобуфере.
+    @State private var listening = ListeningState()
 
     /// Гасим сам распознаватель, а не `isScrollEnabled`: последним управляет
     /// SwiftUI из окружения и может перезаписать его на любом обновлении, а
@@ -269,69 +274,12 @@ struct CarMainView: View {
     @State private var photos: [UIImage] = []
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            // Карусель авто: интерактивный пейджинг свайпом влево/вправо.
-            // TabView не используем — он добавляет свои отступы и ломает координаты макета.
-            // Аннотация макета (45895:3569): «все элементы остаются на месте и просто
-            // меняются надписи» — раскладка страниц идентична, разъезжаться нечему.
-            if tab == 1 {
-                MapScreen()
-                    .ignoresSafeArea()
-                    .transition(tabTransition)
-            }
-
-            if tab == 2 {
-                IssuesScreen(hidesTabBar: $hidesTabBar)
-                    .ignoresSafeArea()
-                    .transition(tabTransition)
-            }
-
-            if tab == 3 {
-                MoreScreen()
-                    .ignoresSafeArea()
-                    .transition(tabTransition)
-            }
-
-            if tab == 0 {
-            GeometryReader { geo in
-                let width = geo.size.width
-                // Прогресс страницы добавления, 0…1. Страница НЕ едет: он
-                // управляет только содержимым — текстами и видимостью блоков.
-                let p = addProgress
-
-                carPageBody(progress: p)
-
-                // simultaneousGesture, а не gesture: заполненная страница —
-                // вертикальный ScrollView, и он забирал свайп себе, поэтому
-                // над картинкой машины и карточкой ТО карусель не листалась.
-                .simultaneousGesture(carouselDrag(width: width))
-            }
-            // важно: сам GeometryReader должен игнорировать safe area, иначе он
-            // отдаёт урезанный размер и все координаты макета съезжают вниз
-            .ignoresSafeArea()
-            .transition(tabTransition)
-            }
-
-            // В макете таббар стоит на y = 779 при высоте экрана 874, то есть
-            // в 7pt над home indicator. Прижимаем к нижней safe area, чтобы
-            // этот зазор сохранялся на экранах любой высоты.
-            FloatingTabBar(selection: $tab, state: tabBar, onReselect: { _ in scrollToTop() })
-                .opacity(hidesTabBar ? 0 : 1)
-                .allowsHitTesting(!hidesTabBar)
-                .frame(maxWidth: .infinity)
-                .offset(y: metrics.bottomAnchoredY(designY: 779, height: 54))
-
-            if showToast {
-                toast
-                    .frame(maxWidth: .infinity)
-                    .offset(y: 62)
-                    .transition(toastTransition)
-                    // HIG: временное сообщение не перехватывает работу с
-                    // экраном — под ним всё остаётся нажимаемым.
-                    .allowsHitTesting(false)
-            }
-
-        }
+        tabs
+            // Шторки, тост и рамка висят **снаружи** таббара, а не внутри
+            // вкладки. Внутри вкладки системный бар рисуется поверх её
+            // содержимого, и шторка уходила бы под него.
+            .overlay(alignment: .topLeading) { toastLayer }
+            .overlay { ListeningEdge(state: listening) }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .bottomSheet(isPresented: $showServiceChoice) {
             AddServiceChoiceSheet(
@@ -423,7 +371,115 @@ struct CarMainView: View {
         }
     }
 
+    // MARK: - Разделы
+
+    /// На iOS 26 таббар берётся системный. Компонент в макете —
+    /// «Tab Bar - iPhone» из дизайн-кита Apple, причём с вариантом `Minimized`:
+    /// дизайн описывает именно системный элемент, поэтому правильный код —
+    /// не повторять его руками, а взять. Своя реализация остаётся веткой для
+    /// iOS 17–25, где этих API ещё нет.
+    @ViewBuilder
+    private var tabs: some View {
+        if #available(iOS 26.0, *) {
+            systemTabs
+        } else {
+            legacyTabs
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private var systemTabs: some View {
+        TabView(selection: tabSelection) {
+            Tab("Машина", systemImage: "car", value: 0) { carScreen.environment(\.colorScheme, .dark) }
+            Tab("Карта", systemImage: "map", value: 1) { MapScreen().ignoresSafeArea().environment(\.colorScheme, .dark) }
+            Tab("Ошибки", systemImage: "wrench.adjustable", value: 2) {
+                IssuesScreen(hidesTabBar: $hidesTabBar, listening: listening)
+                    .ignoresSafeArea()
+                    .environment(\.colorScheme, .dark)
+            }
+            Tab("Ещё", systemImage: "ellipsis", value: 3) { MoreScreen().ignoresSafeArea().environment(\.colorScheme, .dark) }
+        }
+        // Бар в макете объявлен светлым (`BG mode="Light"`), а экран идёт в
+        // тёмной схеме ради светлого статус-бара. Схему задаём только бару;
+        // разделы возвращают себе тёмную сами — каждый в своей вкладке.
+        .environment(\.colorScheme, .light)
+        // Без своего цвета выбранная вкладка выходила **тусклее** невыбранных:
+        // системный бар красит её акцентом, а по умолчанию он не читается на
+        // стекле. Синий — цвет выбранной вкладки из макета.
+        .tint(Figma.accentsBlue)
+        // Сворачивание при прокрутке вниз — то самое, что раньше считалось
+        // руками в TabBarState с порогом в 28pt.
+        .tabBarMinimizeBehavior(.onScrollDown)
+        // Шторка находок накрывает экран целиком, включая бар.
+        .toolbarVisibility(hidesTabBar ? .hidden : .automatic, for: .tabBar)
+    }
+
+    /// Повторный тап по активной вкладке система сама обрабатывает только
+    /// внутри `NavigationStack`; у нас списки свои, поэтому ловим здесь.
+    private var tabSelection: Binding<Int> {
+        Binding(get: { tab },
+                set: { new in
+                    if new == tab { scrollToTop() } else { tab = new }
+                })
+    }
+
+    /// iOS 17–25: прежняя раскладка со своим баром поверх содержимого.
+    private var legacyTabs: some View {
+        ZStack(alignment: .topLeading) {
+            switch tab {
+            case 1: MapScreen().ignoresSafeArea().transition(tabTransition)
+            case 2: IssuesScreen(hidesTabBar: $hidesTabBar, listening: listening)
+                    .ignoresSafeArea().transition(tabTransition)
+            case 3: MoreScreen().ignoresSafeArea().transition(tabTransition)
+            default: carScreen.transition(tabTransition)
+            }
+
+            // В макете таббар стоит на y = 779 при высоте экрана 874, то есть
+            // в 7pt над home indicator. Прижимаем к нижней safe area, чтобы
+            // этот зазор сохранялся на экранах любой высоты.
+            FloatingTabBar(selection: $tab, state: tabBar, onReselect: { _ in scrollToTop() })
+                .opacity(hidesTabBar ? 0 : 1)
+                .allowsHitTesting(!hidesTabBar)
+                .frame(maxWidth: .infinity)
+                .offset(y: metrics.bottomAnchoredY(designY: 779, height: 54))
+        }
+    }
+
     // MARK: - Страница машины
+
+    /// Карусель авто: интерактивный пейджинг свайпом влево/вправо.
+    /// Аннотация макета (45895:3569): «все элементы остаются на месте и просто
+    /// меняются надписи» — раскладка страниц идентична, разъезжаться нечему.
+    private var carScreen: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            // Прогресс страницы добавления, 0…1. Страница НЕ едет: он
+            // управляет только содержимым — текстами и видимостью блоков.
+            let p = addProgress
+
+            carPageBody(progress: p)
+                // simultaneousGesture, а не gesture: заполненная страница —
+                // вертикальный ScrollView, и он забирал свайп себе, поэтому
+                // над картинкой машины и карточкой ТО карусель не листалась.
+                .simultaneousGesture(carouselDrag(width: width))
+        }
+        // важно: сам GeometryReader должен игнорировать safe area, иначе он
+        // отдаёт урезанный размер и все координаты макета съезжают вниз
+        .ignoresSafeArea()
+    }
+
+    @ViewBuilder
+    private var toastLayer: some View {
+        if showToast {
+            toast
+                .frame(maxWidth: .infinity)
+                .offset(y: 62)
+                .transition(toastTransition)
+                // HIG: временное сообщение не перехватывает работу с
+                // экраном — под ним всё остаётся нажимаемым.
+                .allowsHitTesting(false)
+        }
+    }
 
     /// Величины, которыми раскладка одной страницы отличается от другой.
     /// Их четыре, и все они числа — поэтому смешиваются, а не переключаются.
@@ -917,6 +973,11 @@ struct CarMainView: View {
         statCardShell(title: title) { Text(value) }
     }
 
+    /// Скругление плитки счётчика. Общая константа, потому что форма нужна и
+    /// материалу, и его подложке — разъехавшись, они дали бы двойную кромку.
+    private static let statCardShape = RoundedRectangle(cornerRadius: 34,
+                                                        style: .continuous)
+
     private func statCardShell<V: View>(title: String,
                                         @ViewBuilder value: () -> V) -> some View {
         VStack(spacing: 0) {
@@ -935,12 +996,13 @@ struct CarMainView: View {
         .frame(height: 47)
         .frame(maxWidth: .infinity)
         .frame(height: 96)
-        // Figma: 0/0/32 #EBEBEB — мягкая подложка, а не свечение вокруг плитки
-        .background(
-            RoundedRectangle(cornerRadius: 34)
-                .fill(.white)
-                .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
-        )
+        // В макете это «Liquid Glass - Regular - Small» (45895:3528), а не
+        // белая плитка: на устройстве материал преломляет то, что под ним.
+        // Тень из макета (0/0/32 #EBEBEB) остаётся — стекло её не заменяет.
+        .liquidGlass(in: Self.statCardShape, tint: .white) {
+            Self.statCardShape.fill(.white)
+        }
+        .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
     }
 
     /// История обслуживания. Белая подложка снята: блок лежит прямо на фоне

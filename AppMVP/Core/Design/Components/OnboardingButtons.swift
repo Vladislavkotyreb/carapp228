@@ -33,12 +33,27 @@ struct GlassProminentButton: View {
                             .tint(.white)
                     }
                 }
-                .background(Figma.labelsPrimary, in: Capsule())
+                .glassCapsule(prominent: true, fill: Figma.labelsPrimary)
                 .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
         }
         .buttonStyle(.plain)
         .disabled(isBusy)
         .accessibilityLabel(isBusy ? "\(title), выполняется" : title)
+    }
+}
+
+extension View {
+    /// Капсула кнопки из макета («Button - Liquid Glass - Text»). На iOS 26
+    /// это системное стекло, ниже — заливка из макета.
+    ///
+    /// Не `buttonStyle(.glassProminent)`, хотя стиль в системе есть: он сам
+    /// раскладывает лейбл и назначает ему свои отступы, а у наших кнопок
+    /// геометрия снята с макета до точки. Материал берём системный, раскладку
+    /// оставляем свою.
+    func glassCapsule(prominent: Bool, fill: Color) -> some View {
+        liquidGlass(in: Capsule(), tint: prominent ? fill : nil) {
+            Capsule().fill(prominent ? AnyShapeStyle(fill) : AnyShapeStyle(Color.clear))
+        }
     }
 }
 

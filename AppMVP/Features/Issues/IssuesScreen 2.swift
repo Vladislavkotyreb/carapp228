@@ -15,25 +15,12 @@ struct IssuesScreen: View {
     /// закрывал нижнюю кнопку «Нет, не добавлять».
     @Binding var hidesTabBar: Bool
 
-    /// Рамка по краям экрана рисуется поверх всех разделов, поэтому громкость
-    /// уезжает наружу через общий объект, а не остаётся здесь.
-    let listening: ListeningState
-
     @StateObject private var meter = AudioLevelMeter()
 
     /// История пуста на старте и растёт только после подтверждения находок.
     @State private var history: [IssueGroup] = []
     @State private var isRecording = false
     @State private var showFindings = false
-
-    /// Что показывает шторка. Пока сервер разбора не настроен — заглушка,
-    /// после разбора — то, что вернул `cardiag`.
-    @State private var findings: [EngineIssue] = IssuesStub.findings
-    /// Запись отдана на разбор и ответа ещё нет.
-    @State private var isAnalyzing = false
-    /// Хранится, чтобы отменить разбор при уходе с экрана: ответ приходит
-    /// секундами позже, и без отмены он открывает шторку поверх другого раздела.
-    @State private var analysisTask: Task<Void, Never>?
 
     private var hasHistory: Bool { !history.isEmpty }
 
@@ -69,9 +56,7 @@ struct IssuesScreen: View {
         .background(Figma.graysBlack)
         .animation(Motion.sheet, value: isRecording)
         .animation(Motion.sheet, value: history.count)
-        .onDisappear { meter.stop(); listening.stop(); analysisTask?.cancel() }
-        // Уровень уходит рамке отсюда: сам метр про неё не знает.
-        .onChange(of: meter.level) { _, new in listening.update(level: new) }
+        .onDisappear { meter.stop() }
         .bottomSheet(isPresented: $showFindings) { findingsSheet }
         .onChange(of: showFindings) { _, shown in hidesTabBar = shown }
     }
@@ -163,17 +148,8 @@ struct IssuesScreen: View {
                 .font(.system(size: 17))
                 .tracking(-0.43)
                 .foregroundStyle(.white)
-                // Индикатор оверлеем поверх скрытого лейбла — тот же приём,
-                // что у `GlassProminentButton`: геометрия кнопки не должна
-                // меняться, состояния разбора в макете нет.
-                .opacity(isAnalyzing ? 0 : 1)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
-                .overlay {
-                    if isAnalyzing {
-                        ProgressView().progressViewStyle(.circular).tint(.white)
-                    }
-                }
                 .liquidGlass(in: Capsule(), tint: Figma.graysBlack) {
                     Capsule()
                         .fill(Figma.graysBlack)
@@ -181,8 +157,6 @@ struct IssuesScreen: View {
                 }
         }
         .buttonStyle(.plain)
-        .disabled(isAnalyzing)
-        .accessibilityLabel(isAnalyzing ? "Разбираем запись" : (isRecording ? "Стоп" : "Слушать"))
     }
 
     // MARK: - История (нода 46090:2356)
@@ -257,15 +231,9 @@ struct IssuesScreen: View {
                                                     style: .continuous)
 
     private var darkCardSurface: some View {
-        // Тот же компонент макета, только в тёмном режиме. Кромку на iOS 26
-        // даёт само стекло, поэтому нарисованная обводка живёт лишь в
-        // подложке для более старых систем — иначе кромок было бы две.
-        Color.clear
-            .liquidGlass(in: Self.cardShape, tint: Figma.darkCard) {
-                Self.cardShape
-                    .fill(Figma.darkCard)
-                    .overlay(Self.cardShape.stroke(Color.white.opacity(0.10), lineWidth: 0.5))
-            }
+        Self.cardShape
+            .fill(Figma.darkCard)
+            .overlay(Self.cardShape.stroke(Color.white.opacity(0.10), lineWidth: 0.5))
     }
 
     /// Заголовок здесь Subheadline/Emphasized (15pt), а не Body: с 17pt
@@ -398,7 +366,7 @@ struct IssuesScreen: View {
     private var findingsScroll: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
-                ForEach(findings) { issue in
+                ForEach(IssuesStub.findings) { issue in
                     issueBody(issue, title: Figma.labelsPrimary,
                               detail: Figma.vibrantSecondary)
                         .background(lightCardSurface)
@@ -412,13 +380,8 @@ struct IssuesScreen: View {
     /// фона шторки 252 — разница в три уровня. Всю работу делает тень,
     /// проседающая до 245 у края карточки и до 243 в зазоре между двумя.
     private var lightCardSurface: some View {
-        // В макете это «Liquid Glass - Regular - Small», а не белая заливка.
-        // Тень остаётся: она и держит карточку на подложке, разница между
-        // её белым и фоном шторки всего три уровня.
-        Color.clear
-            .liquidGlass(in: Self.cardShape, tint: .white) {
-                Self.cardShape.fill(Figma.backgroundsPrimary)
-            }
+        Self.cardShape
+            .fill(Figma.backgroundsPrimary)
             .shadow(color: .black.opacity(0.10), radius: 10, y: 2)
     }
 
@@ -479,151 +442,21 @@ struct IssuesScreen: View {
     private func toggleRecording() {
         if isRecording {
             meter.stop()
-            listening.stop()
             isRecording = false
-            analyse()
+            // Останавливаем — и сразу показываем, что нашли. История сама по
+            // себе не появляется: её наполняет только подтверждение.
+            showFindings = true
         } else {
             isRecording = true
             meter.start()
-            listening.start()
         }
-    }
-
-    /// Отдаёт запись на разбор и показывает результат. Шторка открывается
-    /// только после ответа: показать её сразу и потом подменить содержимое
-    /// значит соврать пользователю про то, что уже «нашли».
-    private func analyse() {
-        guard DiagnosisEndpoint.isConfigured, let recording = meter.lastRecording else {
-            // Сервер не настроен — работаем как раньше, на заглушке. Это
-            // честнее пустого экрана и совпадает с поведением «Карты» без ключа.
-            findings = IssuesStub.findings
-            showFindings = true
-            return
-        }
-
-        isAnalyzing = true
-        analysisTask?.cancel()
-        analysisTask = Task {
-            let result: [EngineIssue]
-            do {
-                result = issues(from: try await CarDiagnosisClient.diagnose(fileURL: recording))
-            } catch {
-                let reason = (error as? LocalizedError)?.errorDescription
-                    ?? "Не удалось связаться с сервером"
-                result = [EngineIssue(title: "Не удалось разобрать запись", detail: reason)]
-            }
-            guard !Task.isCancelled else { return }
-            findings = result
-            isAnalyzing = false
-            showFindings = true
-        }
-    }
-
-    /// Разбор в карточки экрана.
-    ///
-    /// Здесь важно не смешать два **разных** числа, которые присылает сервер.
-    ///
-    /// `fault_probability` — отдельная голова «есть ли вообще неисправность».
-    /// Она откалибрована температурой 3.08, то есть её сырую самоуверенность
-    /// специально погасили, и заявленная ошибка калибровки ≈ 0.04. Этому числу
-    /// можно верить как вероятности, и оно идёт первой карточкой.
-    ///
-    /// `causes[].p` — это **распределение по 21 семейству**, сумма по всем
-    /// единица. Температура у этой головы 1.0, то есть не калибрована вовсе.
-    /// Её 99 % значат «из версий модель почти всё веса отдала этой», а вовсе не
-    /// «деталь сломана с вероятностью 99 %». Поэтому в подписи стоит «модель
-    /// ставит сюда», а не «уверенность»: на демо-клипе как раз выходило
-    /// 99 % на выхлоп при 64 % на сам факт неисправности.
-    private func issues(from diagnosis: Diagnosis) -> [EngineIssue] {
-        guard diagnosis.modelLoaded else {
-            return [EngineIssue(title: "Модель не загружена",
-                                detail: "Сервер запущен без модели — запустите его "
-                                        + "с ключом --model models")]
-        }
-
-        // Первый и главный предохранитель: похоже ли это вообще на мотор.
-        // Модель cardiag такого вопроса не задаёт — её головы различают
-        // неисправный мотор и исправный, а варианта «это не машина» у них нет.
-        // Отсюда и брался «дифференциал» в тихой комнате.
-        guard diagnosis.isEngine else {
-            return [EngineIssue(
-                title: "Это не похоже на звук двигателя",
-                detail: "В записи не слышно работающего мотора, поэтому разбирать "
-                        + "нечего. Запустите двигатель и поднесите телефон ближе.")]
-        }
-
-        // Версии показываем **только** когда голова «есть ли поломка» сказала
-        // «да». Она единственная здесь откалибрована, и она же единственная,
-        // что умеет ответить «нет»: у головы причин класса «ничего» нет, она
-        // раскладывает свои 100 % по деталям при любом входе.
-        //
-        // Именно на этом ловилась тишина: запись без мотора, но с парой
-        // шорохов даёт два «механических» куска, вердикт при этом честный
-        // «норма, 32 %», а список деталей всё равно уверенно называл выхлоп
-        // на 86 %. Гейт по вердикту это снимает.
-        guard diagnosis.verdict == "fault" else { return [verdictCard(diagnosis)] }
-
-        var cards = [verdictCard(diagnosis)]
-
-        // Хвост ранжирования — шум: модель отдаёт распределение целиком, и
-        // после уверенного первого места идут доли процента. Ниже 5 % не
-        // показываем: такая карточка читается как найденная неисправность.
-        let ranked = diagnosis.causes.filter { $0.part != "none" && $0.p >= 0.05 }
-
-        cards += ranked.prefix(5).map { cause in
-            let part = DiagnosisVocabulary.part(cause.part)
-            let zone = DiagnosisVocabulary.zone(forPart: cause.part)
-            // У части семейств название совпадает с зоной («Выпускная система»),
-            // и подпись выходила повтором.
-            let where_ = zone == part ? "" : zone + " · "
-            return EngineIssue(title: part,
-                               detail: where_ + "модель ставит сюда " + percent(cause.p))
-        }
-
-        if ranked.isEmpty {
-            cards.append(EngineIssue(
-                title: "Конкретную деталь назвать нельзя",
-                detail: "Ни одна версия не набрала веса — звука для этого мало"))
-        }
-        return cards
-    }
-
-    /// Первая карточка: то единственное число, которое здесь означает
-    /// вероятность в обычном смысле слова.
-    ///
-    /// Про сегменты здесь только оговорка, а не запрет. Жёсткий запрет тут
-    /// стоял и оказался вреден: порог громкости в каскаде относительный, и
-    /// ровно урчащий мотор кусков не даёт так же, как тишина. Отсеивать не мотор
-    /// должен привратник, а это его работа, не наша.
-    private func verdictCard(_ diagnosis: Diagnosis) -> EngineIssue {
-        let share = percent(diagnosis.faultProbability)
-        let caveat = diagnosis.segmentCount == 0
-            ? " Чистого куска звука выделить не удалось, разбор по всей записи."
-            : ""
-
-        switch diagnosis.verdict {
-        case "fault":
-            return EngineIssue(title: "Похоже на неисправность",
-                               detail: "Оценка «что-то не так» — \(share). "
-                                       + "Ниже версии, что именно, по убыванию." + caveat)
-        case "normal":
-            return EngineIssue(title: "Ничего тревожного не слышно",
-                               detail: "Оценка «что-то не так» — \(share)." + caveat)
-        default:
-            return EngineIssue(title: "По этой записи не берусь судить",
-                               detail: "Оценка «что-то не так» — \(share), "
-                                       + "это слишком близко к середине." + caveat)
-        }
-    }
-
-    private func percent(_ value: Double) -> String {
-        "\(Int((value * 100).rounded()))\u{00A0}%"
     }
 
     private func approveFindings() {
         let formatter = DateFormatter()
         formatter.dateFormat = "dd.MM.yyyy"
-        history.append(IssueGroup(date: formatter.string(from: .now), issues: findings))
+        history.append(IssueGroup(date: formatter.string(from: .now),
+                                  issues: IssuesStub.findings))
         showFindings = false
     }
 }
