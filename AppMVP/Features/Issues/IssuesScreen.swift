@@ -22,6 +22,15 @@ struct IssuesScreen: View {
     @State private var isRecording = false
     @State private var showFindings = false
 
+    /// Что показывает шторка. Пока сервер разбора не настроен — заглушка,
+    /// после разбора — то, что вернул `cardiag`.
+    @State private var findings: [EngineIssue] = IssuesStub.findings
+    /// Запись отдана на разбор и ответа ещё нет.
+    @State private var isAnalyzing = false
+    /// Хранится, чтобы отменить разбор при уходе с экрана: ответ приходит
+    /// секундами позже, и без отмены он открывает шторку поверх другого раздела.
+    @State private var analysisTask: Task<Void, Never>?
+
     private var hasHistory: Bool { !history.isEmpty }
 
     /// Модалка только когда под ней есть что притемнять. На пустом экране она
@@ -56,7 +65,7 @@ struct IssuesScreen: View {
         .background(Figma.graysBlack)
         .animation(Motion.sheet, value: isRecording)
         .animation(Motion.sheet, value: history.count)
-        .onDisappear { meter.stop() }
+        .onDisappear { meter.stop(); analysisTask?.cancel() }
         .bottomSheet(isPresented: $showFindings) { findingsSheet }
         .onChange(of: showFindings) { _, shown in hidesTabBar = shown }
     }
@@ -148,8 +157,17 @@ struct IssuesScreen: View {
                 .font(.system(size: 17))
                 .tracking(-0.43)
                 .foregroundStyle(.white)
+                // Индикатор оверлеем поверх скрытого лейбла — тот же приём,
+                // что у `GlassProminentButton`: геометрия кнопки не должна
+                // меняться, состояния разбора в макете нет.
+                .opacity(isAnalyzing ? 0 : 1)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
+                .overlay {
+                    if isAnalyzing {
+                        ProgressView().progressViewStyle(.circular).tint(.white)
+                    }
+                }
                 .liquidGlass(in: Capsule(), tint: Figma.graysBlack) {
                     Capsule()
                         .fill(Figma.graysBlack)
@@ -157,6 +175,8 @@ struct IssuesScreen: View {
                 }
         }
         .buttonStyle(.plain)
+        .disabled(isAnalyzing)
+        .accessibilityLabel(isAnalyzing ? "Разбираем запись" : (isRecording ? "Стоп" : "Слушать"))
     }
 
     // MARK: - История (нода 46090:2356)
@@ -366,7 +386,7 @@ struct IssuesScreen: View {
     private var findingsScroll: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
-                ForEach(IssuesStub.findings) { issue in
+                ForEach(findings) { issue in
                     issueBody(issue, title: Figma.labelsPrimary,
                               detail: Figma.vibrantSecondary)
                         .background(lightCardSurface)
@@ -443,20 +463,92 @@ struct IssuesScreen: View {
         if isRecording {
             meter.stop()
             isRecording = false
-            // Останавливаем — и сразу показываем, что нашли. История сама по
-            // себе не появляется: её наполняет только подтверждение.
-            showFindings = true
+            analyse()
         } else {
             isRecording = true
             meter.start()
         }
     }
 
+    /// Отдаёт запись на разбор и показывает результат. Шторка открывается
+    /// только после ответа: показать её сразу и потом подменить содержимое
+    /// значит соврать пользователю про то, что уже «нашли».
+    private func analyse() {
+        guard DiagnosisEndpoint.isConfigured, let recording = meter.lastRecording else {
+            // Сервер не настроен — работаем как раньше, на заглушке. Это
+            // честнее пустого экрана и совпадает с поведением «Карты» без ключа.
+            findings = IssuesStub.findings
+            showFindings = true
+            return
+        }
+
+        isAnalyzing = true
+        analysisTask?.cancel()
+        analysisTask = Task {
+            let result: [EngineIssue]
+            do {
+                result = issues(from: try await CarDiagnosisClient.diagnose(fileURL: recording))
+            } catch {
+                let reason = (error as? LocalizedError)?.errorDescription
+                    ?? "Не удалось связаться с сервером"
+                result = [EngineIssue(title: "Не удалось разобрать запись", detail: reason)]
+            }
+            guard !Task.isCancelled else { return }
+            findings = result
+            isAnalyzing = false
+            showFindings = true
+        }
+    }
+
+    /// Разбор в карточки экрана. Показываем ранжированный список деталей —
+    /// именно он у `cardiag` самый сильный выход, а точный вердикт по одному
+    /// звуку модель сама называет неуверенным.
+    private func issues(from diagnosis: Diagnosis) -> [EngineIssue] {
+        guard diagnosis.modelLoaded else {
+            return [EngineIssue(title: "Модель не загружена",
+                                detail: "Сервер запущен без модели — запустите его "
+                                        + "с ключом --model models")]
+        }
+
+        // Хвост ранжирования — шум: модель отдаёт его целиком, но карточка
+        // «уверенность 0 %» читается как найденная неисправность. Порог в 5 %
+        // его отсекает, при этом первая строка остаётся всегда: если уверенности
+        // нет ни в чём, честнее показать самое вероятное с его цифрой, чем
+        // пустую шторку.
+        let meaningful = diagnosis.causes.filter { $0.part != "none" && $0.p >= 0.05 }
+        let shown = meaningful.isEmpty
+            ? Array(diagnosis.causes.filter { $0.part != "none" }.prefix(1))
+            : Array(meaningful.prefix(6))
+
+        let ranked = shown.map { cause -> EngineIssue in
+            let part = DiagnosisVocabulary.part(cause.part)
+            let zone = DiagnosisVocabulary.zone(forPart: cause.part)
+            // У части семейств название совпадает с зоной («Выпускная система»),
+            // и подпись выходила повтором.
+            let where_ = zone == part ? "" : zone + " · "
+            return EngineIssue(title: part,
+                               detail: where_ + "уверенность " + percent(cause.p))
+        }
+
+        guard ranked.isEmpty else { return Array(ranked) }
+
+        // Ничего не набралось — это не ошибка, а нормальный исход. Вердикт в
+        // таком случае и есть весь ответ.
+        let verdict = diagnosis.verdict == "fault"
+            ? "Звук похож на неисправный, но конкретную деталь по нему не назвать"
+            : "Ничего тревожного в записи не слышно"
+        return [EngineIssue(title: verdict,
+                            detail: "Признак неисправности: " + percent(diagnosis.faultProbability))]
+    }
+
+    private func percent(_ value: Double) -> String {
+        "\(Int((value * 100).rounded()))\u{00A0}%"
+    }
+
     private func approveFindings() {
         let formatter = DateFormatter()
         formatter.dateFormat = "dd.MM.yyyy"
-        history.append(IssueGroup(date: formatter.string(from: .now),
-                                  issues: IssuesStub.findings))
+        history.append(IssueGroup(date: formatter.string(from: .now), issues: findings))
         showFindings = false
     }
 }

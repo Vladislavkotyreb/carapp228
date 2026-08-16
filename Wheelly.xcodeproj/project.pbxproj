@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */ = {isa = PBXBuildFile; productRef = 9A0000010000000000000002 /* YandexMapsMobileFull */; };
 		9B0000010000000000000001 /* MapKitKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000001 /* MapKitKey.swift */; };
+		9B0000000000000000000001 /* CarDiagnosis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000001 /* CarDiagnosis.swift */; };
 		9B0000010000000000000002 /* MapScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000002 /* MapScreen.swift */; };
 		AA0000010000000000000001 /* AppMVPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000001 /* AppMVPApp.swift */; };
 		AA0000010000000000000003 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000003 /* Theme.swift */; };
@@ -42,6 +43,7 @@
 
 /* Begin PBXFileReference section */
 		9C0000010000000000000001 /* MapKitKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitKey.swift; sourceTree = "<group>"; };
+		9C0000000000000000000001 /* CarDiagnosis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarDiagnosis.swift; sourceTree = "<group>"; };
 		9C0000010000000000000002 /* MapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapScreen.swift; sourceTree = "<group>"; };
 		BB0000010000000000000001 /* AppMVPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMVPApp.swift; sourceTree = "<group>"; };
 		BB0000010000000000000003 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -236,6 +238,7 @@
 			children = (
 				BB00000100000000000000B1 /* VehicleLookup.swift */,
 				9C0000010000000000000001 /* MapKitKey.swift */,
+				9C0000000000000000000001 /* CarDiagnosis.swift */,
 				8B0000010000000000000001 /* AudioLevelMeter.swift */,
 				BB00000100000000000000B2 /* ImageLoader.swift */,
 			);
@@ -351,6 +354,7 @@
 				8A0000010000000000000001 /* AudioLevelMeter.swift in Sources */,
 				9B0000010000000000000002 /* MapScreen.swift in Sources */,
 				9B0000010000000000000001 /* MapKitKey.swift in Sources */,
+				9B0000000000000000000001 /* CarDiagnosis.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
@@ -468,6 +472,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
+				INFOPLIST_FILE = AppMVP/Resources/Info.plist;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Чтобы отправить запись двигателя на сервер разбора в вашей сети";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вашу позицию на карте";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Чтобы слушать двигатель и находить неисправности";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -496,6 +502,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
+				INFOPLIST_FILE = AppMVP/Resources/Info.plist;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Чтобы отправить запись двигателя на сервер разбора в вашей сети";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вашу позицию на карте";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Чтобы слушать двигатель и находить неисправности";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
