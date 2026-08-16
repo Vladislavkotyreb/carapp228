@@ -73,7 +73,15 @@ struct IssuesScreen: View {
         // Уровень уходит рамке отсюда: сам метр про неё не знает.
         .onChange(of: meter.level) { _, new in listening.update(level: new) }
         .bottomSheet(isPresented: $showFindings) { findingsSheet }
-        .onChange(of: showFindings) { _, shown in hidesTabBar = shown }
+        // Таббар уходит под **любую** модалку раздела, а не только под шторку
+        // находок. Панель записи затемняет экран целиком, и оставлять поверх
+        // неё живой таббар неверно: модальное окно на то и модальное, что
+        // забирает управление себе.
+        .onChange(of: showFindings) { _, _ in syncTabBar() }
+        .onChange(of: isModalRecording) { _, _ in syncTabBar() }
+        // `onChange` молчит, если состояние истинно уже на входе в раздел, —
+        // на этом ловилось скрытие таббара. Досылаем при появлении.
+        .onAppear { syncTabBar() }
     }
 
     // MARK: - Экран
@@ -86,7 +94,7 @@ struct IssuesScreen: View {
                 // Пока истории нет, шар оживает прямо здесь: модалки не будет.
                 SoundOrb(level: isRecording && !hasHistory ? meter.level : 0)
                 Spacer(minLength: 0).frame(height: 24)
-                caption
+                caption(Self.screenCaption)
                 Spacer(minLength: 0).frame(height: buttonGap)
                 listenButton
 
@@ -112,18 +120,18 @@ struct IssuesScreen: View {
             Spacer(minLength: 0).frame(height: 48)
             SoundOrb(level: meter.level)
             Spacer(minLength: 0).frame(height: 24)
-            caption
+            caption(Self.panelCaption)
             Spacer(minLength: 0).frame(height: 48)
             listenButton
         }
         .padding(16)
         .background {
-            // Плотнее, чем «Liquid Glass - Clear» в макете: сквозь него
-            // читался текст экрана под панелью.
-            RoundedRectangle(cornerRadius: 36, style: .continuous)
-                .fill(Color(white: 0.11))
-                .overlay(RoundedRectangle(cornerRadius: 36, style: .continuous)
-                    .stroke(Color.white.opacity(0.14), lineWidth: 0.5))
+            // Заливка снята с рендера ноды `46105:4088` пипеткой: ровный
+            // rgb(25,25,25) по всей панели, сверху донизу. Светлой кромки в
+            // макете нет вовсе — стояла обводка 0.14, её убрал.
+            // Тень остаётся: на затемнённом экране она отделяет панель от фона.
+            Self.panelShape
+                .fill(Figma.recordingPanel)
                 .shadow(color: .black.opacity(0.6), radius: 40, y: 12)
         }
     }
@@ -141,8 +149,16 @@ struct IssuesScreen: View {
     /// В макете описание занимает **три** строки и объявлено высотой 63; текст
     /// системным шрифтом укладывается в две, блок становится на 21pt короче, и
     /// на эти 21pt уезжает вверх всё, что ниже, — в первую очередь кнопка.
-    private var caption: some View {
-        Text("Поднесите телефон к двигателю или выхлопной\nтрубе и нажмите кнопку для начала\nдиагностики")
+    /// Переносы у экрана и у модалки **разные**: блок там 370 и 338 точек.
+    /// Одна строка на оба места разъезжается — в узкой панели она ломалась
+    /// на четыре строки вместо трёх.
+    private static let screenCaption =
+        "Поднесите телефон к двигателю или выхлопной\nтрубе и нажмите кнопку для начала\nдиагностики"
+    private static let panelCaption =
+        "Поднесите телефон к двигателю или\nвыхлопной трубе и нажмите кнопку для\nначала диагностики"
+
+    private func caption(_ text: String) -> some View {
+        Text(text)
             .font(.system(size: 16))
             .tracking(-0.31)
             .figmaLineHeight(21, fontSize: 16)
@@ -303,6 +319,9 @@ struct IssuesScreen: View {
     /// `AddServiceChoiceSheet`. Своя версия была голым `VStack` без контейнера:
     /// без формы, без белой заливки, без грабера и с растягивающимся
     /// `Spacer`, из-за которого кнопки уезжали за нижний край экрана.
+    /// Форма панели записи (нода `46105:4087`), 370 × 549.289, скругление 36.
+    private static let panelShape = RoundedRectangle(cornerRadius: 36, style: .continuous)
+
     private static let sheetShape = UnevenRoundedRectangle(
         topLeadingRadius: 34, bottomLeadingRadius: 58,
         bottomTrailingRadius: 58, topTrailingRadius: 34
@@ -475,6 +494,10 @@ struct IssuesScreen: View {
     }
 
     // MARK: - Действия
+
+    private func syncTabBar() {
+        hidesTabBar = showFindings || isModalRecording
+    }
 
     private func toggleRecording() {
         if isRecording {

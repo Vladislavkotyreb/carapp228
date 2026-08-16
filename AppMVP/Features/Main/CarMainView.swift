@@ -396,6 +396,10 @@ struct CarMainView: View {
                 IssuesScreen(hidesTabBar: $hidesTabBar, listening: listening)
                     .ignoresSafeArea()
                     .environment(\.colorScheme, .dark)
+                    // Видимость бара объявляется **содержимым вкладки**, а не
+                    // самим `TabView`: на `TabView` модификатор молча
+                    // игнорируется, и бар оставался поверх модалки.
+                    .toolbarVisibility(hidesTabBar ? .hidden : .automatic, for: .tabBar)
             }
             Tab("Ещё", systemImage: "ellipsis", value: 3) { MoreScreen().ignoresSafeArea().environment(\.colorScheme, .dark) }
         }
@@ -410,8 +414,6 @@ struct CarMainView: View {
         // Сворачивание при прокрутке вниз — то самое, что раньше считалось
         // руками в TabBarState с порогом в 28pt.
         .tabBarMinimizeBehavior(.onScrollDown)
-        // Шторка находок накрывает экран целиком, включая бар.
-        .toolbarVisibility(hidesTabBar ? .hidden : .automatic, for: .tabBar)
     }
 
     /// Повторный тап по активной вкладке система сама обрабатывает только

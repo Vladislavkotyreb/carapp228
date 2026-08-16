@@ -77,6 +77,9 @@ enum Figma {
     /// чёрный, поэтому взят светлее — исходный на нём проваливается.
     static let orbParticle = Color(red: 155 / 255, green: 140 / 255, blue: 255 / 255)
     static let darkCard = Color(red: 26 / 255, green: 26 / 255, blue: 26 / 255)      // #1A1A1A
+    /// Панель записи на экране «Ошибки» (нода 46105:4088). Снято пипеткой с
+    /// рендера: ровный #191919 по всей площади, без кромки.
+    static let recordingPanel = Color(red: 25 / 255, green: 25 / 255, blue: 25 / 255)
     static let accentsGreen = Color(red: 52 / 255, green: 199 / 255, blue: 89 / 255) // Accents/Green #34C759
     static let fillsSecondary = Color(red: 120 / 255, green: 120 / 255, blue: 128 / 255)
         .opacity(0.16)                                                              // Fills/Secondary
