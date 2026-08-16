@@ -187,8 +187,14 @@ enum DiagnosisVocabulary {
             "Трансмиссия"
         case "suspension", "power_steering":
             "Подвеска и рулевое"
-        case "brakes", "wheel_bearing", "wheel_tire", "tires":
+        case "brakes", "wheel_bearing", "bad_wheal_bearing", "wheel_tire", "tires":
             "Тормоза и колёса"
+        case "transmission":
+            "Трансмиссия"
+        case "cooling_other":
+            "Система охлаждения"
+        case "mounts":
+            "Опоры двигателя"
         default:
             "Не определено"
         }
@@ -215,8 +221,15 @@ enum DiagnosisVocabulary {
         case "suspension": "Подвеска"
         case "power_steering": "Усилитель руля"
         case "brakes": "Тормоза"
-        case "wheel_bearing": "Ступичный подшипник"
+        // Два класса ступичного подшипника — не опечатка здесь, а опечатка в
+        // разметке самой модели: в ней рядом живут `wheel_bearing` и
+        // `bad_wheal_bearing`. Оба ведём в одно название.
+        case "wheel_bearing", "bad_wheal_bearing": "Ступичный подшипник"
         case "wheel_tire", "tires": "Колёса и шины"
+        case "transmission": "Коробка передач"
+        case "cooling_other": "Система охлаждения"
+        case "mounts": "Опоры двигателя"
+        case "other": "Что-то другое"
         case "none": "Ничего определённого"
         default: key
         }

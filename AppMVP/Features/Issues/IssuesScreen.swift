@@ -500,9 +500,21 @@ struct IssuesScreen: View {
         }
     }
 
-    /// Разбор в карточки экрана. Показываем ранжированный список деталей —
-    /// именно он у `cardiag` самый сильный выход, а точный вердикт по одному
-    /// звуку модель сама называет неуверенным.
+    /// Разбор в карточки экрана.
+    ///
+    /// Здесь важно не смешать два **разных** числа, которые присылает сервер.
+    ///
+    /// `fault_probability` — отдельная голова «есть ли вообще неисправность».
+    /// Она откалибрована температурой 3.08, то есть её сырую самоуверенность
+    /// специально погасили, и заявленная ошибка калибровки ≈ 0.04. Этому числу
+    /// можно верить как вероятности, и оно идёт первой карточкой.
+    ///
+    /// `causes[].p` — это **распределение по 21 семейству**, сумма по всем
+    /// единица. Температура у этой головы 1.0, то есть не калибрована вовсе.
+    /// Её 99 % значат «из версий модель почти всё веса отдала этой», а вовсе не
+    /// «деталь сломана с вероятностью 99 %». Поэтому в подписи стоит «модель
+    /// ставит сюда», а не «уверенность»: на демо-клипе как раз выходило
+    /// 99 % на выхлоп при 64 % на сам факт неисправности.
     private func issues(from diagnosis: Diagnosis) -> [EngineIssue] {
         guard diagnosis.modelLoaded else {
             return [EngineIssue(title: "Модель не загружена",
@@ -510,35 +522,48 @@ struct IssuesScreen: View {
                                         + "с ключом --model models")]
         }
 
-        // Хвост ранжирования — шум: модель отдаёт его целиком, но карточка
-        // «уверенность 0 %» читается как найденная неисправность. Порог в 5 %
-        // его отсекает, при этом первая строка остаётся всегда: если уверенности
-        // нет ни в чём, честнее показать самое вероятное с его цифрой, чем
-        // пустую шторку.
-        let meaningful = diagnosis.causes.filter { $0.part != "none" && $0.p >= 0.05 }
-        let shown = meaningful.isEmpty
-            ? Array(diagnosis.causes.filter { $0.part != "none" }.prefix(1))
-            : Array(meaningful.prefix(6))
+        var cards = [verdictCard(diagnosis)]
 
-        let ranked = shown.map { cause -> EngineIssue in
+        // Хвост ранжирования — шум: модель отдаёт распределение целиком, и
+        // после уверенного первого места идут доли процента. Ниже 5 % не
+        // показываем: такая карточка читается как найденная неисправность.
+        let ranked = diagnosis.causes.filter { $0.part != "none" && $0.p >= 0.05 }
+
+        cards += ranked.prefix(5).map { cause in
             let part = DiagnosisVocabulary.part(cause.part)
             let zone = DiagnosisVocabulary.zone(forPart: cause.part)
             // У части семейств название совпадает с зоной («Выпускная система»),
             // и подпись выходила повтором.
             let where_ = zone == part ? "" : zone + " · "
             return EngineIssue(title: part,
-                               detail: where_ + "уверенность " + percent(cause.p))
+                               detail: where_ + "модель ставит сюда " + percent(cause.p))
         }
 
-        guard ranked.isEmpty else { return Array(ranked) }
+        if ranked.isEmpty {
+            cards.append(EngineIssue(
+                title: "Конкретную деталь назвать нельзя",
+                detail: "Ни одна версия не набрала веса — звука для этого мало"))
+        }
+        return cards
+    }
 
-        // Ничего не набралось — это не ошибка, а нормальный исход. Вердикт в
-        // таком случае и есть весь ответ.
-        let verdict = diagnosis.verdict == "fault"
-            ? "Звук похож на неисправный, но конкретную деталь по нему не назвать"
-            : "Ничего тревожного в записи не слышно"
-        return [EngineIssue(title: verdict,
-                            detail: "Признак неисправности: " + percent(diagnosis.faultProbability))]
+    /// Первая карточка: то единственное число, которое здесь означает
+    /// вероятность в обычном смысле слова.
+    private func verdictCard(_ diagnosis: Diagnosis) -> EngineIssue {
+        let share = percent(diagnosis.faultProbability)
+        switch diagnosis.verdict {
+        case "fault":
+            return EngineIssue(title: "Похоже на неисправность",
+                               detail: "Оценка «что-то не так» — \(share). "
+                                       + "Ниже версии, что именно, по убыванию.")
+        case "normal":
+            return EngineIssue(title: "Ничего тревожного не слышно",
+                               detail: "Оценка «что-то не так» — \(share).")
+        default:
+            return EngineIssue(title: "По этой записи не берусь судить",
+                               detail: "Оценка «что-то не так» — \(share), "
+                                       + "это слишком близко к середине.")
+        }
     }
 
     private func percent(_ value: Double) -> String {
