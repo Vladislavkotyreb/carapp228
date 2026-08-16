@@ -46,6 +46,16 @@ struct Diagnosis: Decodable {
     /// В ответе без модели приходит `false` и одна только чистка звука.
     let modelLoaded: Bool
 
+    /// Прошла ли запись привратника «это вообще звук мотора».
+    ///
+    /// Считает его наш сервер (`tools/diagnosis_server.py`) через CLAP, потому
+    /// что сам cardiag такого вопроса не задаёт: его головы обучены отличать
+    /// неисправный мотор от исправного и варианта «это не машина» не знают.
+    /// Без привратника тихая комната уверенно превращалась в «дифференциал».
+    let isEngine: Bool
+    /// Насколько запись похожа на мотор, 0…1. Порог на сервере 0.5.
+    let engineProbability: Double
+
     struct Region: Decodable {
         /// Одна из шести зон: engine, accessory, exhaust, drivetrain,
         /// suspension/steering, brakes/wheels
@@ -66,6 +76,8 @@ struct Diagnosis: Decodable {
         case engineKnockProbability = "engine_knock_probability"
         case regions, causes, note, segments
         case modelLoaded = "model_loaded"
+        case isEngine = "is_engine"
+        case engineProbability = "engine_probability"
     }
 
     /// Куски нужны только числом, поэтому декодируем их как непрозрачный
@@ -83,6 +95,11 @@ struct Diagnosis: Decodable {
         note = try box.decodeIfPresent(String.self, forKey: .note) ?? ""
         modelLoaded = try box.decodeIfPresent(Bool.self, forKey: .modelLoaded) ?? false
         segmentCount = (try box.decodeIfPresent([AnySegment].self, forKey: .segments) ?? []).count
+        // Старый `cardiag serve` полей привратника не присылает вовсе. Тогда
+        // считаем запись мотором: иначе прежний сервер молча перестал бы
+        // работать, а это хуже, чем отсутствие проверки.
+        isEngine = try box.decodeIfPresent(Bool.self, forKey: .isEngine) ?? true
+        engineProbability = try box.decodeIfPresent(Double.self, forKey: .engineProbability) ?? 1
     }
 }
 
