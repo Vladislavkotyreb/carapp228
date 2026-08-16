@@ -39,6 +39,26 @@ struct SoundOrb: View {
     /// Пропорция из макета: 370 × 238.955.
     static let aspectRatio: CGFloat = 370 / 238.955
 
+    /// Активность шара в тишине. Ноль означал бы мёртвую картинку — на
+    /// референсной записи шар не замирает нигде.
+    ///
+    /// Важно, что это **вилка**, а не одно число. С постоянным уровнем в покое
+    /// движется только геометрия ленты, и по замеру это давало 5.6/255 против
+    /// 19 у референса. На записи каждый кадр гонит сам голос: вместе с
+    /// толщиной скачет и яркость. Поэтому уровень в тишине сам дышит между
+    /// этими границами — тем же приёмом, только предсказуемо.
+    static let idleLow: Double = 0.58
+    static let idleHigh: Double = 1.0
+
+    /// Уровень, которым живёт лента: в тишине дышит сам, с голосом идёт за ним.
+    /// Две синусоиды с несоизмеримыми частотами — чтобы рисунок не повторялся
+    /// заметным периодом.
+    func drive(at time: Double) -> Double {
+        let breath = (0.55 * sin(time * 1.15) + 0.45 * sin(time * 2.03 + 1.7) + 1) / 2
+        let idle = Self.idleLow + (Self.idleHigh - Self.idleLow) * breath
+        return max(idle, min(1, level * 1.6))
+    }
+
     var body: some View {
         if Self.style == .figma {
             figmaOrb
@@ -47,8 +67,8 @@ struct SoundOrb: View {
         }
     }
 
-    /// Ассет из макета как основа, живая волна — сверху. При нулевой громкости
-    /// волны нет вовсе, и на экране ровно то, что нарисовано в Figma.
+    /// Ассет из макета как основа, живая волна — сверху. Пузырь, его объём и
+    /// затухание к краям берутся с растра, движется только лента.
     private var figmaOrb: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
             let t = phase(at: timeline.date)
@@ -62,8 +82,10 @@ struct SoundOrb: View {
                         .frame(width: geo.size.width, height: geo.size.height * 1.243)
                         .offset(y: -geo.size.height * 0.159)
                         // Статичная лента с картинки гаснет по мере того, как
-                        // разгорается живая: иначе две ленты спорят.
-                        .opacity(1 - 0.55 * min(1, level * 2.2))
+                        // разгорается живая: иначе две ленты спорят. Гасить
+                        // приходится и в тишине — живая лента теперь работает
+                        // всегда, а не только со звуком.
+                        .opacity(1 - 0.55 * drive(at: t))
 
                     Canvas { context, size in
                         drawLiveWave(in: &context, size: size, time: t)
@@ -345,8 +367,13 @@ extension SoundOrb {
 }
 
 extension SoundOrb {
-    /// Живая лента поверх растра. Появляется только со звуком: при нулевой
-    /// громкости прозрачна целиком, и макет остаётся нетронутым.
+    /// Живая лента поверх растра.
+    ///
+    /// Раньше здесь стоял ранний выход при тишине, и шар в покое стоял
+    /// намертво. На референсной записи он не замирает никогда: средняя разница
+    /// между кадрами через 1/6 секунды по зоне шара 19/255, и даже в самом
+    /// спокойном месте 11.5. Поэтому лента рисуется всегда, а громкость только
+    /// добавляется поверх базовой активности.
     ///
     /// Разбор референсной записи (24 кадра за 14 с) показал, что двигается там
     /// не средняя линия, а **толщина**: центр тяжести ленты гуляет всего на
@@ -360,8 +387,7 @@ extension SoundOrb {
     /// (79,174,105). Отсюда вертикальный градиент в каждом слое.
     fileprivate func drawLiveWave(in context: inout GraphicsContext,
                                   size: CGSize, time: Double) {
-        guard level > 0.01 else { return }
-        let strength = min(1, level * 2.2)
+        let strength = drive(at: time)
 
         // Свет живёт внутри пузыря: на записи наружу не выходит ничего.
         let bubble = OrbBubble.rect(in: size)
@@ -376,18 +402,18 @@ extension SoundOrb {
 
         let layers: [AuroraLayer] = [
             // Дальнее свечение: широкое, размытое, оно и красит весь пузырь
-            AuroraLayer(thickness: 0.60, swing: 0.05, frequency: 0.8, speed: 0.5,
-                        swell: 0.40, swellSpeed: 0.8, offset: -0.08, blur: 22,
+            AuroraLayer(thickness: 0.60, swing: 0.09, frequency: 0.8, speed: 1.6,
+                        swell: 0.40, swellSpeed: 2.6, offset: -0.08, blur: 22,
                         opacity: 0.42, top: Figma.orbBody, middle: Figma.orbDeep,
                         bottom: Figma.orbGrass),
             // Тело ленты — то, что читается как волна
-            AuroraLayer(thickness: 0.32, swing: 0.07, frequency: 1.2, speed: 0.75,
-                        swell: 0.50, swellSpeed: 1.3, offset: -0.10, blur: 10,
+            AuroraLayer(thickness: 0.32, swing: 0.13, frequency: 1.2, speed: 2.4,
+                        swell: 0.50, swellSpeed: 4.0, offset: -0.10, blur: 10,
                         opacity: 0.60, top: Figma.orbCore, middle: Figma.orbMint,
                         bottom: Figma.orbGrass),
             // Бирюзовая кромка поверху: на записи она отдельной тонкой полосой
-            AuroraLayer(thickness: 0.07, swing: 0.07, frequency: 1.2, speed: 0.75,
-                        swell: 0.45, swellSpeed: 1.3, offset: -0.175, blur: 4,
+            AuroraLayer(thickness: 0.07, swing: 0.13, frequency: 1.2, speed: 2.4,
+                        swell: 0.45, swellSpeed: 4.0, offset: -0.175, blur: 4,
                         opacity: 0.75, top: Color.white, middle: Figma.orbCore,
                         bottom: Figma.orbCore)
         ]
@@ -452,8 +478,9 @@ extension SoundOrb {
         top.reserveCapacity(steps + 1)
         bottom.reserveCapacity(steps + 1)
 
-        // Дыхание держит ленту живой на паузах между словами
-        let loudness = 0.22 + 0.78 * min(1, level * 1.6)
+        // Тот же уровень, что красит слои: толщина и яркость должны ходить
+        // вместе, иначе лента то толстая и тусклая, то тонкая и яркая.
+        let loudness = drive(at: time)
 
         for step in 0...steps {
             let ratio = Double(step) / Double(steps)
@@ -489,7 +516,7 @@ extension SoundOrb {
 
     /// Положение блика 0…1, ходит туда-сюда, а не прыгает с края на край.
     private func shinePosition(at time: Double) -> Double {
-        0.5 + 0.45 * sin(time * 0.8)
+        0.5 + 0.45 * sin(time * 1.5)
     }
 }
 

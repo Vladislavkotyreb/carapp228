@@ -122,8 +122,12 @@ struct IssuesScreen: View {
             .frame(maxWidth: .infinity)
     }
 
+    /// Переносы проставлены руками, как и у заголовка, и это не косметика.
+    /// В макете описание занимает **три** строки и объявлено высотой 63; текст
+    /// системным шрифтом укладывается в две, блок становится на 21pt короче, и
+    /// на эти 21pt уезжает вверх всё, что ниже, — в первую очередь кнопка.
     private var caption: some View {
-        Text("Поднесите телефон к двигателю или выхлопной трубе и нажмите кнопку для начала диагностики")
+        Text("Поднесите телефон к двигателю или выхлопной\nтрубе и нажмите кнопку для начала\nдиагностики")
             .font(.system(size: 16))
             .tracking(-0.31)
             .figmaLineHeight(21, fontSize: 16)
@@ -218,11 +222,18 @@ struct IssuesScreen: View {
             .background(darkCardSurface)
     }
 
+    /// Скругление карточки. 26 было мало: по замеру рендера макета белое
+    /// начинается в 15pt от края на 6px ниже верха карточки, в 6pt на 15px и в
+    /// 2pt на 22px — это радиус около 34, у 26 выходило 9 / 3 / 1.
+    static let cardRadius: CGFloat = 34
+
+    private static let cardShape = RoundedRectangle(cornerRadius: cardRadius,
+                                                    style: .continuous)
+
     private var darkCardSurface: some View {
-        RoundedRectangle(cornerRadius: 26)
+        Self.cardShape
             .fill(Figma.darkCard)
-            .overlay(RoundedRectangle(cornerRadius: 26)
-                .stroke(Color.white.opacity(0.10), lineWidth: 0.5))
+            .overlay(Self.cardShape.stroke(Color.white.opacity(0.10), lineWidth: 0.5))
     }
 
     /// Заголовок здесь Subheadline/Emphasized (15pt), а не Body: с 17pt
@@ -279,49 +290,107 @@ struct IssuesScreen: View {
         /// Кнопки: 54 + 12 + 54 и 22 до низа шторки — итого 142
         static let buttonsBlock: CGFloat = 142
         static let buttonsBottom: CGFloat = 22
+        /// Высота растворения контента к низу. По рендеру макета оно начинается
+        /// примерно на 708 и заканчивается на 804 при низе шторки 874.
+        static let fadeHeight: CGFloat = 166
     }
 
     private var findingsSheet: some View {
         VStack(spacing: 0) {
             sheetToolbar
-
-            // Список едет **под** кнопками, а не упирается в них: в макете
-            // блок кнопок начинается на 584 при высоте списка 692, то есть
-            // перекрывает его. Отсюда оверлей, а не соседний блок в стопке —
-            // иначе под кнопками остаётся пустая белая плита.
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 16) {
-                    ForEach(IssuesStub.findings) { issue in
-                        issueBody(issue, title: Figma.labelsPrimary,
-                                  detail: Figma.vibrantSecondary)
-                            .background(RoundedRectangle(cornerRadius: 26)
-                                .fill(Figma.backgroundsPrimary))
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, Findings.buttonsBlock)
-            }
-            .padding(.top, Findings.listTop)
+            findingsList
+                .padding(.top, Findings.listTop)
         }
         .frame(height: Findings.height)
         .frame(maxWidth: .infinity)
-        .liquidGlass(in: Self.sheetShape, tint: .white) { Self.sheetShape.fill(.white) }
+        // Подложка сплошная, а не стекло. Лист на весь экран в iOS
+        // непрозрачный, и это видно замером: сквозь `glassEffect` светил шар,
+        // и фон шторки уходил в зелень — rgb(245,253,251) там, где в макете
+        // нейтральные 243.
+        .background(Self.sheetShape.fill(Figma.backgroundsPrimary))
         .environment(\.colorScheme, .light)
+        // Без склейки в один слой `shadow` достаётся **каждому** примитиву
+        // внутри по отдельности: свою тень получала каждая карточка и каждая
+        // строка текста, и фон шторки уходил с 255 до 236. Раньше это гасило
+        // стекло — `glassEffect` сам делает слой, — а со сплошной подложкой
+        // склеивать надо руками.
+        .compositingGroup()
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
-        .overlay(alignment: .bottom) {
-            VStack(spacing: 12) {
-                GlassProminentButton(title: "Да, добавить ошибки", action: approveFindings)
-                GlassButton(title: "Нет, не добавлять") { showFindings = false }
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, Findings.buttonsBottom)
-        }
         .overlay(alignment: .top) {
             Capsule()
                 .fill(Figma.grabber)
                 .frame(width: 58, height: 4)
                 .padding(.top, 5)
         }
+    }
+
+    /// Список находок с кнопками внизу.
+    ///
+    /// На iOS 26 кнопки объявляются панелью безопасной зоны, и система сама
+    /// делает две вещи: считает отступ под них и размывает край прокрутки под
+    /// панелью. Именно это размытие в макете гасит шестую карточку до 229 —
+    /// нарисованным поверх градиентом такое получается только приблизительно,
+    /// а системе это штатное поведение.
+    @ViewBuilder
+    private var findingsList: some View {
+        if #available(iOS 26.0, *) {
+            findingsScroll
+                .safeAreaBar(edge: .bottom) {
+                    findingsButtons.padding(.bottom, Findings.buttonsBottom)
+                }
+                .scrollEdgeEffectStyle(.soft, for: .bottom)
+        } else {
+            // На iOS 17–25 системного эффекта края нет: рисуем градиент сами.
+            // Профиль снят с рендера макета — прозрачный к 708, почти сплошной
+            // к 792, сплошной к 804 (в координатах экрана 402×874).
+            findingsScroll
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    findingsButtons
+                        .padding(.bottom, Findings.buttonsBottom)
+                        .padding(.top, Findings.fadeHeight - Findings.buttonsBlock)
+                        .background {
+                            LinearGradient(
+                                stops: [
+                                    .init(color: Figma.backgroundsPrimary.opacity(0), location: 0),
+                                    .init(color: Figma.backgroundsPrimary.opacity(0.9), location: 0.55),
+                                    .init(color: Figma.backgroundsPrimary, location: 0.68)
+                                ],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                            .ignoresSafeArea()
+                        }
+                }
+        }
+    }
+
+    private var findingsScroll: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 16) {
+                ForEach(IssuesStub.findings) { issue in
+                    issueBody(issue, title: Figma.labelsPrimary,
+                              detail: Figma.vibrantSecondary)
+                        .background(lightCardSurface)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    /// Карточки в макете держатся тенью, а не заливкой: их белое 255 против
+    /// фона шторки 252 — разница в три уровня. Всю работу делает тень,
+    /// проседающая до 245 у края карточки и до 243 в зазоре между двумя.
+    private var lightCardSurface: some View {
+        Self.cardShape
+            .fill(Figma.backgroundsPrimary)
+            .shadow(color: .black.opacity(0.10), radius: 10, y: 2)
+    }
+
+    private var findingsButtons: some View {
+        VStack(spacing: 12) {
+            GlassProminentButton(title: "Да, добавить ошибки", action: approveFindings)
+            GlassButton(title: "Нет, не добавлять") { showFindings = false }
+        }
+        .padding(.horizontal, 16)
     }
 
     /// Тулбар: крестик слева, заголовок по центру, чёрная галочка справа.
