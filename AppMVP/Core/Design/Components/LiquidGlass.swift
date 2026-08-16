@@ -5,8 +5,17 @@ import SwiftUI
 enum Motion {
     /// Появление/уход шторок. Близко к системной пружине листов iOS.
     static let sheet = Animation.spring(response: 0.42, dampingFraction: 0.86)
-    /// Переключение сегментов и вкладок.
+    /// Переключение сегментов.
     static let selection = Animation.smooth(duration: 0.28)
+    /// Пилюля выделения в таббаре. Пружина с коротким перелётом: в iOS 26
+    /// индикатор вкладки догоняет палец, а не переезжает по ровной кривой —
+    /// рядом с живым стеклом ровная выглядит механической.
+    static let tabSelection = Animation.spring(response: 0.34, dampingFraction: 0.74)
+    /// Сворачивание таббара при прокрутке вниз и разворот обратно.
+    /// Демпфирование выше, чем у выделения: широкий блок с перелётом «дышит».
+    static let tabBar = Animation.spring(response: 0.42, dampingFraction: 0.88)
+    /// Нажатие на вкладку — сжатие и возврат.
+    static let tabPress = Animation.spring(response: 0.26, dampingFraction: 0.62)
     /// Перелистывание страниц (онбординг, карусель авто).
     static let page = Animation.interpolatingSpring(stiffness: 220, damping: 26)
     /// Всплывающее уведомление: приходит пружиной сверху.
@@ -26,6 +35,14 @@ enum Motion {
 
     static func toast(reduceMotion: Bool) -> Animation {
         reduceMotion ? .easeInOut(duration: 0.2) : toast
+    }
+
+    static func tabSelection(reduceMotion: Bool) -> Animation {
+        reduceMotion ? .easeInOut(duration: 0.2) : tabSelection
+    }
+
+    static func tabBar(reduceMotion: Bool) -> Animation {
+        reduceMotion ? .easeInOut(duration: 0.2) : tabBar
     }
 }
 
