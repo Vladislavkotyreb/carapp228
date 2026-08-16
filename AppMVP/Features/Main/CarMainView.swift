@@ -112,6 +112,11 @@ struct CarMainView: View {
     }
     @State private var scroll = ScrollState()
 
+    /// Свёрнутость таббара. В `@State` лежит только ссылка — экран на объект
+    /// не подписан, иначе прокрутка снова начала бы пересобирать `body`.
+    /// Подписан сам `FloatingTabBar`; см. комментарий у `TabBarState`.
+    @State private var tabBar = TabBarState()
+
     /// Гасим сам распознаватель, а не `isScrollEnabled`: последним управляет
     /// SwiftUI из окружения и может перезаписать его на любом обновлении, а
     /// `body` во время свайпа пересобирается каждый кадр из-за `dragX`.
@@ -272,11 +277,19 @@ struct CarMainView: View {
             if tab == 1 {
                 MapScreen()
                     .ignoresSafeArea()
+                    .transition(tabTransition)
             }
 
             if tab == 2 {
                 IssuesScreen(hidesTabBar: $hidesTabBar)
                     .ignoresSafeArea()
+                    .transition(tabTransition)
+            }
+
+            if tab == 3 {
+                MoreScreen()
+                    .ignoresSafeArea()
+                    .transition(tabTransition)
             }
 
             if tab == 0 {
@@ -296,12 +309,13 @@ struct CarMainView: View {
             // важно: сам GeometryReader должен игнорировать safe area, иначе он
             // отдаёт урезанный размер и все координаты макета съезжают вниз
             .ignoresSafeArea()
+            .transition(tabTransition)
             }
 
             // В макете таббар стоит на y = 779 при высоте экрана 874, то есть
             // в 7pt над home indicator. Прижимаем к нижней safe area, чтобы
             // этот зазор сохранялся на экранах любой высоты.
-            FloatingTabBar(selection: $tab)
+            FloatingTabBar(selection: $tab, state: tabBar, onReselect: { _ in scrollToTop() })
                 .opacity(hidesTabBar ? 0 : 1)
                 .allowsHitTesting(!hidesTabBar)
                 .frame(maxWidth: .infinity)
@@ -376,6 +390,14 @@ struct CarMainView: View {
         // «нативная штука добавления фото» (45885:3279) — системный пикер,
         // после выбора открываем форму с уже прикреплённым файлом.
         .animation(Motion.toast(reduceMotion: reduceMotion), value: showToast)
+        .onChange(of: tab) { _, new in
+            // Смещения прежнего раздела к новому отношения не имеют, а бар
+            // должен встречать раздел развёрнутым.
+            tabBar.reset()
+            // Страховка: таббар прячет только шторка находок в «Ошибках».
+            // Уход с раздела мимо неё оставлял бы бар скрытым навсегда.
+            if new != 2 { hidesTabBar = false }
+        }
         .sensoryFeedback(.success, trigger: addedServiceTick)
         // Декодирование вне главного актора, как и у чеков ТО
         .task(id: carPhotoKey) {
@@ -540,8 +562,37 @@ struct CarMainView: View {
             let offset = -g.frame(in: .named(ScrollHeader.space)).minY
             Color.clear
                 .onAppear { scroll.offset = offset }
-                .onChange(of: offset) { _, new in scroll.offset = new }
+                .onChange(of: offset) { _, new in
+                    scroll.offset = new
+                    // Свёрнутость таббара считается здесь же и по тем же
+                    // правилам, что и запрет свайпа: отдельного наблюдателя
+                    // прокрутки заводить незачем.
+                    tabBar.track(offset: new)
+                }
         }
+    }
+
+    /// HIG: повторный тап по активной вкладке возвращает раздел в начало.
+    /// Работаем через живой `UIScrollView` — тот же, которому глушим
+    /// панорамирование на свайпе карусели: `ScrollViewReader` потребовал бы
+    /// якорь в контенте и ещё одно состояние.
+    private func scrollToTop() {
+        guard let view = scroll.view else { return }
+        let top = -view.adjustedContentInset.top
+        guard view.contentOffset.y > top else { return }
+        view.setContentOffset(CGPoint(x: 0, y: top), animated: true)
+    }
+
+    /// Разделы меняются растворкой: вкладки — не соседние страницы, а разные
+    /// места приложения, и уезжающий вбок контент подсказывал бы неверное.
+    /// Так же переключает разделы `TabView` в iOS 26. Приходящий чуть
+    /// подрастает, уходящий просто гаснет — движение остаётся у входа.
+    private var tabTransition: AnyTransition {
+        guard !reduceMotion else { return .opacity }
+        return .asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.97)),
+            removal: .opacity
+        )
     }
 
     // MARK: - Шапка при прокрутке
