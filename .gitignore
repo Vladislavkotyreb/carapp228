@@ -13,3 +13,7 @@ Package.resolved
 
 # Локальные настройки инструментов
 .claude/settings.local.json
+
+# Кэш Python от сервера разбора в tools/
+__pycache__/
+*.pyc
