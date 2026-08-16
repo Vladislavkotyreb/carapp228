@@ -51,6 +51,10 @@ struct IssuesScreen: View {
                     .offset(x: 16, y: 65.076)
                     .transition(.scale(scale: 0.96).combined(with: .opacity))
             }
+
+            // Последней в стопке: сигнал «микрофон открыт» должен быть виден
+            // и поверх модалки записи, и поверх затемнения под ней.
+            ListeningRim(level: meter.level, isActive: isRecording)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Figma.graysBlack)
