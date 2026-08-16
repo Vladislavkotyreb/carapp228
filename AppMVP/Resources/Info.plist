@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Разбор звука двигателя идёт на сервере cardiag, который поднимается
+	  в локальной сети по обычному HTTP. Разрешение выдано **только** локальной
+	  сети: NSAllowsLocalNetworking снимает запрет для loopback и адресов вроде
+	  192.168.*, оставляя ATS в силе для всего остального интернета. Общий
+	  NSAllowsArbitraryLoads здесь не нужен и был бы дырой.
+
+	  Остальные ключи Info.plist по-прежнему генерируются Xcode из настроек
+	  сборки (INFOPLIST_KEY_*) и подмешиваются в этот файл.
+	-->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

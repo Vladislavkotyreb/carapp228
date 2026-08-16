@@ -12,8 +12,16 @@ final class AudioLevelMeter: ObservableObject {
     /// каждом буфере: RMS скачет даже на ровном звуке.
     @Published private(set) var level: Double = 0
 
+    /// Файл последней записи. Тот же самый тап, что считает громкость, пишет
+    /// и звук: поднимать второй микрофонный вход ради этого нельзя — вход
+    /// один, и два потребителя дерутся за него.
+    @Published private(set) var lastRecording: URL?
+
     private let engine = AVAudioEngine()
     private var isRunning = false
+    /// Пишущий файл держится до `stop()`: `AVAudioFile` дописывает заголовок
+    /// WAV при освобождении, и пока ссылка жива, файл читать нельзя.
+    private var writer: AVAudioFile?
 
     /// Ниже этого порога в децибелах считаем тишиной. −50 дБ примерно
     /// соответствует тихой комнате, всё что тише — шум самого микрофона.
@@ -35,6 +43,9 @@ final class AudioLevelMeter: ObservableObject {
         isRunning = false
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
+        // Освобождаем файл до того, как отдать ссылку наружу: заголовок WAV
+        // дописывается здесь, и без этого читатель получит обрезанный файл.
+        writer = nil
         try? AVAudioSession.sharedInstance().setActive(false)
         withAnimation(.easeOut(duration: 0.4)) { level = 0 }
     }
@@ -47,7 +58,20 @@ final class AudioLevelMeter: ObservableObject {
 
             let input = engine.inputNode
             let format = input.outputFormat(forBus: 0)
+
+            // Пишем в WAV, а не в m4a: сервер разбора читает файл через
+            // soundfile, а тот берёт PCM без ffmpeg. С m4a пришлось бы тащить
+            // ffmpeg на сервер ради ничего.
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("engine-\(UUID().uuidString).wav")
+            let file = try? AVAudioFile(forWriting: url, settings: format.settings)
+            writer = file
+            lastRecording = file == nil ? nil : url
+
             input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
+                // Запись идёт прямо в очереди тапа: перекладывать буферы на
+                // другой поток нельзя, движок переиспользует их память.
+                try? file?.write(from: buffer)
                 guard let value = Self.normalizedLevel(of: buffer, floor: -50) else { return }
                 Task { @MainActor in self?.apply(value) }
             }
