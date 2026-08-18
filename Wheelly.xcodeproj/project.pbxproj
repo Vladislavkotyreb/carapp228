@@ -10,7 +10,6 @@
 		9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */ = {isa = PBXBuildFile; productRef = 9A0000010000000000000002 /* YandexMapsMobileFull */; };
 		9B0000010000000000000001 /* MapKitKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000001 /* MapKitKey.swift */; };
 		9B0000000000000000000001 /* CarDiagnosis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000001 /* CarDiagnosis.swift */; };
-		9B0000000000000000000002 /* ListeningEdge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000002 /* ListeningEdge.swift */; };
 		9B0000010000000000000002 /* MapScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000002 /* MapScreen.swift */; };
 		7A0000010000000000000002 /* MoreScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0000010000000000000002 /* MoreScreen.swift */; };
 		AA0000010000000000000001 /* AppMVPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000001 /* AppMVPApp.swift */; };
@@ -46,7 +45,6 @@
 /* Begin PBXFileReference section */
 		9C0000010000000000000001 /* MapKitKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitKey.swift; sourceTree = "<group>"; };
 		9C0000000000000000000001 /* CarDiagnosis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarDiagnosis.swift; sourceTree = "<group>"; };
-		9C0000000000000000000002 /* ListeningEdge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningEdge.swift; sourceTree = "<group>"; };
 		9C0000010000000000000002 /* MapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapScreen.swift; sourceTree = "<group>"; };
 		7B0000010000000000000002 /* MoreScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreScreen.swift; sourceTree = "<group>"; };
 		BB0000010000000000000001 /* AppMVPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMVPApp.swift; sourceTree = "<group>"; };
@@ -202,7 +200,6 @@
 				BB000001000000000000001A /* AppleSignInButton.swift */,
 				BB000001000000000000001C /* FormControls.swift */,
 				BB000001000000000000001F /* FloatingTabBar.swift */,
-				9C0000000000000000000002 /* ListeningEdge.swift */,
 				BB0000010000000000000024 /* LiquidGlass.swift */,
 				BB0000010000000000000025 /* BottomSheet.swift */,
 				BB0000010000000000000026 /* PlateFormat.swift */,
@@ -370,7 +367,6 @@
 				7A0000010000000000000002 /* MoreScreen.swift in Sources */,
 				9B0000010000000000000001 /* MapKitKey.swift in Sources */,
 				9B0000000000000000000001 /* CarDiagnosis.swift in Sources */,
-				9B0000000000000000000002 /* ListeningEdge.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */

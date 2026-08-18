@@ -15,10 +15,6 @@ struct IssuesScreen: View {
     /// закрывал нижнюю кнопку «Нет, не добавлять».
     @Binding var hidesTabBar: Bool
 
-    /// Рамка по краям экрана рисуется поверх всех разделов, поэтому громкость
-    /// уезжает наружу через общий объект, а не остаётся здесь.
-    let listening: ListeningState
-
     @StateObject private var meter = AudioLevelMeter()
 
     /// История пуста на старте и растёт только после подтверждения находок.
@@ -69,9 +65,7 @@ struct IssuesScreen: View {
         .background(Figma.graysBlack)
         .animation(Motion.sheet, value: isRecording)
         .animation(Motion.sheet, value: history.count)
-        .onDisappear { meter.stop(); listening.stop(); analysisTask?.cancel() }
-        // Уровень уходит рамке отсюда: сам метр про неё не знает.
-        .onChange(of: meter.level) { _, new in listening.update(level: new) }
+        .onDisappear { meter.stop(); analysisTask?.cancel() }
         .bottomSheet(isPresented: $showFindings) { findingsSheet }
         // Таббар уходит под **любую** модалку раздела, а не только под шторку
         // находок. Панель записи затемняет экран целиком, и оставлять поверх
@@ -502,13 +496,11 @@ struct IssuesScreen: View {
     private func toggleRecording() {
         if isRecording {
             meter.stop()
-            listening.stop()
             isRecording = false
             analyse()
         } else {
             isRecording = true
             meter.start()
-            listening.start()
         }
     }
 

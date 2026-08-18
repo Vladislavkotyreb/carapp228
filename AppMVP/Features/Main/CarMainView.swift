@@ -118,10 +118,6 @@ struct CarMainView: View {
     /// Нужен только ветке iOS 17–25: на 26 сворачиванием занимается система.
     @State private var tabBar = TabBarState()
 
-    /// Громкость с микрофона для рамки по краям экрана. Экран держит ссылку и
-    /// НЕ подписан — иначе он пересобирался бы на каждом аудиобуфере.
-    @State private var listening = ListeningState()
-
     /// Гасим сам распознаватель, а не `isScrollEnabled`: последним управляет
     /// SwiftUI из окружения и может перезаписать его на любом обновлении, а
     /// `body` во время свайпа пересобирается каждый кадр из-за `dragX`.
@@ -279,7 +275,6 @@ struct CarMainView: View {
             // вкладки. Внутри вкладки системный бар рисуется поверх её
             // содержимого, и шторка уходила бы под него.
             .overlay(alignment: .topLeading) { toastLayer }
-            .overlay { ListeningEdge(state: listening) }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .bottomSheet(isPresented: $showServiceChoice) {
             AddServiceChoiceSheet(
@@ -393,7 +388,7 @@ struct CarMainView: View {
             Tab("Машина", systemImage: "car", value: 0) { carScreen.environment(\.colorScheme, .dark) }
             Tab("Карта", systemImage: "map", value: 1) { MapScreen().ignoresSafeArea().environment(\.colorScheme, .dark) }
             Tab("Ошибки", systemImage: "wrench.adjustable", value: 2) {
-                IssuesScreen(hidesTabBar: $hidesTabBar, listening: listening)
+                IssuesScreen(hidesTabBar: $hidesTabBar)
                     .ignoresSafeArea()
                     .environment(\.colorScheme, .dark)
                     // Видимость бара объявляется **содержимым вкладки**, а не
@@ -430,7 +425,7 @@ struct CarMainView: View {
         ZStack(alignment: .topLeading) {
             switch tab {
             case 1: MapScreen().ignoresSafeArea().transition(tabTransition)
-            case 2: IssuesScreen(hidesTabBar: $hidesTabBar, listening: listening)
+            case 2: IssuesScreen(hidesTabBar: $hidesTabBar)
                     .ignoresSafeArea().transition(tabTransition)
             case 3: MoreScreen().ignoresSafeArea().transition(tabTransition)
             default: carScreen.transition(tabTransition)
