@@ -547,8 +547,8 @@ struct CarMainView: View {
                 // Белые карточки уходят целиком: на странице «добавить новую»
                 // (нода 45949:3265) их нет вовсе, остаётся одна тёмная.
                 HStack(spacing: 16) {
-                    statCard(title: "Цена авто") { _ in "4 269 999 ₽ " }
-                    statCard(title: "Пробег") { "\(NumberFormat.grouped($0.odometer)) км " }
+                    statCard(title: "Цена авто") { _ in "4\u{00A0}269\u{00A0}999\u{00A0}₽ " }
+                    statCard(title: "Пробег") { "\(NumberFormat.grouped($0.odometer))\u{00A0}км " }
                 }
                 .opacity(visible)
 
@@ -922,7 +922,7 @@ struct CarMainView: View {
                     .tracking(-0.08)
                     .foregroundStyle(Figma.vibrantPrimary)
 
-                Text("\(NumberFormat.grouped(kmUntilService(for: car))) км ")
+                Text("\(NumberFormat.grouped(kmUntilService(for: car)))\u{00A0}км ")
                     .font(.system(size: 28, weight: .bold))
                     .tracking(0.38)
                     .foregroundStyle(.white)
@@ -1090,11 +1090,11 @@ struct CarMainView: View {
                 .foregroundStyle(Figma.vibrantControlsPrimary)
 
             HStack(spacing: 4) {
-                Text("\(NumberFormat.grouped(record.mileage)) км ")
+                Text("\(NumberFormat.grouped(record.mileage))\u{00A0}км ")
                 Circle()
                     .fill(Figma.vibrantSecondary)
                     .frame(width: 4, height: 4)
-                Text("\(NumberFormat.grouped(record.amount)) ₽ ")
+                Text("\(NumberFormat.grouped(record.amount))\u{00A0}₽ ")
             }
             .font(.system(size: 13))
             .tracking(-0.08)
@@ -1194,7 +1194,7 @@ struct CarMainView: View {
     // они достают из модели SwiftData значения и больше ничего не решают.
 
     private var totalSpent: String {
-        "\(NumberFormat.grouped(ServiceMath.totalSpent(amounts: services.map(\.amount)))) ₽"
+        "\(NumberFormat.grouped(ServiceMath.totalSpent(amounts: services.map(\.amount))))\u{00A0}₽"
     }
 
     /// «ТО через N км» — остаток до следующего сервиса.
