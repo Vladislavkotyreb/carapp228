@@ -253,7 +253,7 @@ struct AddCarView: View {
         return Car(
             plate: "",
             name: name.trimmingCharacters(in: .whitespaces),
-            odometer: Int(mileage.filter(\.isNumber)) ?? 0
+            odometer: NumberFormat.digits(mileage, or: 0)
         )
     }
 

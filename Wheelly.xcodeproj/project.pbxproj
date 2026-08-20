@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CA0000010000000000000001 /* ServiceMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000001 /* ServiceMath.swift */; };
+		CA0000010000000000000002 /* NumberFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000002 /* NumberFormat.swift */; };
 		9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */ = {isa = PBXBuildFile; productRef = 9A0000010000000000000002 /* YandexMapsMobileFull */; };
 		9B0000010000000000000001 /* MapKitKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000001 /* MapKitKey.swift */; };
 		9B0000000000000000000001 /* CarDiagnosis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000001 /* CarDiagnosis.swift */; };
@@ -43,6 +45,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		CB0000010000000000000001 /* ServiceMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceMath.swift; sourceTree = "<group>"; };
+		CB0000010000000000000002 /* NumberFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberFormat.swift; sourceTree = "<group>"; };
 		9C0000010000000000000001 /* MapKitKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitKey.swift; sourceTree = "<group>"; };
 		9C0000000000000000000001 /* CarDiagnosis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarDiagnosis.swift; sourceTree = "<group>"; };
 		9C0000010000000000000002 /* MapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapScreen.swift; sourceTree = "<group>"; };
@@ -89,6 +93,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		CC0000010000000000000001 /* Pure */ = {
+			isa = PBXGroup;
+			children = (
+				BB0000010000000000000026 /* PlateFormat.swift */,
+				CB0000010000000000000001 /* ServiceMath.swift */,
+				CB0000010000000000000002 /* NumberFormat.swift */,
+			);
+			path = Pure;
+			sourceTree = "<group>";
+		};
 		9D0000010000000000000001 /* Map */ = {
 			isa = PBXGroup;
 			children = (
@@ -139,6 +153,7 @@
 			isa = PBXGroup;
 			children = (
 				EE000001000000000000000A /* Design */,
+				CC0000010000000000000001 /* Pure */,
 				EE00000100000000000000B0 /* Services */,
 			);
 			path = Core;
@@ -202,7 +217,6 @@
 				BB000001000000000000001F /* FloatingTabBar.swift */,
 				BB0000010000000000000024 /* LiquidGlass.swift */,
 				BB0000010000000000000025 /* BottomSheet.swift */,
-				BB0000010000000000000026 /* PlateFormat.swift */,
 				BB00000100000000000000B3 /* MotionRim.swift */,
 			);
 			path = Components;
@@ -337,6 +351,8 @@
 			isa = PBXSourcesBuildPhase;
 			files = (
 				AA0000010000000000000001 /* AppMVPApp.swift in Sources */,
+				CA0000010000000000000001 /* ServiceMath.swift in Sources */,
+				CA0000010000000000000002 /* NumberFormat.swift in Sources */,
 				AA0000010000000000000003 /* Theme.swift in Sources */,
 				AA0000010000000000000006 /* Car.swift in Sources */,
 				AA00000100000000000000A1 /* ServiceRecord.swift in Sources */,

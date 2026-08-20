@@ -3,13 +3,6 @@ import SwiftData
 import SwiftUI
 
 /// Разделяет разряды пробелами, как в макете: «9 000 000 км».
-func formattedNumber(_ value: Int) -> String {
-    let formatter = NumberFormatter()
-    formatter.numberStyle = .decimal
-    formatter.groupingSeparator = "\u{00A0}"
-    return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
-}
-
 /// Константы шапки при прокрутке. Вынесены из вью намеренно: замыкание
 /// `visualEffect` помечено `@Sendable` и не может читать статики, изолированные
 /// главным актором.
@@ -130,9 +123,6 @@ struct CarMainView: View {
 
     /// Тот же поставщик, что и на первом экране добавления.
     private let lookup: any VehicleLookup = StubVehicleLookup()
-
-    /// Межсервисный интервал: ТО через 10 000 км от последнего.
-    private let serviceInterval = 10_000
 
     /// Индекс страницы добавления: она всегда последняя, после всех машин.
     private var addPageIndex: Int { cars.count }
@@ -558,7 +548,7 @@ struct CarMainView: View {
                 // (нода 45949:3265) их нет вовсе, остаётся одна тёмная.
                 HStack(spacing: 16) {
                     statCard(title: "Цена авто") { _ in "4 269 999 ₽ " }
-                    statCard(title: "Пробег") { "\(formattedNumber($0.odometer)) км " }
+                    statCard(title: "Пробег") { "\(NumberFormat.grouped($0.odometer)) км " }
                 }
                 .opacity(visible)
 
@@ -932,7 +922,7 @@ struct CarMainView: View {
                     .tracking(-0.08)
                     .foregroundStyle(Figma.vibrantPrimary)
 
-                Text("\(formattedNumber(kmUntilService(for: car))) км ")
+                Text("\(NumberFormat.grouped(kmUntilService(for: car))) км ")
                     .font(.system(size: 28, weight: .bold))
                     .tracking(0.38)
                     .foregroundStyle(.white)
@@ -1100,11 +1090,11 @@ struct CarMainView: View {
                 .foregroundStyle(Figma.vibrantControlsPrimary)
 
             HStack(spacing: 4) {
-                Text("\(formattedNumber(record.mileage)) км ")
+                Text("\(NumberFormat.grouped(record.mileage)) км ")
                 Circle()
                     .fill(Figma.vibrantSecondary)
                     .frame(width: 4, height: 4)
-                Text("\(formattedNumber(record.amount)) ₽ ")
+                Text("\(NumberFormat.grouped(record.amount)) ₽ ")
             }
             .font(.system(size: 13))
             .tracking(-0.08)
@@ -1199,24 +1189,24 @@ struct CarMainView: View {
 
     // MARK: - Действия
 
-    private var totalSpent: String {
-        "\(formattedNumber(services.map(\.amount).reduce(0, +))) ₽"
-    }
+    // Арифметика обслуживания живёт в `ServiceMath` и проверяется без
+    // приложения (`tools/run-pure-checks.sh`). Здесь остаются переходники:
+    // они достают из модели SwiftData значения и больше ничего не решают.
 
-    /// Пробег на последнем ТО — от него отсчитывается интервал.
-    private func lastServiceMileage(for car: Car) -> Int {
-        car.services.map(\.mileage).max() ?? car.odometer
+    private var totalSpent: String {
+        "\(NumberFormat.grouped(ServiceMath.totalSpent(amounts: services.map(\.amount)))) ₽"
     }
 
     /// «ТО через N км» — остаток до следующего сервиса.
     private func kmUntilService(for car: Car) -> Int {
-        max(0, lastServiceMileage(for: car) + serviceInterval - car.odometer)
+        ServiceMath.kmUntilService(odometer: car.odometer,
+                                   serviceMileages: car.services.map(\.mileage))
     }
 
     /// Прогресс интервала: сколько из 10 000 км уже проехали.
     private func serviceProgress(for car: Car) -> Double {
-        let driven = Double(car.odometer - lastServiceMileage(for: car))
-        return min(1, max(0, driven / Double(serviceInterval)))
+        ServiceMath.progress(odometer: car.odometer,
+                             serviceMileages: car.services.map(\.mileage))
     }
 
     /// Разбор фото/PDF: скрипт достаёт базовые показатели и форма открывается
@@ -1239,7 +1229,7 @@ struct CarMainView: View {
         let tab = carTab
         let plate = carPlate
         let name = carName.trimmingCharacters(in: .whitespaces)
-        let mileage = Int(carMileage.filter(\.isNumber)) ?? 0
+        let mileage = NumberFormat.digits(carMileage, or: 0)
         let photoData = newCarPhoto.flatMap { ImageLoader.encode([$0]).first }
 
         Task {
@@ -1307,9 +1297,9 @@ struct CarMainView: View {
 
     private func saveService() {
         guard let car else { return }
-        let mileage = Int(serviceMileage.filter(\.isNumber)) ?? odometer
+        let mileage = NumberFormat.digits(serviceMileage, or: odometer)
         let items = works.compactMap { work -> ServiceWorkItem? in
-            let amount = Int(work.amount.filter(\.isNumber)) ?? 0
+            let amount = NumberFormat.digits(work.amount, or: 0)
             let title = work.title.trimmingCharacters(in: .whitespaces)
             guard !title.isEmpty || amount > 0 else { return nil }
             return ServiceWorkItem(title: title, amount: amount)
@@ -1339,7 +1329,8 @@ struct CarMainView: View {
         editingRecord = nil
 
         // Одометр не может быть меньше пробега на последнем ТО
-        car.odometer = max(car.odometer, mileage)
+        car.odometer = ServiceMath.odometerAfterService(current: car.odometer,
+                                                        serviceMileage: mileage)
 
         showAddService = false
         clearServiceForm()
