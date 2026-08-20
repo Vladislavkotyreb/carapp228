@@ -187,7 +187,11 @@ final class MapController: NSObject, ObservableObject {
             self.isSearching = false
             self.searchSessions.values.forEach { $0.cancel() }
             self.searchSessions.removeAll()
-            self.message = "Места не загрузились. Проверьте сеть и ключ MapKit."
+            // Молчаливый отказ — почти всегда ключ: SDK на него не отвечает
+            // вовсе, а уходит в повторы. Поднимаем ту же плашку, что и на
+            // явный `YRTForbiddenError`, иначе на экране остаётся пустая
+            // сетка, по которой ничего не понять.
+            self.keyRejected = true
         }
         searchWatchdog = watchdog
         DispatchQueue.main.asyncAfter(deadline: .now() + 15, execute: watchdog)
