@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CA0000010000000000000003 /* UIState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000003 /* UIState.swift */; };
+		CA0000010000000000000004 /* UIStateCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000004 /* UIStateCatalog.swift */; };
 		CA0000010000000000000001 /* ServiceMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000001 /* ServiceMath.swift */; };
 		CA0000010000000000000002 /* NumberFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000002 /* NumberFormat.swift */; };
 		9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */ = {isa = PBXBuildFile; productRef = 9A0000010000000000000002 /* YandexMapsMobileFull */; };
@@ -45,6 +47,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		CB0000010000000000000003 /* UIState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIState.swift; sourceTree = "<group>"; };
+		CB0000010000000000000004 /* UIStateCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIStateCatalog.swift; sourceTree = "<group>"; };
 		CB0000010000000000000001 /* ServiceMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceMath.swift; sourceTree = "<group>"; };
 		CB0000010000000000000002 /* NumberFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberFormat.swift; sourceTree = "<group>"; };
 		9C0000010000000000000001 /* MapKitKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitKey.swift; sourceTree = "<group>"; };
@@ -99,6 +103,8 @@
 				BB0000010000000000000026 /* PlateFormat.swift */,
 				CB0000010000000000000001 /* ServiceMath.swift */,
 				CB0000010000000000000002 /* NumberFormat.swift */,
+				CB0000010000000000000003 /* UIState.swift */,
+				CB0000010000000000000004 /* UIStateCatalog.swift */,
 			);
 			path = Pure;
 			sourceTree = "<group>";
@@ -353,6 +359,8 @@
 				AA0000010000000000000001 /* AppMVPApp.swift in Sources */,
 				CA0000010000000000000001 /* ServiceMath.swift in Sources */,
 				CA0000010000000000000002 /* NumberFormat.swift in Sources */,
+				CA0000010000000000000003 /* UIState.swift in Sources */,
+				CA0000010000000000000004 /* UIStateCatalog.swift in Sources */,
 				AA0000010000000000000003 /* Theme.swift in Sources */,
 				AA0000010000000000000006 /* Car.swift in Sources */,
 				AA00000100000000000000A1 /* ServiceRecord.swift in Sources */,

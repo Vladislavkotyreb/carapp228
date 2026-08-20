@@ -117,6 +117,59 @@ group("NumberFormat") {
           NumberFormat.digits(NumberFormat.grouped(1_234_567)), 1_234_567)
 }
 
+// ------------------------------------------------------------ UIStateCatalog
+
+group("UIStateCatalog") {
+    let ids = UIStateCatalog.all.map(\.id)
+
+    // Главная проверка: каталог обязан совпадать с типами. Добавил случай
+    // в enum — здесь краснеет, пока у случая нет кадра. Без этого «все
+    // состояния» через месяц восстанавливают по памяти, и экраны теряются.
+    let have = Set(ids)
+    let want = Set(UIStateCatalog.required)
+    check("у каждого случая типа есть состояние в каталоге",
+          want.subtracting(have).sorted(), [])
+    check("в каталоге нет состояний без случая в типе",
+          have.subtracting(want).sorted(), [])
+
+    check("идентификаторы уникальны", ids.count, have.count)
+    check("каталог не пуст", ids.isEmpty, false)
+
+    // id — это имя PNG и имя фрейма Figma одновременно. Пробел или заглавная
+    // в начале ломают замену картинок при переснятии.
+    let shape = ids.filter { id in
+        let parts = id.split(separator: "-")
+        guard parts.count == 2, let head = parts.first, let tail = parts.last else { return true }
+        return !(head.allSatisfy { $0.isLowercase }
+                 && tail.first?.isLowercase == true
+                 && tail.allSatisfy { $0.isLetter || $0.isNumber })
+    }
+    check("идентификаторы вида «экран-состояние»", shape.sorted(), [])
+
+    check("у каждого состояния назван экран",
+          UIStateCatalog.all.filter { $0.screen.isEmpty }.map(\.id), [])
+    check("у каждого состояния есть описание",
+          UIStateCatalog.all.filter { $0.what.isEmpty }.map(\.id), [])
+
+    // Нода макета либо есть в виде «12345:678», либо честно отсутствует.
+    let badNode = UIStateCatalog.all.compactMap { entry -> String? in
+        guard let node = entry.node else { return nil }
+        let parts = node.split(separator: ":")
+        let valid = parts.count == 2 && parts.allSatisfy { $0.allSatisfy(\.isNumber) }
+        return valid ? nil : entry.id
+    }
+    check("ноды записаны как «12345:678»", badNode.sorted(), [])
+
+    // Сообщения ошибок поля не должны совпадать: одинаковый текст у двух
+    // случаев означает, что один из них на экране неотличим от другого.
+    let messages = FieldError.allCases.map(\.message)
+    check("у каждой ошибки поля свой текст", messages.count, Set(messages).count)
+}
+
+print("")
+print("Состояний в каталоге: \(UIStateCatalog.all.count), "
+      + "из них без ноды макета: \(UIStateCatalog.withoutNode.count).")
+
 print("")
 if failures == 0 {
     print("Все \(checks) проверок прошли.")

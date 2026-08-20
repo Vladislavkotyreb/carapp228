@@ -264,22 +264,8 @@ struct AddCarView: View {
     }
 }
 
-enum FieldError {
-    case plateInvalid
-    case plateNotFound
-    case detailsMissing
-    case lookupFailed
-
-    var message: String {
-        switch self {
-        case .plateInvalid: return "Введите госномер: буква, 3 цифры, 2 буквы и код региона"
-        case .plateNotFound: return "Мы не нашли такого номера в базе, попробуйте другой"
-        case .detailsMissing: return "Введите название машины и её пробег"
-        case .lookupFailed: return "Не удалось проверить номер, попробуйте позже"
-        }
-    }
-}
-
+// `FieldError` переехал в `Core/Pure/UIState.swift`: он не про вёрстку,
+// и на него ссылается каталог состояний.
 
 #Preview {
     AddCarView()
