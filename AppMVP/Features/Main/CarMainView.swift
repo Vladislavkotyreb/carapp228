@@ -55,10 +55,10 @@ struct CarMainView: View {
     /// Ось жеста фиксируется на первом заметном смещении и держится до конца.
     /// Раньше решение принималось на каждом кадре — отсюда дёрганье.
     @State private var swipeAxis: SwipeAxis?
-    @State private var showServiceChoice = false
-    @State private var showAddService = false
-    @State private var showPhotoPicker = false
-    @State private var showAddCar = false
+    /// Какая модалка открыта. Одна на всех: их и не бывает две сразу.
+    /// Раньше это были пять булевых — 32 сочетания, законных шесть.
+    /// Что правят, лежит отдельно в `editingRecord`: это данные, а не окно.
+    @State private var sheet: CarSheet = .closed
     @State private var carTab = 0
     @State private var carPlate = ""
     @State private var carName = ""
@@ -86,7 +86,20 @@ struct CarMainView: View {
     /// Удаление записи по той же причине больше не отдаёт «успех».
     @State private var addedServiceTick = 0
 
-    @State private var showDeleteConfirm = false
+    /// Presentation-API требуют `Binding<Bool>`, а слот у нас один.
+    ///
+    /// Закрытие сбрасывает слот, **только если закрывают именно эту шторку**.
+    /// Без этой проверки замена одной шторки другой ломалась бы: SwiftUI
+    /// досылает `false` уходящей уже после того, как открылась следующая,
+    /// и та закрывалась бы сама собой.
+    private func presenting(_ kind: CarSheet) -> Binding<Bool> {
+        Binding(get: { sheet == kind },
+                set: { shown in
+                    if shown { sheet = kind }
+                    else if sheet == kind { sheet = .closed }
+                })
+    }
+
     /// Модалка раздела «Ошибки» накрывает экран целиком, включая таббар.
     @State private var hidesTabBar = false
     /// Смещение прокрутки заполненной страницы. Управляет двумя вещами:
@@ -266,20 +279,17 @@ struct CarMainView: View {
             // содержимого, и шторка уходила бы под него.
             .overlay(alignment: .topLeading) { toastLayer }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .bottomSheet(isPresented: $showServiceChoice) {
+        .bottomSheet(isPresented: presenting(.serviceChoice)) {
             AddServiceChoiceSheet(
-                onClose: { showServiceChoice = false },
-                onPickPhoto: {
-                    showServiceChoice = false
-                    showPhotoPicker = true
-                },
-                onManual: {
-                    showServiceChoice = false
-                    showAddService = true
-                }
+                onClose: { sheet = .closed },
+                // Замена шторки — один переход, а не «закрыть и открыть»:
+                // двух присваиваний подряд больше нет, и промежуточного
+                // состояния с двумя открытыми тоже.
+                onPickPhoto: { sheet = .photoPicker },
+                onManual: { sheet = .service }
             )
         }
-        .bottomSheet(isPresented: $showAddService) {
+        .bottomSheet(isPresented: presenting(.service)) {
             AddServiceSheet(
                 title: editingRecord == nil ? "Добавление ТО" : "Изменение ТО",
                 date: $serviceDate,
@@ -288,7 +298,7 @@ struct CarMainView: View {
                 photoItems: $photoItems,
                 photos: $photos,
                 onClose: {
-                    showAddService = false
+                    sheet = .closed
                     // Иначе следующее «Добавить ТО» молча перезапишет запись
                     editingRecord = nil
                     clearServiceForm()
@@ -298,8 +308,8 @@ struct CarMainView: View {
             .padding(.top, 62)
         }
         .modifier(CarMainChrome(
-            showAddCar: $showAddCar,
-            showPhotoPicker: $showPhotoPicker,
+            showAddCar: presenting(.addCar),
+            showPhotoPicker: presenting(.photoPicker),
             photoItems: $photoItems,
             carTab: $carTab,
             carPlate: $carPlate,
@@ -348,7 +358,7 @@ struct CarMainView: View {
         // защёлкивании страницы, а не по ходу пальца: незасчитанный свайп
         // не меняет carPage и потому молчит.
         .sensoryFeedback(.impact(flexibility: .soft), trigger: carPage)
-        .confirmationDialog("Удалить авто?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+        .confirmationDialog("Удалить авто?", isPresented: presenting(.deleteConfirm), titleVisibility: .visible) {
             Button("Удалить", role: .destructive) { deleteCar() }
             Button("Отмена", role: .cancel) {}
         } message: {
@@ -535,7 +545,7 @@ struct CarMainView: View {
                 // На второй странице карточка превращается в кнопку
                 // добавления авто; на машине это сводка или «Добавить ТО».
                 Button {
-                    if p > 0.5 { showAddCar = true } else if services.isEmpty { showServiceChoice = true }
+                    if p > 0.5 { sheet = .addCar } else if services.isEmpty { sheet = .serviceChoice }
                 } label: {
                     darkCard(progress: p, height: m.cardHeight)
                 }
@@ -1015,7 +1025,7 @@ struct CarMainView: View {
             }
 
             // «Добавить ТО» — синяя, на Fills/Tertiary
-            Button { showServiceChoice = true } label: {
+            Button { sheet = .serviceChoice } label: {
                 Text("Добавить ТО")
                     .font(.system(size: 17))
                     .tracking(-0.43)
@@ -1108,7 +1118,7 @@ struct CarMainView: View {
 
     /// Деструктивное действие — по HIG требует подтверждения.
     private func deleteButton() -> some View {
-        Button(role: .destructive) { showDeleteConfirm = true } label: {
+        Button(role: .destructive) { sheet = .deleteConfirm } label: {
             Text("Удалить авто")
                 .font(.system(size: 17))
                 .tracking(-0.43)
@@ -1216,7 +1226,7 @@ struct CarMainView: View {
         serviceDate = Date()
         serviceMileage = "\(odometer)"
         works = [ServiceWork(title: "Замена масла", amount: "12000")]
-        showAddService = true
+        sheet = .service
     }
 
     /// Создаёт машину из формы «Добавить авто». Раньше onSubmit только
@@ -1292,7 +1302,7 @@ struct CarMainView: View {
         Task { photos = await ImageLoader.decode(receipts) }
 
         editingRecord = record
-        showAddService = true
+        sheet = .service
     }
 
     private func saveService() {
@@ -1332,7 +1342,7 @@ struct CarMainView: View {
         car.odometer = ServiceMath.odometerAfterService(current: car.odometer,
                                                         serviceMileage: mileage)
 
-        showAddService = false
+        sheet = .closed
         clearServiceForm()
 
         presentToast(savedMessage)

@@ -284,6 +284,143 @@ group("IssuesScreen: старая и новая машины состояний"
     check("«записываю и разбираю» не встречается ни разу", illegal, 0)
 }
 
+// ------------------------- Эквивалентность модалок «Машины» ---------------
+//
+// Пять булевых стали одним слотом. Тот же приём проверки, что и у «Ошибок»:
+// обе машины прогоняются на всех последовательностях событий, и сравниваются
+// те пять флагов, которые читают presentation-API.
+//
+// Здесь машины эквивалентны **не везде**, и это ожидаемо: старая умела
+// держать две шторки открытыми сразу, новая — нет. Проверка разделяет два
+// случая: пока старое состояние законно (открыто не больше одной), поведение
+// обязано совпадать; расхождения обязаны быть только там, где старое
+// состояние было незаконным.
+
+enum CarEvent: String, CaseIterable {
+    case tapAddService     // «Добавить ТО» → выбор способа
+    case choosePhoto       // в выборе способа: фото/PDF
+    case chooseManual      // в выборе способа: вручную
+    case closeService      // закрыли форму ТО (крестиком или сохранением)
+    case swipeToAddCar     // свайп на страницу «Добавить авто»
+    case closeAddCar       // закрыли шторку авто
+    case tapDelete         // «Удалить авто»
+    case dismissDelete     // закрыли подтверждение
+    case editRecord        // тап по записи истории → правка
+    case closePicker       // пикер фото закрылся
+}
+
+/// Как было: пять независимых флагов.
+struct OldSheets {
+    var choice = false, service = false, addCar = false
+    var picker = false, delete = false
+
+    var openCount: Int {
+        [choice, service, addCar, picker, delete].filter { $0 }.count
+    }
+
+    mutating func handle(_ event: CarEvent) {
+        switch event {
+        case .tapAddService: choice = true
+        case .choosePhoto:   choice = false; picker = true
+        case .chooseManual:  choice = false; service = true
+        case .closeService:  service = false
+        case .swipeToAddCar: addCar = true
+        case .closeAddCar:   addCar = false
+        case .tapDelete:     delete = true
+        case .dismissDelete: delete = false
+        case .editRecord:    service = true
+        case .closePicker:   picker = false
+        }
+    }
+}
+
+/// Как стало: один слот.
+struct NewSheets {
+    var slot: CarSheet = .closed
+
+    var choice: Bool  { slot == .serviceChoice }
+    var service: Bool { slot == .service }
+    var addCar: Bool  { slot == .addCar }
+    var picker: Bool  { slot == .photoPicker }
+    var delete: Bool  { slot == .deleteConfirm }
+
+    var openCount: Int {
+        [choice, service, addCar, picker, delete].filter { $0 }.count
+    }
+
+    /// Закрытие сбрасывает слот, только если закрывают именно эту шторку.
+    mutating func close(_ kind: CarSheet) { if slot == kind { slot = .closed } }
+
+    mutating func handle(_ event: CarEvent) {
+        switch event {
+        case .tapAddService: slot = .serviceChoice
+        case .choosePhoto:   slot = .photoPicker
+        case .chooseManual:  slot = .service
+        case .closeService:  close(.service)
+        case .swipeToAddCar: slot = .addCar
+        case .closeAddCar:   close(.addCar)
+        case .tapDelete:     slot = .deleteConfirm
+        case .dismissDelete: close(.deleteConfirm)
+        case .editRecord:    slot = .service
+        case .closePicker:   close(.photoPicker)
+        }
+    }
+}
+
+group("CarMainView: пять флагов против одного слота") {
+    var mismatchesWhileLegal: [String] = []
+    var illegalOldStates = 0
+    var illegalNewStates = 0
+    var sequencesChecked = 0
+
+    // Перебор по всем последовательностям длиной 4 из десяти событий:
+    // 10 000 штук, каждое состояние сравнивается на каждом шаге.
+    let events = CarEvent.allCases
+    for a in events { for b in events { for c in events { for d in events {
+        var old = OldSheets()
+        var new = NewSheets()
+        var oldWasIllegal = false
+        sequencesChecked += 1
+        for event in [a, b, c, d] {
+            old.handle(event)
+            new.handle(event)
+            if old.openCount > 1 { oldWasIllegal = true; illegalOldStates += 1 }
+            if new.openCount > 1 { illegalNewStates += 1 }
+            if !oldWasIllegal {
+                let same = old.choice == new.choice && old.service == new.service
+                    && old.addCar == new.addCar && old.picker == new.picker
+                    && old.delete == new.delete
+                if !same {
+                    mismatchesWhileLegal.append(
+                        [a, b, c, d].map(\.rawValue).joined(separator: ">"))
+                }
+            }
+        }
+    }}}}
+
+    check("пока старое состояние законно, поведение совпадает",
+          mismatchesWhileLegal.first, nil)
+    check("новая машина не открывает две шторки никогда", illegalNewStates, 0)
+    check("старая машина открывала две сразу", illegalOldStates > 0, true)
+    check("перебор действительно прошёл", sequencesChecked, 10_000)
+
+    // Закрытие не должно гасить чужую шторку: закрыли форму ТО, пока открыт
+    // пикер, — пикер обязан остаться. Без проверки `slot == kind` в `close`
+    // ровно здесь и ломалось бы.
+    var s = NewSheets()
+    s.handle(.tapAddService)
+    s.handle(.choosePhoto)
+    s.handle(.closeService)
+    check("закрытие чужой шторки не трогает открытую", s.slot, .photoPicker)
+
+    // Замена одной шторки другой — одно действие, а не «закрыть и открыть».
+    var t = NewSheets()
+    t.handle(.tapAddService)
+    t.handle(.chooseManual)
+    check("выбор «вручную» заменяет шторку одним переходом", t.slot, .service)
+    check("и не оставляет выбор способа открытым", t.choice, false)
+}
+
 // ------------------------------------------------------------ UIStateCatalog
 
 group("UIStateCatalog") {
