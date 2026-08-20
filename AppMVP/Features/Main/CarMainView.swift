@@ -386,7 +386,7 @@ struct CarMainView: View {
     private var systemTabs: some View {
         TabView(selection: tabSelection) {
             Tab("Машина", systemImage: "car", value: 0) { carScreen.environment(\.colorScheme, .dark) }
-            Tab("Карта", systemImage: "map", value: 1) { MapScreen().ignoresSafeArea().environment(\.colorScheme, .dark) }
+            Tab("Карта", systemImage: "map", value: 1) { MapScreen().environment(\.colorScheme, .dark) }
             Tab("Ошибки", systemImage: "wrench.adjustable", value: 2) {
                 IssuesScreen(hidesTabBar: $hidesTabBar)
                     .ignoresSafeArea()
@@ -424,7 +424,7 @@ struct CarMainView: View {
     private var legacyTabs: some View {
         ZStack(alignment: .topLeading) {
             switch tab {
-            case 1: MapScreen().ignoresSafeArea().transition(tabTransition)
+            case 1: MapScreen().transition(tabTransition)
             case 2: IssuesScreen(hidesTabBar: $hidesTabBar)
                     .ignoresSafeArea().transition(tabTransition)
             case 3: MoreScreen().ignoresSafeArea().transition(tabTransition)

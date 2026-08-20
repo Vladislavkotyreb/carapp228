@@ -12,6 +12,16 @@
 	  Остальные ключи Info.plist по-прежнему генерируются Xcode из настроек
 	  сборки (INFOPLIST_KEY_*) и подмешиваются в этот файл.
 	-->
+	<!--
+	  `canOpenURL` для чужой схемы отвечает «нет», пока схема не объявлена
+	  здесь. Без этого раздел «Карта» всегда уходил бы на сайт Яндекса, даже
+	  когда приложение стоит на телефоне.
+	-->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>yandexmaps</string>
+		<string>yandexnavi</string>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
