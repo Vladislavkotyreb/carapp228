@@ -11,6 +11,12 @@ struct AppMVPApp: App {
         if MapKitKey.isConfigured {
             YMKMapKit.setApiKey(MapKitKey.value)
             YMKMapKit.setLocale("ru_RU")
+            // Порядок из документации Яндекса: инстанс создаётся сразу за
+            // ключом. И раз инициализация идёт не в
+            // `didFinishLaunchingWithOptions`, а в `init` структуры App,
+            // документация требует дополнительно поднять MapKit вручную —
+            // сам он этого не сделает.
+            YMKMapKit.sharedInstance().onStart()
         }
     }
 
