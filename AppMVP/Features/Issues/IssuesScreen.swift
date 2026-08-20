@@ -19,23 +19,34 @@ struct IssuesScreen: View {
 
     /// История пуста на старте и растёт только после подтверждения находок.
     @State private var history: [IssueGroup] = []
-    @State private var isRecording = false
+
+    /// Что раздел сейчас делает. Одно значение вместо `isRecording`
+    /// и `isAnalyzing`: «записываю и разбираю одновременно» больше нельзя
+    /// выразить. Читатели ниже вычисляются отсюда и остались прежними.
+    @State private var activity: IssuesActivity = .idle
+
     @State private var showFindings = false
 
     /// Что показывает шторка. Пока сервер разбора не настроен — заглушка,
     /// после разбора — то, что вернул `cardiag`.
     @State private var findings: [EngineIssue] = IssuesStub.findings
-    /// Запись отдана на разбор и ответа ещё нет.
-    @State private var isAnalyzing = false
     /// Хранится, чтобы отменить разбор при уходе с экрана: ответ приходит
     /// секундами позже, и без отмены он открывает шторку поверх другого раздела.
     @State private var analysisTask: Task<Void, Never>?
 
     private var hasHistory: Bool { !history.isEmpty }
 
+    private var isRecording: Bool { activity == .recording }
+    /// Запись отдана на разбор и ответа ещё нет.
+    private var isAnalyzing: Bool { activity == .analyzing }
+
+    /// Фаза экрана целиком — она же имя кадра в галерее состояний.
+    /// Выводится в `IssuesPhase.of`, там же и проверяется.
+    private var phase: IssuesPhase { .of(activity: activity, hasHistory: hasHistory) }
+
     /// Модалка только когда под ней есть что притемнять. На пустом экране она
     /// не нужна и мешает: закрывать нечего.
-    private var isModalRecording: Bool { isRecording && hasHistory }
+    private var isModalRecording: Bool { phase == .recordingModal }
 
     /// Зазор от описания до кнопки: 206 пока истории нет (`46096:2555`)
     /// и 48, когда она появилась (`46105:4251`).
@@ -65,7 +76,11 @@ struct IssuesScreen: View {
         .background(Figma.graysBlack)
         .animation(Motion.sheet, value: isRecording)
         .animation(Motion.sheet, value: history.count)
-        .onDisappear { meter.stop(); analysisTask?.cancel() }
+        // Возврат в покой обязателен. Раньше его не было: отменённый разбор
+        // выходит по `guard !Task.isCancelled` мимо сброса флага, и кнопка
+        // оставалась навсегда отключённой с индикатором. Прерванная запись
+        // залипала так же — «Стоп» на остановленном метре.
+        .onDisappear { meter.stop(); analysisTask?.cancel(); activity = .idle }
         .bottomSheet(isPresented: $showFindings) { findingsSheet }
         // Таббар уходит под **любую** модалку раздела, а не только под шторку
         // находок. Панель записи затемняет экран целиком, и оставлять поверх
@@ -496,10 +511,10 @@ struct IssuesScreen: View {
     private func toggleRecording() {
         if isRecording {
             meter.stop()
-            isRecording = false
+            activity = .idle
             analyse()
         } else {
-            isRecording = true
+            activity = .recording
             meter.start()
         }
     }
@@ -516,7 +531,7 @@ struct IssuesScreen: View {
             return
         }
 
-        isAnalyzing = true
+        activity = .analyzing
         analysisTask?.cancel()
         analysisTask = Task {
             let result: [EngineIssue]
@@ -529,7 +544,7 @@ struct IssuesScreen: View {
             }
             guard !Task.isCancelled else { return }
             findings = result
-            isAnalyzing = false
+            activity = .idle
             showFindings = true
         }
     }

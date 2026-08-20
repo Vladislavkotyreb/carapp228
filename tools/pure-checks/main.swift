@@ -117,6 +117,173 @@ group("NumberFormat") {
           NumberFormat.digits(NumberFormat.grouped(1_234_567)), 1_234_567)
 }
 
+// ------------------------------------------------------------- IssuesPhase
+
+group("IssuesPhase.of") {
+    check("покой без истории — пустой экран",
+          IssuesPhase.of(activity: .idle, hasHistory: false), .empty)
+    check("покой с историей — экран с историей",
+          IssuesPhase.of(activity: .idle, hasHistory: true), .history)
+    check("запись на пустом экране идёт на месте, без модалки",
+          IssuesPhase.of(activity: .recording, hasHistory: false), .recordingInline)
+    check("запись поверх истории — модалка",
+          IssuesPhase.of(activity: .recording, hasHistory: true), .recordingModal)
+    check("разбор выглядит одинаково без истории",
+          IssuesPhase.of(activity: .analyzing, hasHistory: false), .analyzing)
+    check("разбор выглядит одинаково с историей",
+          IssuesPhase.of(activity: .analyzing, hasHistory: true), .analyzing)
+
+    // Каждая фаза обязана быть достижимой. Фаза, которую не производит ни одно
+    // сочетание, — кадр в галерее, которого в приложении не бывает: галерея
+    // объявляет себя полным набором состояний и врёт.
+    var reachable: Set<IssuesPhase> = []
+    for activity in IssuesActivity.allCases {
+        for hasHistory in [true, false] {
+            reachable.insert(IssuesPhase.of(activity: activity, hasHistory: hasHistory))
+        }
+    }
+    check("каждая фаза достижима из какого-то состояния",
+          Set(IssuesPhase.allCases).subtracting(reachable).map(\.rawValue).sorted(), [])
+
+    // Обратное тоже: фаза, которой нет в типе, не может быть произведена —
+    // это гарантирует компилятор, а здесь фиксируется число.
+    check("сочетаний шесть, фаз пять", reachable.count, IssuesPhase.allCases.count)
+
+    // Модалка появляется ровно там, где раньше стояло `isRecording && hasHistory`.
+    // Правило переехало в тип, и вот доказательство, что смысл не поменялся.
+    for activity in IssuesActivity.allCases {
+        for hasHistory in [true, false] {
+            let phase = IssuesPhase.of(activity: activity, hasHistory: hasHistory)
+            check("модалка = запись и есть история (\(activity.rawValue), \(hasHistory))",
+                  phase == .recordingModal, activity == .recording && hasHistory)
+        }
+    }
+}
+
+// ------------------------------- Эквивалентность старой и новой машин ------
+//
+// `IssuesScreen` переведён с двух булевых на одно значение. Собрать
+// приложение на этой машине нечем, поэтому равенство поведения доказывается
+// здесь: обе машины прогоняются на всех последовательностях событий, и на
+// каждом шаге сравниваются те два флага, которые читает вёрстка.
+//
+// Модели — копии кода переходов, а не импорт: `IssuesScreen` живёт в SwiftUI
+// и сюда не собирается. Расхождение модели с кодом ловится глазами при
+// правке, и это записано как ограничение.
+
+enum UIEvent: String, CaseIterable {
+    case tap        // нажатие «Слушать» / «Стоп»
+    case finish     // разбор вернул ответ
+    case disappear  // ушли с раздела
+}
+
+/// Как было: два независимых флага.
+struct OldMachine {
+    var rec = false
+    var ana = false
+    /// Настроен ли сервер: без него разбор не начинается вовсе.
+    let configured: Bool
+
+    mutating func handle(_ event: UIEvent) {
+        switch event {
+        case .tap:
+            if rec { rec = false; if configured { ana = true } }
+            else { rec = true }
+        case .finish:
+            if ana { ana = false }
+        case .disappear:
+            break   // флаги оставались как есть — отсюда и залипание
+        }
+    }
+}
+
+/// Как стало: одно значение.
+struct NewMachine {
+    var activity: IssuesActivity = .idle
+    let configured: Bool
+
+    var rec: Bool { activity == .recording }
+    var ana: Bool { activity == .analyzing }
+
+    mutating func handle(_ event: UIEvent) {
+        switch event {
+        case .tap:
+            if rec { activity = .idle; if configured { activity = .analyzing } }
+            else { activity = .recording }
+        case .finish:
+            if ana { activity = .idle }
+        case .disappear:
+            activity = .idle
+        }
+    }
+}
+
+group("IssuesScreen: старая и новая машины состояний") {
+    // Кнопка отключена на время разбора (`.disabled(isAnalyzing)`), поэтому
+    // нажатие в этот момент недостижимо и в переборе не порождается.
+    func sequences(_ depth: Int) -> [[UIEvent]] {
+        guard depth > 0 else { return [[]] }
+        return sequences(depth - 1).flatMap { tail in
+            UIEvent.allCases.map { [$0] + tail }
+        }
+    }
+
+    for configured in [true, false] {
+        var mismatches: [String] = []
+        var reachedAnalyzing = false
+        for seq in sequences(6) {
+            var old = OldMachine(configured: configured)
+            var new = NewMachine(configured: configured)
+            var sawDisappear = false
+            for event in seq {
+                if event == .tap && old.ana { continue }   // кнопка отключена
+                if event == .disappear { sawDisappear = true }
+                old.handle(event)
+                new.handle(event)
+                if new.ana { reachedAnalyzing = true }
+                // До ухода с раздела поведение обязано совпадать полностью.
+                if !sawDisappear && (old.rec != new.rec || old.ana != new.ana) {
+                    mismatches.append("\(seq.map(\.rawValue).joined(separator: ">")) "
+                                      + "старая(\(old.rec),\(old.ana)) "
+                                      + "новая(\(new.rec),\(new.ana))")
+                }
+            }
+        }
+        check("поведение совпадает на всех последовательностях "
+              + "(сервер \(configured ? "настроен" : "не настроен"))",
+              mismatches.first, nil)
+        check("разбор вообще достижим в переборе (сервер \(configured))",
+              reachedAnalyzing, configured)
+    }
+
+    // Единственное намеренное расхождение — уход с раздела. Старая машина
+    // оставляла флаг, и кнопка возвращалась отключённой навсегда.
+    var old = OldMachine(configured: true)
+    var new = NewMachine(configured: true)
+    for event in [UIEvent.tap, .tap, .disappear] { old.handle(event); new.handle(event) }
+    check("старая машина залипала в разборе после ухода", old.ana, true)
+    check("новая возвращается в покой", new.activity, .idle)
+
+    var oldRec = OldMachine(configured: true)
+    var newRec = NewMachine(configured: true)
+    for event in [UIEvent.tap, .disappear] { oldRec.handle(event); newRec.handle(event) }
+    check("старая машина залипала в записи после ухода", oldRec.rec, true)
+    check("новая возвращается в покой и здесь", newRec.activity, .idle)
+
+    // Незаконное сочетание в новой машине невыразимо по построению: проверяем,
+    // что перебор его действительно ни разу не производит.
+    var illegal = 0
+    for seq in sequences(6) {
+        var m = NewMachine(configured: true)
+        for event in seq {
+            if event == .tap && m.ana { continue }
+            m.handle(event)
+            if m.rec && m.ana { illegal += 1 }
+        }
+    }
+    check("«записываю и разбираю» не встречается ни разу", illegal, 0)
+}
+
 // ------------------------------------------------------------ UIStateCatalog
 
 group("UIStateCatalog") {
