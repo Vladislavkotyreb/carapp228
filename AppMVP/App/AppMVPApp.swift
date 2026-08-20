@@ -36,6 +36,7 @@ struct AppMVPApp: App {
         }
         // Локальное хранилище на устройстве: данные машины и ТО никуда
         // не уходят, пока не появится сервер в РФ (docs/BACKEND.md).
-        .modelContainer(for: [Car.self, ServiceRecord.self, ServiceWorkItem.self])
+        .modelContainer(for: [Car.self, ServiceRecord.self, ServiceWorkItem.self,
+                             Place.self])
     }
 }

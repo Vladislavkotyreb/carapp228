@@ -14,6 +14,8 @@
 		9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */ = {isa = PBXBuildFile; productRef = 9A0000010000000000000002 /* YandexMapsMobileFull */; };
 		9B0000010000000000000001 /* MapKitKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000001 /* MapKitKey.swift */; };
 		9B0000000000000000000001 /* CarDiagnosis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000001 /* CarDiagnosis.swift */; };
+		9B0000000000000000000004 /* MapController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000004 /* MapController.swift */; };
+		9B0000000000000000000003 /* Place.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000003 /* Place.swift */; };
 		9B0000010000000000000002 /* MapScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000002 /* MapScreen.swift */; };
 		7A0000010000000000000002 /* MoreScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0000010000000000000002 /* MoreScreen.swift */; };
 		AA0000010000000000000001 /* AppMVPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000001 /* AppMVPApp.swift */; };
@@ -53,6 +55,8 @@
 		CB0000010000000000000002 /* NumberFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberFormat.swift; sourceTree = "<group>"; };
 		9C0000010000000000000001 /* MapKitKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitKey.swift; sourceTree = "<group>"; };
 		9C0000000000000000000001 /* CarDiagnosis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarDiagnosis.swift; sourceTree = "<group>"; };
+		9C0000000000000000000004 /* MapController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapController.swift; sourceTree = "<group>"; };
+		9C0000000000000000000003 /* Place.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Place.swift; sourceTree = "<group>"; };
 		9C0000010000000000000002 /* MapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapScreen.swift; sourceTree = "<group>"; };
 		7B0000010000000000000002 /* MoreScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreScreen.swift; sourceTree = "<group>"; };
 		BB0000010000000000000001 /* AppMVPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMVPApp.swift; sourceTree = "<group>"; };
@@ -113,6 +117,7 @@
 			isa = PBXGroup;
 			children = (
 				9C0000010000000000000002 /* MapScreen.swift */,
+				9C0000000000000000000004 /* MapController.swift */,
 			);
 			path = Map;
 			sourceTree = "<group>";
@@ -182,6 +187,7 @@
 			isa = PBXGroup;
 			children = (
 				BB0000010000000000000006 /* Car.swift */,
+				9C0000000000000000000003 /* Place.swift */,
 				BB00000100000000000000A1 /* ServiceRecord.swift */,
 			);
 			path = Models;
@@ -363,6 +369,7 @@
 				CA0000010000000000000004 /* UIStateCatalog.swift in Sources */,
 				AA0000010000000000000003 /* Theme.swift in Sources */,
 				AA0000010000000000000006 /* Car.swift in Sources */,
+				9B0000000000000000000003 /* Place.swift in Sources */,
 				AA00000100000000000000A1 /* ServiceRecord.swift in Sources */,
 				AA000001000000000000000A /* AppState.swift in Sources */,
 				AA000001000000000000000B /* RootView.swift in Sources */,
@@ -388,6 +395,7 @@
 				8A0000010000000000000002 /* SoundOrb.swift in Sources */,
 				8A0000010000000000000001 /* AudioLevelMeter.swift in Sources */,
 				9B0000010000000000000002 /* MapScreen.swift in Sources */,
+				9B0000000000000000000004 /* MapController.swift in Sources */,
 				7A0000010000000000000002 /* MoreScreen.swift in Sources */,
 				9B0000010000000000000001 /* MapKitKey.swift in Sources */,
 				9B0000000000000000000001 /* CarDiagnosis.swift in Sources */,
@@ -520,6 +528,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.vladislavkotyrev.appmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -550,6 +559,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.vladislavkotyrev.appmvp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

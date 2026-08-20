@@ -12,8 +12,7 @@ import Foundation
 /// Пока строка пустая, раздел «Карта» показывает объяснение вместо карты,
 /// а не пустой экран.
 enum MapKitKey {
-    /// Вставьте ключ сюда.
-    static let value = ""
+    static let value = "aa7f6599-556b-4fc7-979d-e189f8d1b83f"
 
     static var isConfigured: Bool { !value.isEmpty }
 }
