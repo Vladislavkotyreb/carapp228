@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 /// Раздел «Ошибки» — Figma секция `46084:1942`.
@@ -17,8 +18,10 @@ struct IssuesScreen: View {
 
     @StateObject private var meter = AudioLevelMeter()
 
-    /// История пуста на старте и растёт только после подтверждения находок.
-    @State private var history: [IssueGroup] = []
+    /// История прослушиваний из базы. Свежие сверху — так же, как записи ТО.
+    /// Раньше жила в `@State` и исчезала при перезапуске приложения.
+    @Query(sort: \EngineCheck.date, order: .reverse) private var history: [EngineCheck]
+    @Environment(\.modelContext) private var modelContext
 
     /// Что раздел сейчас делает. Одно значение вместо `isRecording`
     /// и `isAnalyzing`: «записываю и разбираю одновременно» больше нельзя
@@ -224,18 +227,18 @@ struct IssuesScreen: View {
 
             statsCard
 
-            ForEach(history) { group in
+            ForEach(history) { check in
                 Spacer(minLength: 0).frame(height: 24)
 
-                Text(group.date)
+                Text(check.date, format: .dateTime.day().month(.twoDigits).year())
                     .font(.system(size: 17, weight: .semibold))
                     .tracking(-0.43)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                ForEach(group.issues) { issue in
+                ForEach(check.orderedFindings) { finding in
                     Spacer(minLength: 0).frame(height: 16)
-                    darkIssueCard(issue)
+                    darkIssueCard(EngineIssue(title: finding.title, detail: finding.detail))
                 }
             }
         }
@@ -245,7 +248,7 @@ struct IssuesScreen: View {
     private var statsCard: some View {
         HStack(spacing: 0) {
             counter(title: "Прослушиваний", value: history.count)
-            counter(title: "Неисправности", value: history.reduce(0) { $0 + $1.issues.count })
+            counter(title: "Неисправности", value: history.reduce(0) { $0 + $1.findings.count })
         }
         .frame(maxWidth: .infinity)
         .frame(height: 96)
@@ -650,10 +653,16 @@ struct IssuesScreen: View {
         "\(Int((value * 100).rounded()))\u{00A0}%"
     }
 
+    /// Подтверждённые находки уходят в базу. Порядок сохраняется номером:
+    /// разбор ранжированный, а связь SwiftData порядок не гарантирует.
     private func approveFindings() {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd.MM.yyyy"
-        history.append(IssueGroup(date: formatter.string(from: .now), issues: findings))
+        let check = EngineCheck()
+        modelContext.insert(check)
+        for (index, issue) in findings.enumerated() {
+            let finding = EngineFinding(title: issue.title, detail: issue.detail, order: index)
+            finding.check = check
+            modelContext.insert(finding)
+        }
         showFindings = false
     }
 }
@@ -664,12 +673,6 @@ struct EngineIssue: Identifiable {
     let id = UUID()
     let title: String
     let detail: String
-}
-
-struct IssueGroup: Identifiable {
-    let id = UUID()
-    let date: String
-    let issues: [EngineIssue]
 }
 
 /// Заглушка. Настоящего разбора звука двигателя нет: он требует модели на
