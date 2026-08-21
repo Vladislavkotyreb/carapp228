@@ -55,6 +55,9 @@ PROMPTS = [
 # Короткие подписи тех же промптов — только для лога. Брать первое слово
 # нельзя: два промпта начинаются с «a», и строка выходит нечитаемой.
 PROMPT_LABELS = ["музыка", "МОТОР", "речь", "тишина"]
+# Короткий код того, что услышали. Отдаём его приложению, чтобы оно не хранило
+# у себя копию формулировок промптов: разойдутся — и экран начнёт врать.
+PROMPT_CODES = ["music", "engine", "speech", "silence"]
 ENGINE = 1
 ENGINE_THRESHOLD = 0.5
 
@@ -143,9 +146,13 @@ async def diagnose(file: UploadFile = File(...)) -> JSONResponse:
             scores = clap.score([audio], PROMPTS, sr=config.SR_CLAP)[0]
             engine_p = float(scores[ENGINE])
 
+            heard = PROMPT_CODES[int(max(range(len(scores)), key=lambda i: scores[i]))]
             payload = {
                 "engine_probability": round(engine_p, 3),
                 "engine_scores": {p: round(float(s), 3) for p, s in zip(PROMPTS, scores)},
+                # Что прозвучало громче всего. Приложению нужен именно этот
+                # код: по нему оно объясняет человеку, что помешало.
+                "heard": heard,
             }
 
             # Не мотор — дальше не считаем вовсе. Возвращать разбор «на всякий

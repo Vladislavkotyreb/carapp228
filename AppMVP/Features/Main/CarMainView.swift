@@ -49,7 +49,7 @@ struct CarMainView: View {
     /// рассчитана на одну машину плюс страницу «Добавить авто».
     @Query(sort: \Car.createdAt) private var cars: [Car]
 
-    @State private var tab = 1
+    @State private var tab = 0
     @State private var carPage = 0
     @State private var dragX: CGFloat = 0
     /// Ось жеста фиксируется на первом заметном смещении и держится до конца.

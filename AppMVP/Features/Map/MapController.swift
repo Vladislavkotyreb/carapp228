@@ -422,13 +422,14 @@ final class MapController: NSObject, ObservableObject {
         move(to: here, zoom: 15)
     }
 
-    private func move(to coordinate: CLLocationCoordinate2D, zoom: Float) {
+    private func move(to coordinate: CLLocationCoordinate2D, zoom: Float,
+                      then finished: (() -> Void)? = nil) {
         map?.move(
             with: YMKCameraPosition(
                 target: YMKPoint(latitude: coordinate.latitude, longitude: coordinate.longitude),
                 zoom: zoom, azimuth: 0, tilt: 0),
             animation: YMKAnimation(type: .smooth, duration: 0.4),
-            cameraCallback: nil)
+            cameraCallback: { _ in finished?() })
     }
 }
 
@@ -477,10 +478,11 @@ extension MapController: CLLocationManagerDelegate {
 
         guard !didCenter else { return }
         didCenter = true
-        move(to: last.coordinate, zoom: 14)
-        // Первый поиск — только когда есть где искать: до появления позиции
-        // карта стоит над нулевым меридианом, и находить там нечего.
-        search()
+        // Поиск — строго **после** того, как камера доехала. Он берёт видимую
+        // область, а в момент первой геопозиции она ещё всемирная: запрос
+        // уходил по всему глобусу и возвращался пустым. На живой карте это и
+        // выглядело как «точек нет», без единой ошибки в логе.
+        move(to: last.coordinate, zoom: 14) { [weak self] in self?.search() }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
