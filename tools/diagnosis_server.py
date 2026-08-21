@@ -52,6 +52,9 @@ PROMPTS = [
     "a person talking",
     "silence or ambient room noise",
 ]
+# Короткие подписи тех же промптов — только для лога. Брать первое слово
+# нельзя: два промпта начинаются с «a», и строка выходит нечитаемой.
+PROMPT_LABELS = ["музыка", "МОТОР", "речь", "тишина"]
 ENGINE = 1
 ENGINE_THRESHOLD = 0.5
 
@@ -81,6 +84,30 @@ def _lazy():
 def _safe_suffix(name: str | None) -> str:
     suffix = Path(name or "").suffix.lower()
     return suffix if suffix in OK_SUFFIX else ".wav"
+
+
+def _log(name, size, engine_p, scores, result) -> None:
+    """Строка на запрос — иначе неудачный тест не диагностируется.
+
+    Записи не сохраняются, переспросить «а что там было» после теста нельзя,
+    поэтому всё существенное печатается сразу: прошёл ли привратник и с какой
+    оценкой, сколько чистых кусков выделил каскад, что решили головы.
+    """
+    parts = [
+        f"[разбор] {name or 'без имени'} {size / 1024:.0f} КБ",
+        f"мотор {engine_p:.2f}" + (" ПРОШЁЛ" if engine_p >= ENGINE_THRESHOLD else " отклонён"),
+        " ".join(f"{label}={s:.2f}" for label, s in zip(PROMPT_LABELS, scores)),
+    ]
+    if result is not None:
+        d = result.to_dict()
+        causes = d.get("causes") or []
+        top = f"{causes[0]['part']} {causes[0]['p']:.2f}" if causes else "нет версий"
+        parts += [
+            f"сегментов {len(d.get('segments') or [])}",
+            f"вердикт {d.get('verdict')} {d.get('fault_probability')}",
+            f"версия {top}",
+        ]
+    print(" | ".join(parts), flush=True)
 
 
 @app.get("/health")
@@ -126,6 +153,7 @@ async def diagnose(file: UploadFile = File(...)) -> JSONResponse:
             if engine_p < ENGINE_THRESHOLD:
                 payload["model_loaded"] = True
                 payload["is_engine"] = False
+                _log(file.filename, total, engine_p, scores, None)
                 return JSONResponse(payload)
 
             result = clf.diagnose(tmp_path)
@@ -133,6 +161,7 @@ async def diagnose(file: UploadFile = File(...)) -> JSONResponse:
         payload.update(result.to_dict())
         payload["is_engine"] = True
         payload["model_loaded"] = True
+        _log(file.filename, total, engine_p, scores, result)
         return JSONResponse(payload)
     except (ValueError, FileNotFoundError, OSError):
         return JSONResponse({"error": "не удалось обработать запись"}, status_code=400)
