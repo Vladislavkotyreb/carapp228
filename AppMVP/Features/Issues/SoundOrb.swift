@@ -53,9 +53,19 @@ struct SoundOrb: View {
     /// Уровень, которым живёт лента: в тишине дышит сам, с голосом идёт за ним.
     /// Две синусоиды с несоизмеримыми частотами — чтобы рисунок не повторялся
     /// заметным периодом.
+    ///
+    /// Частоты подняты втрое против первой версии, и это не «покрутил ручку».
+    /// Замер по кадрам через 1/30 с: у референса толщина проходит полный цикл
+    /// подъёма и спада за 0.65 с, а у прежней версии за то же время только
+    /// сползала — 38 % в 21 %. Монотонное сползание и читается вялым.
+    ///
+    /// `shaped` делает подъём круче спада. На записи за лентой стоит голос, а
+    /// у него атака резкая: симметричная синусоида этого не даёт, сколько её
+    /// ни ускоряй.
     func drive(at time: Double) -> Double {
-        let breath = (0.55 * sin(time * 1.15) + 0.45 * sin(time * 2.03 + 1.7) + 1) / 2
-        let idle = Self.idleLow + (Self.idleHigh - Self.idleLow) * breath
+        let raw = (0.55 * sin(time * 3.4) + 0.45 * sin(time * 5.9 + 1.7) + 1) / 2
+        let shaped = pow(raw, 0.62)
+        let idle = Self.idleLow + (Self.idleHigh - Self.idleLow) * shaped
         return max(idle, min(1, level * 1.6))
     }
 
@@ -403,17 +413,17 @@ extension SoundOrb {
         let layers: [AuroraLayer] = [
             // Дальнее свечение: широкое, размытое, оно и красит весь пузырь
             AuroraLayer(thickness: 0.60, swing: 0.09, frequency: 0.8, speed: 1.6,
-                        swell: 0.40, swellSpeed: 2.6, offset: -0.08, blur: 22,
+                        swell: 0.85, swellSpeed: 2.6, offset: -0.08, blur: 22,
                         opacity: 0.42, top: Figma.orbBody, middle: Figma.orbDeep,
                         bottom: Figma.orbGrass),
             // Тело ленты — то, что читается как волна
             AuroraLayer(thickness: 0.32, swing: 0.13, frequency: 1.2, speed: 2.4,
-                        swell: 0.50, swellSpeed: 4.0, offset: -0.10, blur: 10,
+                        swell: 1.05, swellSpeed: 4.0, offset: -0.10, blur: 10,
                         opacity: 0.60, top: Figma.orbCore, middle: Figma.orbMint,
                         bottom: Figma.orbGrass),
             // Бирюзовая кромка поверху: на записи она отдельной тонкой полосой
             AuroraLayer(thickness: 0.07, swing: 0.13, frequency: 1.2, speed: 2.4,
-                        swell: 0.45, swellSpeed: 4.0, offset: -0.175, blur: 4,
+                        swell: 0.95, swellSpeed: 4.0, offset: -0.175, blur: 4,
                         opacity: 0.75, top: Color.white, middle: Figma.orbCore,
                         bottom: Figma.orbCore)
         ]
@@ -496,8 +506,12 @@ extension SoundOrb {
 
             // Два набегания с разной скоростью — с одним утолщение ходило бы
             // маятником, а на записи оно переезжает неравномерно.
-            let travel = sin(ratio * .pi * 2 - time * layer.swellSpeed)
-                + 0.6 * sin(ratio * .pi * 3.4 + time * layer.swellSpeed * 0.7)
+            // Набухание бежит вдоль оси и **успевает пройти полный цикл**:
+            // при прежней скорости период выходил около 1.6 с, у референса —
+            // 0.65 с. Отсюда множитель 2.4.
+            let pace = time * layer.swellSpeed * 2.4
+            let travel = sin(ratio * .pi * 2 - pace)
+                + 0.6 * sin(ratio * .pi * 3.4 + pace * 0.7)
             let swell = 1 + layer.swell * travel / 1.6
 
             let half = size.height * layer.thickness / 2

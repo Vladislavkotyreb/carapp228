@@ -55,6 +55,37 @@ struct Diagnosis: Decodable {
     let isEngine: Bool
     /// Насколько запись похожа на мотор, 0…1. Порог на сервере 0.5.
     let engineProbability: Double
+    /// Что в записи прозвучало громче всего, если это не мотор.
+    ///
+    /// Код приходит с сервера готовым, а не собирается здесь из долей по
+    /// промптам: формулировки промптов живут на сервере, и держать их копию
+    /// в приложении значит однажды разойтись и начать врать с экрана.
+    let heard: HeardKind
+
+    enum HeardKind: String, Decodable {
+        case engine, speech, music, silence, unknown
+
+        /// Чем объяснить человеку отказ. Формулировки — про то, что делать,
+        /// а не про то, что случилось: «слышно речь» без продолжения ничего
+        /// не подсказывает.
+        var explanation: String {
+            switch self {
+            case .speech:
+                "Слышны в основном голоса. Запишите ещё раз, не разговаривая."
+            case .music:
+                "Мешает посторонний шум. Запишите ближе к мотору, где потише."
+            case .silence:
+                "В записи почти тишина. Заведите двигатель и поднесите телефон ближе."
+            case .engine:
+                // Сюда попадаем, только когда «мотор» победил остальные, но
+                // не дотянул до порога: звук похож на двигатель и всё же
+                // слишком слабый. Говорить «мотора не слышно» здесь неправда.
+                "Мотор слышно слабо. Поднесите телефон ближе к работающему двигателю."
+            case .unknown:
+                "В записи не слышно работающего мотора. Заведите двигатель и поднесите телефон ближе."
+            }
+        }
+    }
 
     struct Region: Decodable {
         /// Одна из шести зон: engine, accessory, exhaust, drivetrain,
@@ -78,6 +109,7 @@ struct Diagnosis: Decodable {
         case modelLoaded = "model_loaded"
         case isEngine = "is_engine"
         case engineProbability = "engine_probability"
+        case heard
     }
 
     /// Куски нужны только числом, поэтому декодируем их как непрозрачный
@@ -100,6 +132,7 @@ struct Diagnosis: Decodable {
         // работать, а это хуже, чем отсутствие проверки.
         isEngine = try box.decodeIfPresent(Bool.self, forKey: .isEngine) ?? true
         engineProbability = try box.decodeIfPresent(Double.self, forKey: .engineProbability) ?? 1
+        heard = (try? box.decodeIfPresent(HeardKind.self, forKey: .heard)) ?? .unknown
     }
 }
 

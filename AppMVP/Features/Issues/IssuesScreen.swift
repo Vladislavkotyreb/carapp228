@@ -29,6 +29,9 @@ struct IssuesScreen: View {
     @State private var activity: IssuesActivity = .idle
 
     @State private var showFindings = false
+    /// Разбор не дал находок: мотора не слышно. Отдельным состоянием, потому
+    /// что шторка в нём выглядит иначе — подтверждать нечего.
+    @State private var nothingHeard: Diagnosis.HeardKind?
 
     /// Что показывает шторка. Пока сервер разбора не настроен — заглушка,
     /// после разбора — то, что вернул `cardiag`.
@@ -361,8 +364,12 @@ struct IssuesScreen: View {
     private var findingsSheet: some View {
         VStack(spacing: 0) {
             sheetToolbar
-            findingsList
-                .padding(.top, Findings.listTop)
+            if let heard = nothingHeard {
+                nothingHeardState(heard)
+            } else {
+                findingsList
+                    .padding(.top, Findings.listTop)
+            }
         }
         .frame(height: Findings.height)
         .frame(maxWidth: .infinity)
@@ -385,6 +392,47 @@ struct IssuesScreen: View {
                 .frame(width: 58, height: 4)
                 .padding(.top, 5)
         }
+    }
+
+    /// Разбор не нашёл мотора. Показываем **что услышали вместо него** и одну
+    /// кнопку: подтверждать нечего, а «Нет, не добавлять» рядом с пустым
+    /// списком читается как выбор там, где выбора нет.
+    private func nothingHeardState(_ heard: Diagnosis.HeardKind) -> some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+
+            Image(systemName: "waveform.badge.exclamationmark")
+                .font(.system(size: 52, weight: .light))
+                .foregroundStyle(Figma.vibrantSecondary)
+
+            Spacer(minLength: 0).frame(height: 20)
+
+            Text("Двигателя не слышно")
+                .font(.system(size: 22, weight: .bold))
+                .figmaLineHeight(28, fontSize: 22, weight: .bold)
+                .foregroundStyle(Figma.labelsPrimary)
+
+            Spacer(minLength: 0).frame(height: 8)
+
+            Text(heard.explanation)
+                .font(.system(size: 15))
+                .figmaLineHeight(20, fontSize: 15)
+                .foregroundStyle(Figma.vibrantSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 32)
+
+            Spacer(minLength: 0)
+
+            GlassProminentButton(title: "Записать ещё раз") {
+                showFindings = false
+                nothingHeard = nil
+                toggleRecording()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, Findings.buttonsBottom)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     /// Список находок с кнопками внизу.
@@ -464,7 +512,8 @@ struct IssuesScreen: View {
     /// Тулбар: крестик слева, заголовок по центру, чёрная галочка справа.
     private var sheetToolbar: some View {
         ZStack {
-            Text("Вот что мы нашли")
+            // В пустом состоянии «нашли» — неправда: не нашли ничего.
+            Text(nothingHeard == nil ? "Вот что мы нашли" : "Запись")
                 .font(.system(size: 17, weight: .semibold))
                 .tracking(-0.43)
                 .foregroundStyle(Figma.labelsPrimary)
@@ -489,15 +538,17 @@ struct IssuesScreen: View {
 
                 Spacer(minLength: 0)
 
-                Button(action: approveFindings) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(Circle().fill(Figma.graysBlack))
+                if nothingHeard == nil {
+                    Button(action: approveFindings) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(Circle().fill(Figma.graysBlack))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Добавить ошибки")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Добавить ошибки")
             }
         }
         .frame(height: Findings.toolbarHeight)
@@ -529,12 +580,16 @@ struct IssuesScreen: View {
         guard DiagnosisEndpoint.isConfigured, let recording = meter.lastRecording else {
             // Сервер не настроен — работаем как раньше, на заглушке. Это
             // честнее пустого экрана и совпадает с поведением «Карты» без ключа.
+            nothingHeard = nil
             findings = IssuesStub.findings
             showFindings = true
             return
         }
 
         activity = .analyzing
+        // Прошлый отказ к новой записи отношения не имеет: без сброса шторка
+        // осталась бы пустой даже там, где находки есть.
+        nothingHeard = nil
         analysisTask?.cancel()
         analysisTask = Task {
             let result: [EngineIssue]
@@ -579,10 +634,11 @@ struct IssuesScreen: View {
         // неисправный мотор и исправный, а варианта «это не машина» у них нет.
         // Отсюда и брался «дифференциал» в тихой комнате.
         guard diagnosis.isEngine else {
-            return [EngineIssue(
-                title: "Это не похоже на звук двигателя",
-                detail: "В записи не слышно работающего мотора, поэтому разбирать "
-                        + "нечего. Запустите двигатель и поднесите телефон ближе.")]
+            // Не карточка в общем списке: шторка целиком переходит в пустое
+            // состояние. Карточка соседствовала бы с кнопками «Да, добавить
+            // ошибки» — предложением добавить в историю то, чего нет.
+            nothingHeard = diagnosis.heard
+            return []
         }
 
         // Версии показываем **только** когда голова «есть ли поломка» сказала
