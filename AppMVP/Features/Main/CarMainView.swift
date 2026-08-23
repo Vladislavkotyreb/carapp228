@@ -1024,18 +1024,17 @@ struct CarMainView: View {
                 historyStrip
             }
 
-            // «Добавить ТО» — синяя, на Fills/Tertiary
+            // «Button - Content Area», Style = Bordered (`45949:3428`): 370×50,
+            // капсула, лейбл акцентом. Отклик на палец даёт стиль.
             Button { sheet = .serviceChoice } label: {
                 Text("Добавить ТО")
                     .font(.system(size: 17))
                     .tracking(-0.43)
-                    .foregroundStyle(Figma.accentsBlue)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 14)
                     .frame(maxWidth: .infinity)
-                    .background(Figma.fillsTertiary, in: Capsule())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ContentAreaStyle(tint: Figma.accentsBlue, fill: Figma.fillsTertiary))
         }
     }
 
@@ -1122,13 +1121,11 @@ struct CarMainView: View {
             Text("Удалить авто")
                 .font(.system(size: 17))
                 .tracking(-0.43)
-                .foregroundStyle(Figma.accentsRed)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity)
-                .background(Figma.fillsQuaternary, in: Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ContentAreaStyle(tint: Figma.accentsRed, fill: Figma.fillsQuaternary))
         .accessibilityLabel("Удалить авто")
     }
 

@@ -14,31 +14,52 @@ struct GlassProminentButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            // Индикатор — оверлеем, а не обёрткой: цепочка модификаторов
-            // лейбла должна остаться прежней, иначе кнопка сдвигается
-            // на пиксель относительно макета.
-            Text(title)
-                .font(.system(size: Figma.buttonLabelSize, weight: weight))
-                .tracking(tracking)
-                .foregroundStyle(.white)
-                .opacity(isBusy ? 0 : 1)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 20)
-                .frame(height: lineHeight + 32)
-                .overlay {
-                    if isBusy {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .tint(.white)
-                    }
+        Button(action: action) { label }
+            .buttonStyle(ProminentCapsuleStyle())
+            .disabled(isBusy)
+            .accessibilityLabel(isBusy ? "\(title), выполняется" : title)
+    }
+
+    /// Индикатор — оверлеем, а не обёрткой: цепочка модификаторов лейбла
+    /// должна остаться прежней, иначе кнопка сдвигается относительно макета.
+    private var label: some View {
+        Text(title)
+            .font(.system(size: Figma.buttonLabelSize, weight: weight))
+            .tracking(tracking)
+            .opacity(isBusy ? 0 : 1)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 20)
+            .frame(height: lineHeight + 32)
+            .overlay {
+                if isBusy {
+                    ProgressView().progressViewStyle(.circular).tint(.white)
                 }
-                .glassCapsule(prominent: true, fill: Figma.labelsPrimary)
-                .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
-        }
-        .buttonStyle(.plain)
-        .disabled(isBusy)
-        .accessibilityLabel(isBusy ? "\(title), выполняется" : title)
+            }
+    }
+}
+
+/// «Button - Liquid Glass - Text», Style = Glass Prominent, Size = Large
+/// (`45824:2607` в макете, 370×54, радиус 1000).
+///
+/// Своим `ButtonStyle`, а не системным `.glassProminent`: системный сам
+/// назначает лейблу отступы и высоту, а здесь она снята с макета до точки.
+/// **Что берётся у системы — отклик на нажатие**: до этого кнопка на палец не
+/// отвечала вовсе, потому что стояла `.buttonStyle(.plain)`, которая гасит и
+/// подсветку, и сжатие. Материал капсулы тоже системный.
+private struct ProminentCapsuleStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.white)
+            .glassCapsule(prominent: true, fill: Figma.labelsPrimary)
+            .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
+            .opacity(isEnabled ? 1 : 0.4)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .animation(Motion.tabPress, value: configuration.isPressed)
+            // Вся капсула — цель нажатия, а не только буквы внутри неё.
+            .contentShape(Capsule())
     }
 }
 
@@ -46,10 +67,8 @@ extension View {
     /// Капсула кнопки из макета («Button - Liquid Glass - Text»). На iOS 26
     /// это системное стекло, ниже — заливка из макета.
     ///
-    /// Не `buttonStyle(.glassProminent)`, хотя стиль в системе есть: он сам
-    /// раскладывает лейбл и назначает ему свои отступы, а у наших кнопок
-    /// геометрия снята с макета до точки. Материал берём системный, раскладку
-    /// оставляем свою.
+    /// Материал системный, раскладка своя: системный стиль назначает лейблу
+    /// собственные отступы, а геометрия наших кнопок снята с макета до точки.
     func glassCapsule(prominent: Bool, fill: Color) -> some View {
         liquidGlass(in: Capsule(), tint: prominent ? fill : nil) {
             Capsule().fill(prominent ? AnyShapeStyle(fill) : AnyShapeStyle(Color.clear))
@@ -70,11 +89,52 @@ struct GlassButton: View {
             Text(title)
                 .font(.system(size: Figma.buttonLabelSize))
                 .tracking(-0.43)
-                .foregroundStyle(color)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 20)
                 .frame(height: lineHeight + 32)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PlainCapsuleStyle(color: color))
+    }
+}
+
+/// «Button - Liquid Glass - Text», Style = Glass: фона нет, есть отклик.
+/// Отдельным стилем по той же причине, что и у заметной кнопки: `.plain`
+/// гасит любую реакцию на палец, и кнопка ощущается мёртвой.
+private struct PlainCapsuleStyle: ButtonStyle {
+    let color: Color
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(color)
+            .opacity(configuration.isPressed ? 0.45 : (isEnabled ? 1 : 0.4))
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .animation(Motion.tabPress, value: configuration.isPressed)
+            .contentShape(Capsule())
+    }
+}
+
+/// «Button - Content Area», Style = Bordered (`45883:4144` в макете): капсула
+/// 370×50 с подложкой и лейблом акцентного цвета.
+///
+/// Отдельный стиль, а не `.background()` на лейбле: подложка, нажатое
+/// состояние и цель касания — свойства кнопки, а не текста внутри неё.
+/// С прежней `.buttonStyle(.plain)` кнопка на палец не отвечала.
+struct ContentAreaStyle: ButtonStyle {
+    let tint: Color
+    let fill: Color
+
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(tint)
+            .background(fill, in: Capsule())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.6 : 1) : 0.4)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .animation(Motion.tabPress, value: configuration.isPressed)
+            .contentShape(Capsule())
     }
 }
