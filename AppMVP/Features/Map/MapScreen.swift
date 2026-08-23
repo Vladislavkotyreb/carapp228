@@ -98,6 +98,9 @@ struct MapScreen: View {
                 .foregroundStyle(isOn ? Color.white : Figma.labelsPrimary)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
+                // Чип рисуется на 35pt, но нажимается на 44: видимый размер
+                // взят из макета, цель касания — из HIG.
+                .frame(minHeight: 44)
                 .liquidGlass(in: Capsule(), tint: isOn ? kind.tint : nil) {
                     Capsule().fill(isOn ? AnyShapeStyle(kind.tint)
                                         : AnyShapeStyle(Material.regular))
@@ -170,9 +173,16 @@ struct MapScreen: View {
                         Image(systemName: "xmark")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(Figma.vibrantSecondary)
+                            // Кружок 28 — то, что видно; 44×44 — то, во что
+                            // можно попасть пальцем. HIG требует второе, и
+                            // отрицательный отступ не даёт цели раздвинуть
+                            // раскладку карточки.
                             .frame(width: 28, height: 28)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .padding(-8)
                     .accessibilityLabel("Закрыть")
                 }
 
@@ -187,10 +197,13 @@ struct MapScreen: View {
                                          lineHeight: 18,
                                          action: controller.openInYandexMaps)
 
+                    // Высота 44: у текстовой кнопки цель касания иначе равна
+                    // высоте строки, около 20pt.
                     Button("Убрать маршрут") { controller.clearRoute() }
                         .font(.system(size: 15))
                         .foregroundStyle(Figma.vibrantSecondary)
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .contentShape(Rectangle())
                 } else {
                     GlassProminentButton(title: "Маршрут",
                                          lineHeight: 18,
@@ -203,7 +216,8 @@ struct MapScreen: View {
                     Button("Удалить место", role: .destructive) { delete(pin) }
                         .font(.system(size: 15))
                         .foregroundStyle(Figma.accentsRed)
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
             }
             .padding(16)
