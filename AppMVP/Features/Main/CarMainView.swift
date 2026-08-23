@@ -124,6 +124,20 @@ struct CarMainView: View {
     /// Нужен только ветке iOS 17–25: на 26 сворачиванием занимается система.
     @State private var tabBar = TabBarState()
 
+    /// Видимость тулбара. Отдельным объектом по той же причине, что и
+    /// `TabBarState`: смещение прокрутки приходит на каждом кадре, и держать
+    /// его в `@State` значит пересобирать `body` шестьдесят раз в секунду —
+    /// ровно та ошибка, из-за которой экран когда-то уезжал сам.
+    /// Экран хранит ссылку и не подписан; подписан только тулбар.
+    /// В отличие от `tabBar`, этот объект **наблюдается**: его читает сам
+    /// `body` экрана — `.toolbarVisibility` и цвет заголовка. В `@State`, как
+    /// `tabBar`, он лежать не может: ссылка без подписки не перерисовывает
+    /// экран, и тулбар оставался спрятанным при любой прокрутке.
+    ///
+    /// Прокрутку это не ломает: оба флага меняются только на переходе через
+    /// порог — пару раз за жест, а не на кадре.
+    @StateObject private var toolbar = ToolbarVisibility()
+
     /// Гасим сам распознаватель, а не `isScrollEnabled`: последним управляет
     /// SwiftUI из окружения и может перезаписать его на любом обновлении, а
     /// `body` во время свайпа пересобирается каждый кадр из-за `dragX`.
@@ -337,6 +351,7 @@ struct CarMainView: View {
             // Смещения прежнего раздела к новому отношения не имеют, а бар
             // должен встречать раздел развёрнутым.
             tabBar.reset()
+            toolbar.reset()
             // Страховка: таббар прячет только шторка находок в «Ошибках».
             // Уход с раздела мимо неё оставлял бы бар скрытым навсегда.
             if new != 2 { hidesTabBar = false }
@@ -385,7 +400,24 @@ struct CarMainView: View {
     @available(iOS 26.0, *)
     private var systemTabs: some View {
         TabView(selection: tabSelection) {
-            Tab("Машина", systemImage: "car", value: 0) { carScreen.environment(\.colorScheme, .dark) }
+            Tab("Машина", systemImage: "car", value: 0) {
+                NavigationStack {
+                    // Тёмная схема надета **на содержимое**, а тулбар объявлен
+                    // снаружи неё. Системное стекло берёт схему у навигационной
+                    // панели, а не у своего элемента: объявленный внутри тёмного
+                    // окружения бар выходил чёрной капсулой с чёрным текстом.
+                    ZStack { carScreen.environment(\.colorScheme, .dark) }
+                        .ignoresSafeArea()
+                        .toolbar { carToolbar }
+                        // Фон бара скрыт: в макете контент уходит под тулбар,
+                        // фото машины видно за ним.
+                        .toolbarBackground(.hidden, for: .navigationBar)
+                        // В покое тулбара нет — он появляется при прокрутке,
+                        // как показано в ноде «поведение при скролле».
+                        .toolbarVisibility(toolbar.isVisible ? .visible : .hidden,
+                                           for: .navigationBar)
+                }
+            }
             Tab("Карта", systemImage: "map", value: 1) { MapScreen().environment(\.colorScheme, .dark) }
             Tab("Ошибки", systemImage: "wrench.adjustable", value: 2) {
                 IssuesScreen(hidesTabBar: $hidesTabBar)
@@ -527,10 +559,21 @@ struct CarMainView: View {
         return result
     }
 
-    /// Высота блока истории (нода 45893:3541). Она не зависит от числа записей:
-    /// лента прокручивается по горизонтали. Константа нужна, чтобы блок
-    /// сворачивался плавно; ошибка в ней видна в покое щелью или обрезкой.
-    private static let historyHeight: CGFloat = 350
+    /// Высота блока истории. Была константой 350: горизонтальная лента не
+    /// зависела от числа записей. Вертикальный список зависит — при
+    /// фиксированной высоте всё, кроме первой записи, уходило под `.clipped()`.
+    ///
+    /// Считается из тех же токенов, что и раскладка: 28 заголовок + 24 + 96
+    /// плитки счётчиков + 16 + список + 20 + 50 кнопка. Ошибка видна в покое
+    /// щелью снизу или срезанной карточкой.
+    private var historyHeight: CGFloat {
+        let group: CGFloat = 137           // 25 дата + 16 + 96 карточка
+        let gap: CGFloat = 32              // между группами
+        let n = CGFloat(services.count)
+        // +8 — тень последней карточки, её срезал бы `.clipped()`
+        let strip = services.isEmpty ? 0 : n * group + (n - 1) * gap + 8
+        return 234 + strip
+    }
 
     private func carPageBody(progress p: Double) -> some View {
         let visible = 1 - p
@@ -563,11 +606,11 @@ struct CarMainView: View {
                 .opacity(visible)
 
                 // Зазор сворачивается вместе с историей, иначе у машины без ТО
-                // остался бы двойной отступ до «Удалить авто».
+                // остался бы двойной отступ до низа страницы.
                 Spacer(minLength: 0).frame(height: 32 * m.history)
 
                 historyCard()
-                    .frame(height: Self.historyHeight * m.history, alignment: .top)
+                    .frame(height: historyHeight * m.history, alignment: .top)
                     .clipped()
                     .opacity(visible * m.history)
                     // Погашенная вьюха продолжает принимать касания —
@@ -575,10 +618,6 @@ struct CarMainView: View {
                     .allowsHitTesting(visible * m.history > 0.5)
 
                 Spacer(minLength: 0).frame(height: 32)
-
-                deleteButton()
-                    .opacity(visible)
-                    .allowsHitTesting(visible > 0.5)
             }
             .padding(.horizontal, 16)
             .padding(.top, 103)
@@ -594,9 +633,6 @@ struct CarMainView: View {
                     found.panGestureRecognizer.isEnabled = true
                 }
             }
-            // Шапка лежит внутри прокрутки и приколочена к верху обратным
-            // сдвигом. Оверлей не занимает места в раскладке.
-            .overlay(alignment: .top) { scrollHeader(progress: p) }
         }
         .coordinateSpace(name: ScrollHeader.space)
         // На странице «Добавить авто» белые карточки погашены, но место
@@ -614,13 +650,22 @@ struct CarMainView: View {
         GeometryReader { g in
             let offset = -g.frame(in: .named(ScrollHeader.space)).minY
             Color.clear
-                .onAppear { scroll.offset = offset }
+                // Пороги синхронизируются и здесь: при обычном входе смещение
+                // нулевое и разницы нет, но появившийся уже прокрученным
+                // список (восстановленная позиция) иначе встречал бы бар
+                // развёрнутым, а тулбар — спрятанным.
+                .onAppear {
+                    scroll.offset = offset
+                    tabBar.track(offset: offset)
+                    toolbar.track(offset: offset)
+                }
                 .onChange(of: offset) { _, new in
                     scroll.offset = new
                     // Свёрнутость таббара считается здесь же и по тем же
                     // правилам, что и запрет свайпа: отдельного наблюдателя
                     // прокрутки заводить незачем.
                     tabBar.track(offset: new)
+                    toolbar.track(offset: new)
                 }
         }
     }
@@ -649,40 +694,6 @@ struct CarMainView: View {
     }
 
     // MARK: - Шапка при прокрутке
-
-    /// Figma «header» (46012:1815): чёрная плашка 402×86 поверх статус-бара,
-    /// контент прижат к низу. Только название — номера в новой ноде нет.
-    private func scrollHeader(progress p: Double) -> some View {
-        // Высота 20 (leading/subheadline) вместо figmaLineHeight: строка одна,
-        // и Figma центрирует её в line box — то же делает фиксированная высота.
-        // Трекинга нет: токен Subheadline объявляет −0.23, но нода отрисована
-        // без него — ширина чернил на рендере 182pt против 178 с трекингом.
-        // Та же история была у прошлой шапки, проверять замером обязательно.
-        Text(car?.name ?? "")
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(.white)
-            .multilineTextAlignment(.center)
-            .frame(height: 20)
-            .padding(.bottom, 4)
-            .frame(maxWidth: .infinity)
-        .frame(height: Figma.scrollHeaderHeight, alignment: .bottom)
-        .background(Figma.graysBlack)
-        // Шапка декоративная: касания должны доходить до контента под ней
-        .allowsHitTesting(false)
-        // Обратный сдвиг держит шапку у верха экрана, а прозрачность растёт
-        // по мере ухода контента под неё. Множитель (1 - p) убирает название
-        // текущей машины на странице «Добавьте новый авто».
-        //
-        // visualEffect — эффект этапа отрисовки: он читает геометрию, не
-        // превращая её в состояние. Через `@State` то же самое пересобирало
-        // ScrollView на каждом кадре прокрутки, и экран уезжал сам.
-        .visualEffect { content, proxy in
-            let offset = -proxy.frame(in: .named(ScrollHeader.space)).minY
-            return content
-                .offset(y: offset)
-                .opacity(ScrollHeader.visibility(at: offset) * (1 - p))
-        }
-    }
 
 
     /// Градиентный слой под контентом: 934pt от верха. Именно `.background`,
@@ -1038,96 +1049,156 @@ struct CarMainView: View {
         }
     }
 
-    /// Лента карточек ТО 230×84; следующая карточка выглядывает справа.
-    private var historyStrip: some View {
-        // ScrollView клипует контент, поэтому даём тени запас внутри
-        // и компенсируем его отрицательным отступом снаружи.
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
-                ForEach(services) { record in
-                    serviceCard(record)
-                        // HIG: действия над конкретным элементом — контекстное
-                        // меню. Подъём карточки и хаптик даёт сама система,
-                        // добавлять sensoryFeedback не нужно.
-                        .contextMenu {
-                            Button { startEditing(record) } label: {
-                                Label("Изменить", systemImage: "pencil")
-                            }
+    // MARK: - Тулбар (нода 46165:3243)
 
-                            Button(role: .destructive) {
-                                // Работы уходят каскадом — правило в модели
-                                modelContext.delete(record)
-                            } label: {
-                                Label("Удалить", systemImage: "trash")
-                            }
-                        } preview: {
-                            // Своё превью, а не подъём оригинала: у карточки
-                            // тень нарисована за пределами её формы, а лента
-                            // компенсирует её отрицательным отступом. Границы
-                            // снимка не совпадали с формой, и касание давало
-                            // сжатие-отскок не по той геометрии.
-                            serviceCardBody(record)
-                                .frame(width: 230, height: 84)
-                                .background(RoundedRectangle(cornerRadius: 34).fill(.white))
-                        }
+    /// Три слота из макета: «…» слева, название по центру-слева, «Добавить ТО»
+    /// справа. Системный `.toolbar`, а не своя полоса: он сам даёт безопасную
+    /// зону, размытие края прокрутки, цели касания и доступность.
+    @ToolbarContentBuilder
+    private var carToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Menu {
+                Button(role: .destructive) { sheet = .deleteConfirm } label: {
+                    Label("Удалить авто", systemImage: "trash")
                 }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Figma.vibrantControlsPrimary)
+                    .frame(width: 44, height: 44)
+                    .liquidGlass(in: Circle(), tint: .white) { Circle().fill(.white) }
+                    .contentShape(Circle())
             }
-            .padding(shadowInset)
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .accessibilityLabel("Действия с автомобилем")
         }
-        .frame(height: 84 + shadowInset * 2)
-        .padding(-shadowInset)
+
+        ToolbarItem(placement: .principal) {
+            // 15pt Semibold, две строки, по левому краю — как в макете.
+            // Ширина 167 из ноды: без неё слот жмётся к одной строке и
+            // название обрезается многоточием.
+            Text(car?.name ?? "")
+                .font(.system(size: 15, weight: .semibold))
+                .tracking(-0.23)
+                .figmaLineHeight(20, fontSize: 15, weight: .semibold)
+                // В макете белый — там под баром чёрный верх страницы.
+                // На светлом низу белый пропадает, см. `isOverLightContent`.
+                .foregroundStyle(toolbar.isOverLightContent ? Figma.labelsPrimary : .white)
+                .animation(.easeInOut(duration: 0.2), value: toolbar.isOverLightContent)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 167, alignment: .leading)
+        }
+
+        ToolbarItem(placement: .topBarTrailing) {
+            Button { sheet = .serviceChoice } label: {
+                Text("Добавить ТО")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(Figma.vibrantControlsPrimary)
+                    .frame(width: 139, height: 44)
+                    .liquidGlass(in: Capsule(), tint: .white) { Capsule().fill(.white) }
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
     }
+
+    /// Записи ТО вертикальным списком: дата заголовком, под ней карточка.
+    ///
+    /// Была горизонтальная лента 230×84 — макет `45867:3007` заменил её на
+    /// список во всю ширину. Вместе с лентой ушёл `shadowInset`: запас под
+    /// тени и его компенсация отрицательным отступом были нужны только
+    /// потому, что горизонтальный `ScrollView` обрезал тени по своим границам.
+    private var historyStrip: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(services.enumerated()), id: \.element.id) { index, record in
+                if index > 0 { Spacer(minLength: 0).frame(height: 32) }
+
+                // Дата — заголовок группы, 20pt Semibold из макета
+                Text(record.date, format: .dateTime.day(.twoDigits)
+                    .month(.twoDigits).year())
+                    .font(.system(size: 20, weight: .semibold))
+                    .tracking(-0.45)
+                    .figmaLineHeight(25, fontSize: 20, weight: .semibold)
+                    .foregroundStyle(Figma.labelsPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Spacer(minLength: 0).frame(height: 16)
+
+                serviceCard(record)
+                    // HIG: действия над конкретным элементом — контекстное
+                    // меню. Подъём карточки и хаптик даёт сама система,
+                    // добавлять sensoryFeedback не нужно.
+                    .contextMenu {
+                        Button { startEditing(record) } label: {
+                            Label("Изменить", systemImage: "pencil")
+                        }
+
+                        Button(role: .destructive) {
+                            // Работы уходят каскадом — правило в модели
+                            modelContext.delete(record)
+                        } label: {
+                            Label("Удалить", systemImage: "trash")
+                        }
+                    } preview: {
+                        // Своё превью, а не подъём оригинала: у карточки тень
+                        // нарисована за пределами её формы, и границы снимка
+                        // не совпадали с ней — касание давало сжатие-отскок не
+                        // по той геометрии. Размер обязан совпадать с самой
+                        // карточкой, иначе возвращается та же болезнь.
+                        serviceCardBody(record)
+                            .frame(width: 370, height: Self.serviceCardHeight)
+                            .background(Self.serviceCardShape.fill(.white))
+                    }
+            }
+        }
+    }
+
+    /// Карточка записи: 370×96, `Liquid Glass - Regular - Small` из макета.
+    private static let serviceCardHeight: CGFloat = 96
+    private static let serviceCardShape = RoundedRectangle(cornerRadius: 34,
+                                                           style: .continuous)
 
     private func serviceCard(_ record: ServiceRecord) -> some View {
         serviceCardBody(record)
-            .frame(width: 230, height: 84)
-            .background(
-                RoundedRectangle(cornerRadius: 34)
-                    .fill(.white)
-                    .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
-            )
+            .frame(maxWidth: .infinity)
+            .frame(height: Self.serviceCardHeight)
+            .liquidGlass(in: Self.serviceCardShape, tint: .white) {
+                Self.serviceCardShape.fill(.white)
+            }
+            .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
+            .contentShape(Self.serviceCardShape)
     }
 
-    /// Содержимое карточки без подложки: одно и то же рисуют лента и превью
+    /// Содержимое карточки без подложки: одно и то же рисуют список и превью
     /// контекстного меню, поэтому оно вынесено.
+    ///
+    /// Состав сменился вместе с раскладкой: было «дата · пробег · сумма», в
+    /// макете — сумма сверху и перечисление работ под ней. Дата уехала в
+    /// заголовок группы.
     private func serviceCardBody(_ record: ServiceRecord) -> some View {
-        VStack(spacing: 6) {
-            Text(record.date, format: .dateTime.day(.twoDigits)
-                .month(.twoDigits).year())
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(NumberFormat.grouped(record.amount))\u{00A0}₽")
                 .font(.system(size: 15, weight: .semibold))
                 .tracking(-0.23)
-                .foregroundStyle(Figma.vibrantControlsPrimary)
+                .figmaLineHeight(20, fontSize: 15, weight: .semibold)
+                .foregroundStyle(Figma.labelsPrimary)
 
-            HStack(spacing: 4) {
-                Text("\(NumberFormat.grouped(record.mileage))\u{00A0}км ")
-                Circle()
-                    .fill(Figma.vibrantSecondary)
-                    .frame(width: 4, height: 4)
-                Text("\(NumberFormat.grouped(record.amount))\u{00A0}₽ ")
-            }
-            .font(.system(size: 13))
-            .tracking(-0.08)
-            .foregroundStyle(Figma.vibrantSecondary)
+            Text(record.works.map(\.title).joined(separator: ", "))
+                .font(.system(size: 13))
+                .tracking(-0.08)
+                .figmaLineHeight(18, fontSize: 13)
+                .foregroundStyle(Figma.vibrantSecondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(20)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Запас вокруг ленты, чтобы тени карточек не обрезались.
-    private let shadowInset: CGFloat = 16
-
-    /// Деструктивное действие — по HIG требует подтверждения.
-    private func deleteButton() -> some View {
-        Button(role: .destructive) { sheet = .deleteConfirm } label: {
-            Text("Удалить авто")
-                .font(.system(size: 17))
-                .tracking(-0.43)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(ContentAreaStyle(tint: Figma.accentsRed, fill: Figma.fillsQuaternary))
-        .accessibilityLabel("Удалить авто")
-    }
 
     /// Приход — пружиной сверху с проявлением. Уход — только затухание с
     /// лёгким уменьшением: сообщение отступает, а не улетает, и не тянет на
