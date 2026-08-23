@@ -573,15 +573,15 @@ struct CarMainView: View {
     /// фиксированной высоте всё, кроме первой записи, уходило под `.clipped()`.
     ///
     /// Считается из тех же токенов, что и раскладка: 28 заголовок + 24 + 96
-    /// плитки счётчиков + 16 + список + 20 + 50 кнопка. Ошибка видна в покое
-    /// щелью снизу или срезанной карточкой.
+    /// плитки счётчиков + 16 + список. Ошибка видна в покое щелью снизу или
+    /// срезанной карточкой.
     private var historyHeight: CGFloat {
         let group: CGFloat = 137           // 25 дата + 16 + 96 карточка
         let gap: CGFloat = 32              // между группами
         let n = CGFloat(services.count)
         // +8 — тень последней карточки, её срезал бы `.clipped()`
         let strip = services.isEmpty ? 0 : n * group + (n - 1) * gap + 8
-        return 234 + strip
+        return 164 + strip
     }
 
     private func carPageBody(progress p: Double) -> some View {
@@ -1025,36 +1025,24 @@ struct CarMainView: View {
     /// История обслуживания. Белая подложка снята: блок лежит прямо на фоне
     /// страницы, поэтому и внутренний отступ 16 ушёл вместе с ней — иначе
     /// содержимое было бы на 32pt уже остальной страницы.
+    /// Нижней кнопки «Добавить ТО» здесь больше нет: то же действие лежит в
+    /// тулбаре, и рядом друг с другом они читались дублем.
     private func historyCard() -> some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 16) {
-                VStack(spacing: 24) {
-                    Text("История обслуживания")
-                        .font(.system(size: 22, weight: .bold))
-                        .figmaLineHeight(28, fontSize: 22, weight: .bold)
-                        .foregroundStyle(Figma.labelsPrimary)
-                        .frame(maxWidth: .infinity)
-
-                    HStack(spacing: 16) {
-                        statCard(title: "Всего потрачено", value: totalSpent)
-                        statCard(title: "Количество ТО", value: "\(services.count)")
-                    }
-                }
-
-                historyStrip
-            }
-
-            // «Button - Content Area», Style = Bordered (`45949:3428`): 370×50,
-            // капсула, лейбл акцентом. Отклик на палец даёт стиль.
-            Button { sheet = .serviceChoice } label: {
-                Text("Добавить ТО")
-                    .font(.system(size: 17))
-                    .tracking(-0.43)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 14)
+        VStack(spacing: 16) {
+            VStack(spacing: 24) {
+                Text("История обслуживания")
+                    .font(.system(size: 22, weight: .bold))
+                    .figmaLineHeight(28, fontSize: 22, weight: .bold)
+                    .foregroundStyle(Figma.labelsPrimary)
                     .frame(maxWidth: .infinity)
+
+                HStack(spacing: 16) {
+                    statCard(title: "Всего потрачено", value: totalSpent)
+                    statCard(title: "Количество ТО", value: "\(services.count)")
+                }
             }
-            .buttonStyle(ContentAreaStyle(tint: Figma.accentsBlue, fill: Figma.fillsTertiary))
+
+            historyStrip
         }
     }
 
