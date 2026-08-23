@@ -70,7 +70,11 @@ extension View {
     /// Материал системный, раскладка своя: системный стиль назначает лейблу
     /// собственные отступы, а геометрия наших кнопок снята с макета до точки.
     func glassCapsule(prominent: Bool, fill: Color) -> some View {
-        liquidGlass(in: Capsule(), tint: prominent ? fill : nil) {
+        // Тон приглушён до 0.86: при непрозрачной заливке `glassEffect` под ней
+        // не виден вовсе — стекло есть, а выглядит плоской краской. Замер
+        // системной кнопки показал, что своей она даёт 49pt против макетных 54,
+        // поэтому капсула остаётся своей, а от системы берётся материал.
+        liquidGlass(in: Capsule(), tint: prominent ? fill.opacity(0.86) : nil) {
             Capsule().fill(prominent ? AnyShapeStyle(fill) : AnyShapeStyle(Color.clear))
         }
     }

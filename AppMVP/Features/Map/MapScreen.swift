@@ -105,6 +105,7 @@ struct MapScreen: View {
                     Capsule().fill(isOn ? AnyShapeStyle(kind.tint)
                                         : AnyShapeStyle(Material.regular))
                 }
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(kind.plural)
@@ -136,6 +137,7 @@ struct MapScreen: View {
                 .foregroundStyle(Figma.accentsBlue)
                 .frame(width: 44, height: 44)
                 .liquidGlass(in: Circle()) { Circle().fill(Material.regular) }
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .padding(.trailing, 16)

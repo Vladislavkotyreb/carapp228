@@ -41,6 +41,8 @@ struct AddServiceChoiceSheet: View {
                                 .stroke(Color(white: 217 / 255), lineWidth: 0.5))
                     }
                     .motionRim(in: RoundedRectangle(cornerRadius: 42))
+                    // Нажимается вся карточка, а не только надпись внутри.
+                    .contentShape(RoundedRectangle(cornerRadius: 42))
                 }
 
                 Button(action: onManual) {
@@ -61,6 +63,7 @@ struct AddServiceChoiceSheet: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 110)
                     .background(Figma.fillsQuaternary, in: RoundedRectangle(cornerRadius: 42))
+                    .contentShape(RoundedRectangle(cornerRadius: 42))
                 }
             }
             .buttonStyle(.plain)
@@ -107,6 +110,7 @@ struct AddServiceChoiceSheet: View {
                                 .fill(.white)
                                 .overlay(Circle().stroke(Color(white: 232 / 255), lineWidth: 0.5))
                         }
+                        .contentShape(Circle())
                         .motionRim(in: Circle())
                         .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
                 }

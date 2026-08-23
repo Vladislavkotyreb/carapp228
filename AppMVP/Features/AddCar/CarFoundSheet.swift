@@ -96,6 +96,7 @@ struct CarFoundSheet: View {
                                 .fill(.white)
                                 .overlay(Circle().stroke(Figma.separatorsVibrant, lineWidth: 0.5))
                         }
+                        .contentShape(Circle())
                         .motionRim(in: Circle())
                         .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
                 }
@@ -109,6 +110,7 @@ struct CarFoundSheet: View {
                         .foregroundStyle(Color(red: 245 / 255, green: 245 / 255, blue: 245 / 255))
                         .frame(width: 44, height: 44)
                         .background(Circle().fill(Figma.labelsPrimary))
+                        .contentShape(Circle())
                 }
                 .accessibilityLabel("Это мой автомобиль")
             }
