@@ -283,3 +283,52 @@ private struct TabPressStyle: ButtonStyle {
             .animation(Motion.tabPress, value: configuration.isPressed)
     }
 }
+
+/// Видимость тулбара на главном экране.
+///
+/// Тот же приём, что у `TabBarState`, и по той же причине: смещение прокрутки
+/// приходит на каждом кадре. Через `@State` от него начал бы зависеть `body`
+/// экрана, и `ScrollView` пересобирался бы каждый кадр — ошибка, из-за которой
+/// экран однажды уезжал сам на 151pt. Присваивание идёт через `set(_:)` с
+/// проверкой на равенство: без неё `objectWillChange` уходил бы на каждом
+/// кадре ради значения, которое не менялось.
+final class ToolbarVisibility: ObservableObject {
+    @Published private(set) var isVisible = false
+
+    /// Под баром светлый низ страницы. Белый заголовок из макета на нём
+    /// пропадает, поэтому цвет переключается.
+    ///
+    /// Считать это система не может: страница машины целиком
+    /// `ignoresSafeArea` (иначе съезжают все координаты макета), навигационный
+    /// бар её прокрутки не видит и ни фона, ни краевого эффекта не рисует.
+    @Published private(set) var isOverLightContent = false
+
+    /// Порог появления. Заголовок страницы стоит на 103 и высотой 31 — значит
+    /// он полностью уходит под бар примерно на этом смещении.
+    private static let threshold: CGFloat = 48
+
+    /// Полоса бара стоит на y ≈ 83. Замер градиента страницы по колонке
+    /// пикселей: до 600-й точки фон темнее текста, после 660-й — светлее.
+    /// Берём середину: 620 − 83.
+    private static let lightThreshold: CGFloat = 537
+
+    func track(offset: CGFloat) {
+        set(offset > Self.threshold)
+        setLight(offset > Self.lightThreshold)
+    }
+
+    func reset() {
+        set(false)
+        setLight(false)
+    }
+
+    private func setLight(_ value: Bool) {
+        guard isOverLightContent != value else { return }
+        isOverLightContent = value
+    }
+
+    private func set(_ value: Bool) {
+        guard isVisible != value else { return }
+        isVisible = value
+    }
+}

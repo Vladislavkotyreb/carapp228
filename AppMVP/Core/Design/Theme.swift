@@ -90,46 +90,41 @@ enum Figma {
     /// База под градиентом главного экрана (node 45879:3002).
     static let mainBackground = Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255) // #F2F2F7
 
-    /// Высота градиентного слоя: 52.98% от контейнера 1763.
-    /// Высота градиентного блока: точка, где фон становится полностью светлым.
-    static let mainGradientHeight: CGFloat = 656
+    /// Высота градиентного слоя. Замер по рендеру нового макета: чёрное
+    /// держится до 300pt от верха контента, полностью светлым фон становится
+    /// к 800. Было 656 — переход стал длиннее и начинается раньше.
+    static let mainGradientHeight: CGFloat = 800
 
-    /// Фон главного экрана: чёрный сверху → #F2F2F7 снизу, пинится к верху экрана.
+    /// Фон главного экрана: чёрный сверху → #F2F2F7 снизу.
     ///
-    /// Стопы сняты с отрисовки **экрана** (нода 45867:3007), а не с ноды
-    /// градиента и тем более не по CSS. Причин две: слоёв там теперь два и
-    /// экспорт не отдаёт ни прозрачности, ни режима наложения; и сам инстанс
-    /// градиента на экране другого размера, чем компонент, — пересчёт через
-    /// ноду промахнулся на 200pt. Экран — единственный надёжный источник.
+    /// Стопы сняты **колонкой пикселей с рендера** ноды `45879:3002`, а не
+    /// переписаны из её свойств. Причина: градиент там собран из двух
+    /// наложенных прямоугольников с матричными трансформациями, и повторять
+    /// эту арифметику хрупко — а результат наложения кривая с рендера описывает
+    /// точно.
     ///
-    /// Переход стал заметно короче прежнего: чёрное держится до y = 367,
-    /// полностью светлым фон становится к y = 656.
-    ///
-    /// Точного совпадения тут не будет: SwiftUI смешивает цвета не в том же
-    /// пространстве, что Figma, и тёмная часть тянется чуть дольше. Попытка
-    /// скомпенсировать сдвигом стопов на 12pt сделала хуже (22.1 против 21.3),
-    /// поэтому стопы стоят там, где они на рендере.
+    /// Чёрное держится до 0.375 высоты слоя, дальше подъём до `#F2F2F7`.
+    /// Точного совпадения не будет: SwiftUI смешивает цвета не в том же
+    /// пространстве, что Figma.
     static let mainGradient = LinearGradient(
         stops: [
-            .init(color: Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255), location: 0.0008),
-            .init(color: Color(red: 241 / 255, green: 241 / 255, blue: 245 / 255), location: 0.0168),
-            .init(color: Color(red: 236 / 255, green: 236 / 255, blue: 241 / 255), location: 0.0259),
-            .init(color: Color(red: 229 / 255, green: 229 / 255, blue: 234 / 255), location: 0.0616),
-            .init(color: Color(red: 220 / 255, green: 220 / 255, blue: 224 / 255), location: 0.0805),
-            .init(color: Color(red: 208 / 255, green: 208 / 255, blue: 212 / 255), location: 0.1128),
-            .init(color: Color(red: 194 / 255, green: 194 / 255, blue: 198 / 255), location: 0.1936),
-            .init(color: Color(red: 178 / 255, green: 178 / 255, blue: 182 / 255), location: 0.2175),
-            .init(color: Color(red: 160 / 255, green: 160 / 255, blue: 164 / 255), location: 0.2293),
-            .init(color: Color(red: 141 / 255, green: 141 / 255, blue: 144 / 255), location: 0.2402),
-            .init(color: Color(red: 120 / 255, green: 120 / 255, blue: 123 / 255), location: 0.2584),
-            .init(color: Color(red: 98 / 255, green: 98 / 255, blue: 100 / 255), location: 0.284),
-            .init(color: Color(red: 75 / 255, green: 75 / 255, blue: 76 / 255), location: 0.3163),
-            .init(color: Color(red: 50 / 255, green: 50 / 255, blue: 52 / 255), location: 0.3567),
-            .init(color: Color(red: 26 / 255, green: 26 / 255, blue: 26 / 255), location: 0.3973),
-            .init(color: .black, location: 0.4405)
+            .init(color: Color(red: 0, green: 0, blue: 0), location: 0.000),
+            .init(color: Color(red: 0, green: 0, blue: 0), location: 0.375),
+            .init(color: Color(red: 5 / 255, green: 5 / 255, blue: 5 / 255), location: 0.400),
+            .init(color: Color(red: 16 / 255, green: 16 / 255, blue: 17 / 255), location: 0.450),
+            .init(color: Color(red: 28 / 255, green: 28 / 255, blue: 29 / 255), location: 0.500),
+            .init(color: Color(red: 42 / 255, green: 42 / 255, blue: 43 / 255), location: 0.550),
+            .init(color: Color(red: 53 / 255, green: 53 / 255, blue: 54 / 255), location: 0.600),
+            .init(color: Color(red: 63 / 255, green: 63 / 255, blue: 65 / 255), location: 0.650),
+            .init(color: Color(red: 81 / 255, green: 81 / 255, blue: 82 / 255), location: 0.700),
+            .init(color: Color(red: 112 / 255, green: 112 / 255, blue: 115 / 255), location: 0.750),
+            .init(color: Color(red: 158 / 255, green: 158 / 255, blue: 161 / 255), location: 0.800),
+            .init(color: Color(red: 209 / 255, green: 209 / 255, blue: 213 / 255), location: 0.850),
+            .init(color: Color(red: 233 / 255, green: 233 / 255, blue: 238 / 255), location: 0.900),
+            .init(color: Color(red: 240 / 255, green: 240 / 255, blue: 245 / 255), location: 0.950),
+            .init(color: Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255), location: 1.0)
         ],
-        startPoint: .bottom,
-        endPoint: .top
+        startPoint: .top, endPoint: .bottom
     )
 
     // Frame макета — iPhone 16 Pro, 402×874
