@@ -407,7 +407,16 @@ struct CarMainView: View {
                     // панели, а не у своего элемента: объявленный внутри тёмного
                     // окружения бар выходил чёрной капсулой с чёрным текстом.
                     ZStack { carScreen.environment(\.colorScheme, .dark) }
+                        // Свой фон обязателен. `NavigationStack` подкладывает
+                        // непрозрачный `systemBackground`, а он здесь светлый
+                        // (схему стека мы нарочно не трогаем ради тулбара) —
+                        // то есть белый. Ниже контента страницы он вылезал
+                        // чистым белым и давал шов на #F2F2F7.
+                        .background(Figma.mainBackground)
                         .ignoresSafeArea()
+                        // Краевой эффект прокрутки размывал карточку «ТО через»
+                        // под баром. В макете под тулбаром контент чёткий.
+                        .scrollEdgeEffectHidden(true, for: .top)
                         .toolbar { carToolbar }
                         // Фон бара скрыт: в макете контент уходит под тулбар,
                         // фото машины видно за ним.
@@ -1054,6 +1063,7 @@ struct CarMainView: View {
     /// Три слота из макета: «…» слева, название по центру-слева, «Добавить ТО»
     /// справа. Системный `.toolbar`, а не своя полоса: он сам даёт безопасную
     /// зону, размытие края прокрутки, цели касания и доступность.
+    @available(iOS 26.0, *)
     @ToolbarContentBuilder
     private var carToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
@@ -1073,6 +1083,10 @@ struct CarMainView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Действия с автомобилем")
         }
+        // Системная подложка элемента бара гасится: она рисует своё стекло
+        // ПОД нашей капсулой и над чёрной карточкой выходила тёмным кольцом
+        // вокруг неё.
+        .sharedBackgroundVisibility(.hidden)
 
         ToolbarItem(placement: .principal) {
             // 15pt Semibold, две строки, по левому краю — как в макете.
@@ -1103,6 +1117,7 @@ struct CarMainView: View {
             }
             .buttonStyle(.plain)
         }
+        .sharedBackgroundVisibility(.hidden)
     }
 
     /// Записи ТО вертикальным списком: дата заголовком, под ней карточка.
