@@ -205,11 +205,15 @@ struct IssuesScreen: View {
                         ProgressView().progressViewStyle(.circular).tint(.white)
                     }
                 }
-                .liquidGlass(in: Capsule(), tint: Figma.graysBlack) {
+                // Тон приглушён: под непрозрачной чёрной заливкой системное
+                // стекло не видно вовсе, и кнопка читается плоской краской.
+                .liquidGlass(in: Capsule(), tint: Figma.graysBlack.opacity(0.86)) {
                     Capsule()
                         .fill(Figma.graysBlack)
                         .overlay(Capsule().stroke(Color.white.opacity(0.14), lineWidth: 0.5))
                 }
+                // Без этого нажималась только надпись: фон цель не расширяет.
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .disabled(isAnalyzing)
@@ -532,6 +536,7 @@ struct IssuesScreen: View {
                                 .fill(.white)
                                 .overlay(Circle().stroke(Color(white: 232 / 255), lineWidth: 0.5))
                         }
+                .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Закрыть")
@@ -545,6 +550,7 @@ struct IssuesScreen: View {
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                             .background(Circle().fill(Figma.graysBlack))
+                            .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Добавить ошибки")

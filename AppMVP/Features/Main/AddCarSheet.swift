@@ -108,6 +108,7 @@ struct AddCarSheet: View {
                                 .fill(.white)
                                 .overlay(Circle().stroke(Color(white: 232 / 255), lineWidth: 0.5))
                         }
+                        .contentShape(Circle())
                         .motionRim(in: Circle())
                         .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
                 }
@@ -121,6 +122,7 @@ struct AddCarSheet: View {
                         .foregroundStyle(Color(white: 245 / 255))
                         .frame(width: 44, height: 44)
                         .background(Circle().fill(Figma.labelsPrimary))
+                        .contentShape(Circle())
                 }
                 .accessibilityLabel("Добавить авто")
             }
