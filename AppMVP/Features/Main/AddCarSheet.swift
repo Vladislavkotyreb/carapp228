@@ -9,6 +9,9 @@ struct AddCarSheet: View {
     @Binding var plate: String
     @Binding var name: String
     @Binding var mileage: String
+    /// Цена — необязательная: её знает не каждый, а число из ниоткуда на
+    /// главной хуже прочерка.
+    @Binding var price: String
     @Binding var photoItems: [PhotosPickerItem]
     /// Выбранный снимок. Раньше форма его не показывала вовсе — о чём и был
     /// пункт «нет самого фото».
@@ -45,6 +48,12 @@ struct AddCarSheet: View {
                                 submitLabel: .go,
                                 onSubmit: onSubmit
                             )
+
+                            // Отдельным полем, а не третьей строкой капсулы:
+                            // та объявлена ровно на две строки и 105pt.
+                            FigmaTextField(placeholder: "Цена авто, ₽",
+                                           text: $price,
+                                           keyboardType: .numberPad)
 
                             if let photo {
                                 Image(uiImage: photo)

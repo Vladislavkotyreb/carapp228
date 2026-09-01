@@ -17,6 +17,9 @@ struct AddCarView: View {
     @State private var plate = ""
     @State private var name = ""
     @State private var mileage = ""
+    /// Цена — необязательное поле: её знает не каждый, а выдуманное число
+    /// на главной хуже прочерка.
+    @State private var price = ""
     @State private var fieldError: FieldError?
     @State private var shake: CGFloat = 0
     @State private var foundCar: FoundCar?
@@ -150,6 +153,14 @@ struct AddCarView: View {
                 }
             }
 
+            // Отдельным полем, а не третьей строкой капсулы: капсула объявлена
+            // ровно на две строки и 105pt, третья сломала бы её геометрию и
+            // сверку экрана. В макете этого поля нет вовсе — оно появилось
+            // вместе с настоящей ценой на главной.
+            FigmaTextField(placeholder: "Цена авто, ₽",
+                           text: $price,
+                           keyboardType: .numberPad)
+
             if let photo {
                 VStack(spacing: 20) {
                     photo
@@ -253,7 +264,8 @@ struct AddCarView: View {
         return Car(
             plate: "",
             name: name.trimmingCharacters(in: .whitespaces),
-            odometer: NumberFormat.digits(mileage, or: 0)
+            odometer: NumberFormat.digits(mileage, or: 0),
+            price: NumberFormat.digits(price)
         )
     }
 

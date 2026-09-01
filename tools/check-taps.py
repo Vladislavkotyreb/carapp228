@@ -9,8 +9,9 @@
 рабочий фон, и кнопка на экране выглядит правильно. Ловится он только пальцем —
 и ловился: половина кнопок приложения (14 из 28) нажималась по надписи.
 
-Пропускаются кнопки внутри `contextMenu`, `.alert` и `confirmationDialog` —
-там раскладку и зону даёт система.
+Пропускаются кнопки внутри `contextMenu`, `.alert`, `confirmationDialog` и
+`.swipeActions` — там раскладку и зону даёт система: свайп-кнопка занимает
+всю высоту строки независимо от того, что у неё внутри.
 
 Запуск: python3 tools/check-taps.py
 """
@@ -24,6 +25,10 @@ BACKGROUND = re.compile(r"\.liquidGlass\(|\.background\(|\.glassCapsule\(")
 BUTTON = re.compile(r"\bButton\s*[({]|Button\(action|Button\(role|Button\(\"")
 # Контейнеры, где зону назначает система
 SYSTEM = ("contextMenu", ".alert(", "confirmationDialog", ".sheet(")
+# То же, но искать выше приходится дальше: в одном `swipeActions` лежит
+# несколько кнопок, и до объявления от последней из них больше восьми строк.
+SYSTEM_WIDE = (".swipeActions(",)
+WIDE_LOOKBACK = 24
 # Стили, которые объявляют зону внутри себя
 OWN_SHAPE = ("ProminentCapsuleStyle", "PlainCapsuleStyle", "ContentAreaStyle",
              "prominentGlass", "plainGlass")
@@ -37,8 +42,10 @@ def button_blocks(lines):
     """Границы каждой кнопки: от строки с `Button` до конца окна."""
     for index, line in enumerate(lines):
         if BUTTON.search(line):
-            yield index, "\n".join(lines[index:index + WINDOW]), \
-                "\n".join(lines[max(0, index - 8):index])
+            yield (index,
+                   "\n".join(lines[index:index + WINDOW]),
+                   "\n".join(lines[max(0, index - 8):index]),
+                   "\n".join(lines[max(0, index - WIDE_LOOKBACK):index]))
 
 
 def main() -> int:
@@ -48,8 +55,10 @@ def main() -> int:
         if re.search(r" \d+\.swift$", path):
             continue
         lines = open(path, encoding="utf-8").read().split("\n")
-        for index, block, before in button_blocks(lines):
+        for index, block, before, before_wide in button_blocks(lines):
             if any(marker in before for marker in SYSTEM):
+                continue
+            if any(marker in before_wide for marker in SYSTEM_WIDE):
                 continue
             if not BACKGROUND.search(block):
                 continue

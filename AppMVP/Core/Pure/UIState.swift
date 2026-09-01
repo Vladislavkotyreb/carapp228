@@ -156,6 +156,8 @@ enum CarSheet: String, CaseIterable {
     case photoPicker
     /// Подтверждение удаления машины.
     case deleteConfirm
+    /// Правка цены машины — системный алерт с одним полем.
+    case priceEdit
 }
 
 /// Шторки добавления ТО.
@@ -180,12 +182,52 @@ enum OnboardingStep: String, CaseIterable {
     case survey3
 }
 
+/// Чем раздел «Карта» показывает места: самой картой или списком.
+///
+/// Переключается сегментед-контролом наверху. Одно значение вместо булева
+/// `isListShown` не ради красоты: подача — измерение с именем, и подпись
+/// сегмента берётся отсюда же, а не из вёрстки, где её пришлось бы держать
+/// в согласии с состоянием руками.
+enum MapMode: String, CaseIterable, Identifiable {
+    /// Карта во весь экран, места — точками.
+    case map
+    /// Список: избранное, свои точки и найденное рядом.
+    case list
+
+    var id: String { rawValue }
+
+    /// Подпись сегмента. Существительное в одно слово — как того требует HIG
+    /// от сегментед-контрола.
+    var title: String {
+        switch self {
+        case .map: "Карта"
+        case .list: "Список"
+        }
+    }
+}
+
 /// Раздел «Карта».
 enum MapPhase: String, CaseIterable {
     /// Ключ MapKit не задан — раздел объясняет это вместо пустого экрана.
     case noKey
     /// Карта с позицией пользователя.
     case live
+    /// Список мест: избранное, свои точки, найденное рядом.
+    case list
+    /// Список, в котором нечего показать: ничего не нашлось и не сохранено.
+    case listEmpty
+
+    /// Фаза выводится из подачи, наличия ключа и наличия мест.
+    ///
+    /// Ключ старше подачи: без него не работает ни карта, ни поиск, и список
+    /// был бы пустым не потому, что мест нет, а потому, что их неоткуда взять.
+    static func of(mode: MapMode, hasKey: Bool, hasPlaces: Bool) -> MapPhase {
+        guard hasKey else { return .noKey }
+        switch mode {
+        case .map: return .live
+        case .list: return hasPlaces ? .list : .listEmpty
+        }
+    }
 }
 
 /// Таббар.

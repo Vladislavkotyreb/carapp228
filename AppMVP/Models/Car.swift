@@ -12,6 +12,11 @@ final class Car {
     var generation: String?
     /// Текущий пробег в км.
     var odometer: Int
+    /// Цена машины в рублях. Необязательная, и это не небрежность: по номеру
+    /// её никто не отдаёт, у машин, добавленных до появления поля, её нет
+    /// вовсе, а облегчённая миграция SwiftData добавляет молча только то, что
+    /// может оставить пустым. Пустая цена честнее выдуманной.
+    var price: Int?
     /// Фото машины. Крупные блобы SwiftData держит отдельным файлом, а не в базе.
     @Attribute(.externalStorage) var photo: Data?
     var createdAt: Date
@@ -25,6 +30,7 @@ final class Car {
         vin: String? = nil,
         generation: String? = nil,
         odometer: Int,
+        price: Int? = nil,
         photo: Data? = nil,
         createdAt: Date = .now
     ) {
@@ -33,6 +39,7 @@ final class Car {
         self.vin = vin
         self.generation = generation
         self.odometer = odometer
+        self.price = price
         self.photo = photo
         self.createdAt = createdAt
         self.services = []

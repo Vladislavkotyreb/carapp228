@@ -11,6 +11,7 @@
 		CA0000010000000000000004 /* UIStateCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000004 /* UIStateCatalog.swift */; };
 		CA0000010000000000000001 /* ServiceMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000001 /* ServiceMath.swift */; };
 		CA0000010000000000000002 /* NumberFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000002 /* NumberFormat.swift */; };
+		CA0000010000000000000005 /* MapGeo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000005 /* MapGeo.swift */; };
 		9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */ = {isa = PBXBuildFile; productRef = 9A0000010000000000000002 /* YandexMapsMobileFull */; };
 		9B0000010000000000000001 /* MapKitKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000001 /* MapKitKey.swift */; };
 		9B0000000000000000000001 /* CarDiagnosis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000001 /* CarDiagnosis.swift */; };
@@ -18,6 +19,7 @@
 		9B0000000000000000000004 /* MapController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000004 /* MapController.swift */; };
 		9B0000000000000000000003 /* Place.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000003 /* Place.swift */; };
 		9B0000010000000000000002 /* MapScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000002 /* MapScreen.swift */; };
+		9B0000010000000000000005 /* PlacesList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000005 /* PlacesList.swift */; };
 		7A0000010000000000000002 /* MoreScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0000010000000000000002 /* MoreScreen.swift */; };
 		AA0000010000000000000001 /* AppMVPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000001 /* AppMVPApp.swift */; };
 		AA0000010000000000000003 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000003 /* Theme.swift */; };
@@ -54,12 +56,14 @@
 		CB0000010000000000000004 /* UIStateCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIStateCatalog.swift; sourceTree = "<group>"; };
 		CB0000010000000000000001 /* ServiceMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceMath.swift; sourceTree = "<group>"; };
 		CB0000010000000000000002 /* NumberFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberFormat.swift; sourceTree = "<group>"; };
+		CB0000010000000000000005 /* MapGeo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapGeo.swift; sourceTree = "<group>"; };
 		9C0000010000000000000001 /* MapKitKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitKey.swift; sourceTree = "<group>"; };
 		9C0000000000000000000001 /* CarDiagnosis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarDiagnosis.swift; sourceTree = "<group>"; };
 		9C0000000000000000000005 /* EngineCheck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineCheck.swift; sourceTree = "<group>"; };
 		9C0000000000000000000004 /* MapController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapController.swift; sourceTree = "<group>"; };
 		9C0000000000000000000003 /* Place.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Place.swift; sourceTree = "<group>"; };
 		9C0000010000000000000002 /* MapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapScreen.swift; sourceTree = "<group>"; };
+		9C0000010000000000000005 /* PlacesList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlacesList.swift; sourceTree = "<group>"; };
 		7B0000010000000000000002 /* MoreScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreScreen.swift; sourceTree = "<group>"; };
 		BB0000010000000000000001 /* AppMVPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMVPApp.swift; sourceTree = "<group>"; };
 		BB0000010000000000000003 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -111,6 +115,7 @@
 				CB0000010000000000000002 /* NumberFormat.swift */,
 				CB0000010000000000000003 /* UIState.swift */,
 				CB0000010000000000000004 /* UIStateCatalog.swift */,
+				CB0000010000000000000005 /* MapGeo.swift */,
 			);
 			path = Pure;
 			sourceTree = "<group>";
@@ -120,6 +125,7 @@
 			children = (
 				9C0000010000000000000002 /* MapScreen.swift */,
 				9C0000000000000000000004 /* MapController.swift */,
+				9C0000010000000000000005 /* PlacesList.swift */,
 			);
 			path = Map;
 			sourceTree = "<group>";
@@ -368,6 +374,7 @@
 				AA0000010000000000000001 /* AppMVPApp.swift in Sources */,
 				CA0000010000000000000001 /* ServiceMath.swift in Sources */,
 				CA0000010000000000000002 /* NumberFormat.swift in Sources */,
+				CA0000010000000000000005 /* MapGeo.swift in Sources */,
 				CA0000010000000000000003 /* UIState.swift in Sources */,
 				CA0000010000000000000004 /* UIStateCatalog.swift in Sources */,
 				AA0000010000000000000003 /* Theme.swift in Sources */,
@@ -399,6 +406,7 @@
 				8A0000010000000000000002 /* SoundOrb.swift in Sources */,
 				8A0000010000000000000001 /* AudioLevelMeter.swift in Sources */,
 				9B0000010000000000000002 /* MapScreen.swift in Sources */,
+				9B0000010000000000000005 /* PlacesList.swift in Sources */,
 				9B0000000000000000000004 /* MapController.swift in Sources */,
 				7A0000010000000000000002 /* MoreScreen.swift in Sources */,
 				9B0000010000000000000001 /* MapKitKey.swift in Sources */,

@@ -130,7 +130,7 @@ struct FloatingTabBar: View {
     /// Высота бара из макета. Держится постоянной и у свёрнутого: экран ставит
     /// бар по его верхней кромке, и меняющаяся высота двигала бы его по
     /// вертикали — сворачивание горизонтальное.
-    private static let height: CGFloat = 54
+    private static let height: CGFloat = Figma.tabBarHeight
 
     var body: some View {
         // Ширину бар должен знать на первом же кадре: развёрнутые вкладки
@@ -295,36 +295,16 @@ private struct TabPressStyle: ButtonStyle {
 final class ToolbarVisibility: ObservableObject {
     @Published private(set) var isVisible = false
 
-    /// Под баром светлый низ страницы. Белый заголовок из макета на нём
-    /// пропадает, поэтому цвет переключается.
-    ///
-    /// Считать это система не может: страница машины целиком
-    /// `ignoresSafeArea` (иначе съезжают все координаты макета), навигационный
-    /// бар её прокрутки не видит и ни фона, ни краевого эффекта не рисует.
-    @Published private(set) var isOverLightContent = false
-
     /// Порог появления. Заголовок страницы стоит на 103 и высотой 31 — значит
     /// он полностью уходит под бар примерно на этом смещении.
     private static let threshold: CGFloat = 48
 
-    /// Полоса бара стоит на y ≈ 83. Замер градиента страницы по колонке
-    /// пикселей: до 600-й точки фон темнее текста, после 660-й — светлее.
-    /// Берём середину: 620 − 83.
-    private static let lightThreshold: CGFloat = 537
-
     func track(offset: CGFloat) {
         set(offset > Self.threshold)
-        setLight(offset > Self.lightThreshold)
     }
 
     func reset() {
         set(false)
-        setLight(false)
-    }
-
-    private func setLight(_ value: Bool) {
-        guard isOverLightContent != value else { return }
-        isOverLightContent = value
     }
 
     private func set(_ value: Bool) {

@@ -28,6 +28,26 @@ struct MapPin: Identifiable, Equatable {
         if case .saved = source { return true }
         return false
     }
+
+    /// Координаты для чистого слоя: расстояние и сверка мест считаются там.
+    var point: GeoPoint { GeoPoint(latitude: latitude, longitude: longitude) }
+}
+
+extension MapPin {
+    /// Точка из сохранённого места.
+    ///
+    /// Идентификатор собирается здесь, в одном месте: список и карта выбирают
+    /// одну и ту же точку по строке, и разойдись эти строки — выбор из списка
+    /// перестал бы совпадать с выбором по тапу, причём молча.
+    init(place: Place) {
+        self.init(id: "saved-\(place.persistentModelID.hashValue)",
+                  title: place.title,
+                  subtitle: place.note,
+                  kind: place.kind,
+                  latitude: place.latitude,
+                  longitude: place.longitude,
+                  source: .saved(place.persistentModelID))
+    }
 }
 
 /// Построенный маршрут в том виде, в каком его показывает карточка.
@@ -102,7 +122,10 @@ final class MapController: NSObject, ObservableObject {
         YMKDirectionsFactory.instance().createDrivingRouter(withType: .combined)
 
     private let location = CLLocationManager()
-    private var here: CLLocationCoordinate2D?
+    /// Где пользователь. Наблюдаемое, потому что от него зависят подписи
+    /// расстояний в списке; приходит раз в несколько секунд, а не на каждом
+    /// кадре, — перерисовку это не разгоняет.
+    @Published private(set) var here: CLLocationCoordinate2D?
     /// Камера прыгает к пользователю только один раз за открытие экрана:
     /// иначе каждое уточнение позиции утаскивало бы карту у него из-под пальца.
     private var didCenter = false
@@ -227,6 +250,21 @@ final class MapController: NSObject, ObservableObject {
         }
     }
 
+    /// То же, но с ожиданием конца поиска — для «потянуть, чтобы обновить».
+    ///
+    /// `refreshable` держит индикатор ровно до возврата из функции, а SDK
+    /// отдаёт результат в замыкание, и связать их можно только ожиданием.
+    /// Опрос, а не продолжение: обработчиков у поиска столько же, сколько
+    /// активных типов, и какой из них последний — заранее неизвестно. Вечным
+    /// ожидание не станет — его обрывает тот же сторож на 15 секунд.
+    @MainActor
+    func refresh() async {
+        search()
+        while isSearching {
+            try? await Task.sleep(nanoseconds: 120_000_000)
+        }
+    }
+
     /// Отказ по ключу приходит вложенной ошибкой SDK — `YRTForbiddenError`
     /// или `YRTUnauthorizedError`. Разбирать текст сообщения нельзя: он
     /// приходит с сервера и меняется без предупреждения.
@@ -252,19 +290,26 @@ final class MapController: NSObject, ObservableObject {
 
     // MARK: - Отрисовка
 
+    /// Найденное у Яндекса за вычетом того, что уже сохранено.
+    ///
+    /// Добавленный в избранное бизнес приходит из поиска ещё раз — он же
+    /// никуда с карты не делся. Без вычитания он вставал бы второй точкой
+    /// поверх себя же и второй строкой в списке, и обе бы жили своей жизнью:
+    /// звезда у одной, удаление у другой.
+    var nearby: [MapPin] {
+        found.filter { pin in
+            !saved.contains { place in
+                MapGeo.isSamePlace(place.point, title: place.title,
+                                   pin.point, title: pin.title)
+            }
+        }
+    }
+
     private var visiblePins: [MapPin] {
         let mine = saved
             .filter { activeKinds.contains($0.kind) }
-            .map { place in
-                MapPin(id: "saved-\(place.persistentModelID.hashValue)",
-                       title: place.title,
-                       subtitle: place.note,
-                       kind: place.kind,
-                       latitude: place.latitude,
-                       longitude: place.longitude,
-                       source: .saved(place.persistentModelID))
-            }
-        return mine + found
+            .map { MapPin(place: $0) }
+        return mine + nearby
     }
 
     private func redraw() {
@@ -412,6 +457,17 @@ final class MapController: NSObject, ObservableObject {
     }
 
     // MARK: - Своя позиция
+
+    /// Показать точку на карте: выбрать её и подвести камеру.
+    ///
+    /// Отсюда уходит переход «строка списка → карта»: список знает, что
+    /// выбрали, но не знает, где стоит камера, и двигать её должен тот, кто
+    /// владеет картой.
+    func show(_ pin: MapPin) {
+        clearRoute()
+        selected = pin
+        move(to: pin.coordinate, zoom: 16)
+    }
 
     func centerOnMe() {
         guard let here else {

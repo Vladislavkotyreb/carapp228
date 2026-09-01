@@ -144,6 +144,10 @@ enum UIStateCatalog {
               what: "Ключ MapKit не задан — объяснение вместо пустоты", node: nil),
         .init(id: "map-live", screen: "Карта",
               what: "Карта с позицией пользователя", node: nil),
+        .init(id: "map-list", screen: "Карта",
+              what: "Список: избранное, свои точки и найденное рядом", node: nil),
+        .init(id: "map-listEmpty", screen: "Карта",
+              what: "Список, в котором нечего показать", node: nil),
     ]
 
     static let tabBar: [UIStateEntry] = [

@@ -421,6 +421,109 @@ group("CarMainView: пять флагов против одного слота")
     check("и не оставляет выбор способа открытым", t.choice, false)
 }
 
+// ------------------------------------------------------------------- MapGeo
+
+group("MapGeo") {
+    let kremlin = GeoPoint(latitude: 55.75, longitude: 37.62)
+
+    check("до себя же — ноль",
+          MapGeo.meters(from: kremlin, to: kremlin), 0)
+    check("сотая градуса по широте — 1112 м",
+          Int(MapGeo.meters(from: kremlin,
+                            to: GeoPoint(latitude: 55.76, longitude: 37.62)).rounded()),
+          1112)
+    // Меридианы сходятся: на широте Москвы та же сотая градуса по долготе
+    // короче почти вдвое. Проверка ловит перепутанные местами широту и долготу —
+    // ошибку, которая на глаз не видна, потому что расстояние всё равно похоже
+    // на правду.
+    check("сотая градуса по долготе на широте Москвы — 626 м",
+          Int(MapGeo.meters(from: kremlin,
+                            to: GeoPoint(latitude: 55.75, longitude: 37.63)).rounded()),
+          626)
+    check("расстояние симметрично",
+          MapGeo.meters(from: kremlin, to: GeoPoint(latitude: 59.94, longitude: 30.31))
+            == MapGeo.meters(from: GeoPoint(latitude: 59.94, longitude: 30.31), to: kremlin),
+          true)
+    check("Москва — Петербург, километров",
+          Int((MapGeo.meters(from: kremlin,
+                             to: GeoPoint(latitude: 59.94, longitude: 30.31)) / 1000).rounded()),
+          635)
+
+    check("метры округляются до десятков", MapGeo.distanceLabel(meters: 347), "350\u{00A0}м")
+    check("ноль не показывается нулём", MapGeo.distanceLabel(meters: 0), "10\u{00A0}м")
+    check("отрицательного расстояния не бывает",
+          MapGeo.distanceLabel(meters: -5), "10\u{00A0}м")
+    check("перед километром — метры", MapGeo.distanceLabel(meters: 949), "950\u{00A0}м")
+    check("километры с десятыми", MapGeo.distanceLabel(meters: 1240), "1,2\u{00A0}км")
+    check("десятая доля округляется вверх",
+          MapGeo.distanceLabel(meters: 1260), "1,3\u{00A0}км")
+    check("от десяти километров — целые", MapGeo.distanceLabel(meters: 15_400), "15\u{00A0}км")
+    check("разряды через неразрывный пробел",
+          MapGeo.distanceLabel(meters: 1_234_000), "1\u{00A0}234\u{00A0}км")
+    // Единица не должна отрываться от числа переносом: тот же неразрывный
+    // пробел, что и в `NumberFormat.grouped`.
+    check("между числом и единицей неразрывный пробел",
+          MapGeo.distanceLabel(meters: 1240).contains(" "), false)
+
+    check("регистр и кавычки не меняют названия",
+          MapGeo.normalized("ШИНОМОНТАЖ „24“"), MapGeo.normalized("Шиномонтаж 24"))
+    check("«ё» и «е» — одно и то же",
+          MapGeo.normalized("Автосервис На Ёлочной"), "автосервис на елочной")
+    check("лишние пробелы схлопываются",
+          MapGeo.normalized("  СТО   у  дома "), "сто у дома")
+
+    let found = GeoPoint(latitude: 55.75, longitude: 37.62)
+    let saved = GeoPoint(latitude: 55.751, longitude: 37.62)      // 111 м
+    let faraway = GeoPoint(latitude: 55.752, longitude: 37.62)    // 222 м
+
+    check("то же место с разбросом координат — одно место",
+          MapGeo.isSamePlace(found, title: "Шиномонтаж 24",
+                             saved, title: "шиномонтаж 24"), true)
+    check("дальше порога — уже другое место",
+          MapGeo.isSamePlace(found, title: "Шиномонтаж 24",
+                             faraway, title: "Шиномонтаж 24"), false)
+    // Одно название на два заведения в соседних домах — обычное дело у сетей,
+    // и близость сама по себе местом не считается.
+    check("разные названия рядом не склеиваются",
+          MapGeo.isSamePlace(found, title: "Шиномонтаж 24",
+                             saved, title: "Автосервис у дома"), false)
+    check("точка совпадает сама с собой",
+          MapGeo.isSamePlace(found, title: "СТО", found, title: "СТО"), true)
+}
+
+// -------------------------------------------------------------- MapPhase.of
+
+group("MapPhase.of") {
+    check("без ключа — объяснение вместо карты",
+          MapPhase.of(mode: .map, hasKey: false, hasPlaces: true), .noKey)
+    check("без ключа список тоже не показывается",
+          MapPhase.of(mode: .list, hasKey: false, hasPlaces: true), .noKey)
+    check("карта с ключом — живая карта",
+          MapPhase.of(mode: .map, hasKey: true, hasPlaces: false), .live)
+    check("список с местами",
+          MapPhase.of(mode: .list, hasKey: true, hasPlaces: true), .list)
+    check("список без мест — пустое состояние",
+          MapPhase.of(mode: .list, hasKey: true, hasPlaces: false), .listEmpty)
+
+    // Пустота карты — не состояние: на ней всё равно есть сама карта. Пустой
+    // бывает только подача списком, и проверка держит это различие.
+    check("на карте пустоты не бывает",
+          MapPhase.of(mode: .map, hasKey: true, hasPlaces: false), .live)
+
+    var reachable: Set<MapPhase> = []
+    for mode in MapMode.allCases {
+        for hasKey in [true, false] {
+            for hasPlaces in [true, false] {
+                reachable.insert(MapPhase.of(mode: mode, hasKey: hasKey, hasPlaces: hasPlaces))
+            }
+        }
+    }
+    check("каждая фаза достижима",
+          Set(MapPhase.allCases).subtracting(reachable).map(\.rawValue).sorted(), [])
+    check("подписи сегментов заданы у всех подач",
+          MapMode.allCases.filter { $0.title.isEmpty }.map(\.rawValue), [])
+}
+
 // ------------------------------------------------------------ UIStateCatalog
 
 group("UIStateCatalog") {

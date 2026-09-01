@@ -81,51 +81,20 @@ enum Figma {
     /// рендера: ровный #191919 по всей площади, без кромки.
     static let recordingPanel = Color(red: 25 / 255, green: 25 / 255, blue: 25 / 255)
     static let accentsGreen = Color(red: 52 / 255, green: 199 / 255, blue: 89 / 255) // Accents/Green #34C759
+    /// Звезда избранного. В макете раздела «Карта» нет вовсе, поэтому взят
+    /// системный жёлтый iOS (#FFCC00) — тот же, которым звезду рисуют
+    /// «Карты» и «Телефон». Свой оттенок здесь читался бы как чужой значок.
+    static let accentsYellow = Color(red: 1, green: 204 / 255, blue: 0)              // #FFCC00
     static let fillsSecondary = Color(red: 120 / 255, green: 120 / 255, blue: 128 / 255)
         .opacity(0.16)                                                              // Fills/Secondary
     static let trackBackground = Color(red: 120 / 255, green: 120 / 255, blue: 120 / 255)
         .opacity(0.4)                                                               // Track прогресса ТО
     static let vibrantPrimary = Color(red: 204 / 255, green: 204 / 255, blue: 204 / 255) // Fills-Vibrant/Primary #CCC
 
-    /// База под градиентом главного экрана (node 45879:3002).
+    /// Светлый фон разделов «Карта» (без ключа) и «Ещё». На главной его
+    /// больше нет: с 02.09.2026 она чёрная целиком, вместе с градиентом ушёл
+    /// и он сам — искать в истории, если понадобится вернуть.
     static let mainBackground = Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255) // #F2F2F7
-
-    /// Высота градиентного слоя. Замер по рендеру нового макета: чёрное
-    /// держится до 300pt от верха контента, полностью светлым фон становится
-    /// к 800. Было 656 — переход стал длиннее и начинается раньше.
-    static let mainGradientHeight: CGFloat = 800
-
-    /// Фон главного экрана: чёрный сверху → #F2F2F7 снизу.
-    ///
-    /// Стопы сняты **колонкой пикселей с рендера** ноды `45879:3002`, а не
-    /// переписаны из её свойств. Причина: градиент там собран из двух
-    /// наложенных прямоугольников с матричными трансформациями, и повторять
-    /// эту арифметику хрупко — а результат наложения кривая с рендера описывает
-    /// точно.
-    ///
-    /// Чёрное держится до 0.375 высоты слоя, дальше подъём до `#F2F2F7`.
-    /// Точного совпадения не будет: SwiftUI смешивает цвета не в том же
-    /// пространстве, что Figma.
-    static let mainGradient = LinearGradient(
-        stops: [
-            .init(color: Color(red: 0, green: 0, blue: 0), location: 0.000),
-            .init(color: Color(red: 0, green: 0, blue: 0), location: 0.375),
-            .init(color: Color(red: 5 / 255, green: 5 / 255, blue: 5 / 255), location: 0.400),
-            .init(color: Color(red: 16 / 255, green: 16 / 255, blue: 17 / 255), location: 0.450),
-            .init(color: Color(red: 28 / 255, green: 28 / 255, blue: 29 / 255), location: 0.500),
-            .init(color: Color(red: 42 / 255, green: 42 / 255, blue: 43 / 255), location: 0.550),
-            .init(color: Color(red: 53 / 255, green: 53 / 255, blue: 54 / 255), location: 0.600),
-            .init(color: Color(red: 63 / 255, green: 63 / 255, blue: 65 / 255), location: 0.650),
-            .init(color: Color(red: 81 / 255, green: 81 / 255, blue: 82 / 255), location: 0.700),
-            .init(color: Color(red: 112 / 255, green: 112 / 255, blue: 115 / 255), location: 0.750),
-            .init(color: Color(red: 158 / 255, green: 158 / 255, blue: 161 / 255), location: 0.800),
-            .init(color: Color(red: 209 / 255, green: 209 / 255, blue: 213 / 255), location: 0.850),
-            .init(color: Color(red: 233 / 255, green: 233 / 255, blue: 238 / 255), location: 0.900),
-            .init(color: Color(red: 240 / 255, green: 240 / 255, blue: 245 / 255), location: 0.950),
-            .init(color: Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255), location: 1.0)
-        ],
-        startPoint: .top, endPoint: .bottom
-    )
 
     // Frame макета — iPhone 16 Pro, 402×874
     static let frameWidth: CGFloat = 402
@@ -139,6 +108,11 @@ enum Figma {
     /// макет нарисован до края экрана, поэтому нижние элементы в нём
     /// местами заезжают на home indicator.
     static let frameSafeBottom: CGFloat = 34
+    /// Высота плавающего таббара (нода 45854:3333). Знать её должен не только
+    /// сам бар: на iOS 17–25 он лежит **поверх** содержимого, и список под ним
+    /// обязан оставить себе место — иначе последняя строка недосягаема.
+    static let tabBarHeight: CGFloat = 54
+
     /// Минимальный зазор до home indicator. 7pt — столько макет оставляет таббару,
     /// то есть это и есть заданный дизайном минимум.
     static let minBottomGap: CGFloat = 7

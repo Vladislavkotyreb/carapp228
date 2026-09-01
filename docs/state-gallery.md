@@ -3,7 +3,7 @@
 Все состояния интерфейса, разложенные рядом. Нужна затем, что «все состояния»
 иначе восстанавливают по памяти — так и теряются экраны.
 
-Проверка списка на этом проекте сразу дала цифру: **из 40 состояний 25 не имеют
+Проверка списка на этом проекте сразу дала цифру: **из 42 состояний 27 не имеют
 ноды в макете**. Сверять их не с чем, и узнать это лучше до редизайна, чем
 посреди него.
 
@@ -16,8 +16,8 @@
 
 | Файл | Что |
 |---|---|
-| [`../AppMVP/Core/Pure/UIState.swift`](../AppMVP/Core/Pure/UIState.swift) | Типы фаз: `IssuesPhase`, `FindingsOutcome`, `AddCarPhase`, `FieldError`, `CarPhase`, `ServiceSheet`, `OnboardingStep`, `MapPhase`, `TabBarPhase` |
-| [`../AppMVP/Core/Pure/UIStateCatalog.swift`](../AppMVP/Core/Pure/UIStateCatalog.swift) | Каталог: 40 состояний с описанием и нодой макета |
+| [`../AppMVP/Core/Pure/UIState.swift`](../AppMVP/Core/Pure/UIState.swift) | Типы фаз: `IssuesPhase`, `FindingsOutcome`, `AddCarPhase`, `FieldError`, `CarPhase`, `ServiceSheet`, `OnboardingStep`, `MapMode`, `MapPhase`, `TabBarPhase` |
+| [`../AppMVP/Core/Pure/UIStateCatalog.swift`](../AppMVP/Core/Pure/UIStateCatalog.swift) | Каталог: 42 состояния с описанием и нодой макета |
 | [`../tools/pure-checks/main.swift`](../tools/pure-checks/main.swift) | Проверки каталога против типов |
 
 Прогон — `./tools/run-pure-checks.sh`, Xcode не нужен.

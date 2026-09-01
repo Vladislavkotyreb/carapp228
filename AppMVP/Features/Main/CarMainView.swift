@@ -24,10 +24,10 @@ private enum ScrollHeader {
 /// Константы вне вью по той же причине, что и у `ScrollHeader`.
 private enum PhotoStretch {
     /// Положение блока фото от верха контента в покое: 103 (отступ страницы)
-    /// + заголовок 31.2 + 16 + номер 32 + 24. Из текущего положения вычитается
+    /// + заголовок 48 + 6 + номер 28 + 24. Из текущего положения вычитается
     /// это — разница и есть натяжка. Ошибка в константе видна сразу: фото
     /// окажется увеличенным уже в покое, поэтому она проверяется кадром.
-    static let restingY: CGFloat = 206.2
+    static let restingY: CGFloat = 209
 
     /// Прирост масштаба на точку натяжки и потолок роста.
     static let perPoint: CGFloat = 1 / 500
@@ -63,6 +63,11 @@ struct CarMainView: View {
     @State private var carPlate = ""
     @State private var carName = ""
     @State private var carMileage = ""
+    /// Цена новой машины, строкой из поля. Необязательная.
+    @State private var carPrice = ""
+    /// Цена, которую правят прямо на плитке. Отдельно от `carPrice`: та про
+    /// форму добавления, эта — про уже существующую машину.
+    @State private var priceDraft = ""
     /// Свой пикер у формы авто. Раньше она писала в общий photoItems, который
     /// слушает поток ТО, — выбор фото открывал чужую модалку и терялся.
     @State private var carPhotoItems: [PhotosPickerItem] = []
@@ -192,9 +197,10 @@ struct CarMainView: View {
     /// Порог, после которого решаем, куда ведёт жест.
     private static let axisLockThreshold: CGFloat = 10
 
-    /// Высота зоны свайпа от верха экрана: отступ страницы 103 + шапка 349
-    /// + гэп 20 + карточка «ТО через» 146.
-    private static let swipeZoneHeight: CGFloat = 620
+    /// Высота зоны свайпа от верха экрана: отступ страницы 103 + шапка 408
+    /// (48 заголовок + 6 + 28 номер + 24 + 246 фото + 12 + 44 точки) + гэп 24
+    /// + карточка «ТО через» 148.
+    private static let swipeZoneHeight: CGFloat = 683
 
     /// Дальше этого смещения список считается прокрученным и карусель
     /// запирается. Порог небольшой: он должен пропускать дрожание пальца,
@@ -329,6 +335,7 @@ struct CarMainView: View {
             carPlate: $carPlate,
             carName: $carName,
             carMileage: $carMileage,
+            carPrice: $carPrice,
             carPhotoItems: $carPhotoItems,
             carPhoto: newCarPhoto,
             onCarPhotoLoaded: { newCarPhoto = $0 },
@@ -338,10 +345,10 @@ struct CarMainView: View {
                 if !loaded.isEmpty { applyParsedService() }
             }
         ))
-        // gradient bg (45879:3002): сам градиент лежит в контенте страницы и
-        // уезжает вверх вместе со скроллом. База светлая — она видна снизу,
-        // под контентом. Чёрное сверху даёт запас в gradientLayer.
-        .background(Figma.mainBackground.ignoresSafeArea())
+        // Подложка под всеми разделами. Страница машины стала чёрной целиком
+        // (макет 45867:3007), и градиента под ней больше нет: раньше отсюда
+        // светился #F2F2F7 из-под контента.
+        .background(Color.black.ignoresSafeArea())
         .ignoresSafeArea()
         .preferredColorScheme(.dark)
         // «нативная штука добавления фото» (45885:3279) — системный пикер,
@@ -373,6 +380,14 @@ struct CarMainView: View {
         // защёлкивании страницы, а не по ходу пальца: незасчитанный свайп
         // не меняет carPage и потому молчит.
         .sensoryFeedback(.impact(flexibility: .soft), trigger: carPage)
+        // Правка цены — системный алерт с полем: ради одного числа отдельная
+        // форма была бы тяжелее самого действия.
+        .alert("Цена авто", isPresented: presenting(.priceEdit)) {
+            TextField("Цена в рублях", text: $priceDraft)
+                .keyboardType(.numberPad)
+            Button("Отмена", role: .cancel) { priceDraft = "" }
+            Button("Сохранить") { savePrice() }
+        }
         .confirmationDialog("Удалить авто?", isPresented: presenting(.deleteConfirm), titleVisibility: .visible) {
             Button("Удалить", role: .destructive) { deleteCar() }
             Button("Отмена", role: .cancel) {}
@@ -411,8 +426,8 @@ struct CarMainView: View {
                         // непрозрачный `systemBackground`, а он здесь светлый
                         // (схему стека мы нарочно не трогаем ради тулбара) —
                         // то есть белый. Ниже контента страницы он вылезал
-                        // чистым белым и давал шов на #F2F2F7.
-                        .background(Figma.mainBackground)
+                        // чистым белым и давал шов.
+                        .background(Color.black)
                         .ignoresSafeArea()
                         // Краевой эффект прокрутки размывал карточку «ТО через»
                         // под баром. В макете под тулбаром контент чёткий.
@@ -524,12 +539,14 @@ struct CarMainView: View {
     /// Из-за переключения на середине свайпа предыдущая версия и выглядела
     /// сломанной.
     private struct PageMetrics {
-        var headerGap: CGFloat = 20
-        /// Натуральная высота содержимого «ТО через»: 13pt + 4 + 28pt + 12 +
-        /// полоса 30 плюс паддинги 48. Макет объявляет 146 — расхождение из-за
-        /// метрик шрифта, оно было и раньше. Здесь важно повторить то, что
-        /// экран рисовал до правки, а не «починить» заодно и это.
-        var cardHeight: CGFloat = 142.9
+        /// Зазор от точек до карточки. В новом макете он один и тот же в обоих
+        /// состояниях — и с историей, и без неё.
+        var headerGap: CGFloat = 24
+        /// Натуральная высота содержимого «ТО через»: 14pt подпись (20) + 4 +
+        /// значение (34) + 12 + полоса 30 плюс паддинги 48 = 148, ровно как
+        /// в макете. Значение — верхняя точка смеси и порог, за которым высоту
+        /// снова задаёт содержимое; насильно её не выставляем.
+        var cardHeight: CGFloat = 148
         var statsGap: CGFloat = 16
         /// 0 — истории нет, 1 — есть. Дробное значение живёт только в движении.
         var history: Double = 1
@@ -572,16 +589,14 @@ struct CarMainView: View {
     /// зависела от числа записей. Вертикальный список зависит — при
     /// фиксированной высоте всё, кроме первой записи, уходило под `.clipped()`.
     ///
-    /// Считается из тех же токенов, что и раскладка: 28 заголовок + 24 + 96
-    /// плитки счётчиков + 16 + список. Ошибка видна в покое щелью снизу или
-    /// срезанной карточкой.
+    /// Считается из тех же токенов, что и раскладка (нода 46165:2835):
+    /// 16 отступ секции + 28 заголовок + 20 + 96 сводка, дальше на каждую
+    /// группу 24 зазора + 129 (25 дата + 8 + 96 карточка), и снизу снова 16.
+    /// Ошибка видна в покое щелью снизу или срезанной карточкой.
     private var historyHeight: CGFloat {
-        let group: CGFloat = 137           // 25 дата + 16 + 96 карточка
-        let gap: CGFloat = 32              // между группами
+        let group: CGFloat = 129 + 24      // карточка с датой и зазор перед ней
         let n = CGFloat(services.count)
-        // +8 — тень последней карточки, её срезал бы `.clipped()`
-        let strip = services.isEmpty ? 0 : n * group + (n - 1) * gap + 8
-        return 164 + strip
+        return 176 + n * group
     }
 
     private func carPageBody(progress p: Double) -> some View {
@@ -609,10 +624,28 @@ struct CarMainView: View {
                 // Белые карточки уходят целиком: на странице «добавить новую»
                 // (нода 45949:3265) их нет вовсе, остаётся одна тёмная.
                 HStack(spacing: 16) {
-                    statCard(title: "Цена авто") { _ in "4\u{00A0}269\u{00A0}999\u{00A0}₽ " }
-                    statCard(title: "Пробег") { "\(NumberFormat.grouped($0.odometer))\u{00A0}км " }
+                    // Цена правится тапом по плитке: формы правки авто в
+                    // приложении нет, а тулбар с меню есть только на iOS 26.
+                    Button {
+                        priceDraft = car?.price.map(String.init) ?? ""
+                        sheet = .priceEdit
+                    } label: {
+                        statCard(title: "Цена авто") { car in
+                            car.price.map { "\(NumberFormat.grouped($0))\u{00A0}₽" } ?? "—"
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Self.statCardShape)
+                    .accessibilityLabel("Цена авто")
+                    .accessibilityHint("Изменить")
+
+                    statCard(title: "Пробег") { "\(NumberFormat.grouped($0.odometer))\u{00A0}км" }
                 }
                 .opacity(visible)
+                // Погашенная плитка продолжала бы принимать касания, а на
+                // странице «Добавить авто» под ней нет ничего: тап открывал бы
+                // правку цены вслепую.
+                .allowsHitTesting(visible > 0.5)
 
                 // Зазор сворачивается вместе с историей, иначе у машины без ТО
                 // остался бы двойной отступ до низа страницы.
@@ -631,7 +664,6 @@ struct CarMainView: View {
             .padding(.horizontal, 16)
             .padding(.top, 103)
             .padding(.bottom, 140)
-            .background(alignment: .top) { gradientLayer }
             // Позиция прокрутки для запрета свайпа. Именно `.background` —
             // слой не участвует в раскладке и не может раздуть страницу,
             // как когда-то градиент.
@@ -705,29 +737,6 @@ struct CarMainView: View {
     // MARK: - Шапка при прокрутке
 
 
-    /// Градиентный слой под контентом: 934pt от верха. Именно `.background`,
-    /// иначе слой увеличил бы высоту страницы и контент бы отцентрировался.
-    private var gradientLayer: some View {
-        VStack(spacing: 0) {
-            // Запас на оттягивание сверху: ScrollView обрезает по своим
-            // границам, поэтому чёрное видно только когда список тянут вниз.
-            Color.black
-                .frame(height: Self.overscrollReserve)
-
-            Figma.mainGradient
-                .frame(height: Figma.mainGradientHeight)
-
-            // Ниже градиента продолжаем его нижним цветом, иначе на длинном
-            // контенте появлялся шов между градиентом и фоном экрана.
-            Figma.mainBackground
-        }
-        .frame(maxWidth: .infinity)
-        // сдвигаем вверх, чтобы сам градиент начинался ровно у верха контента
-        .offset(y: -Self.overscrollReserve)
-    }
-
-    private static let overscrollReserve: CGFloat = 600
-
     // MARK: - Шапка: название, номер, фото, пейдж-контрол
 
     /// `stretches` включает пружину. На экране без ТО прокрутки нет, а
@@ -737,7 +746,7 @@ struct CarMainView: View {
         VStack(spacing: 12) {
             VStack(spacing: 24) {
                 // Заголовок и номер стоят на месте, текст перекрёстно меняется
-                VStack(spacing: 16) {
+                VStack(spacing: 6) {
                     ZStack {
                         ForEach(cars) { car in
                             title(car.name).opacity(weight(of: index(of: car)))
@@ -750,7 +759,7 @@ struct CarMainView: View {
                             plate(car.plate).opacity(weight(of: index(of: car)))
                         }
                     }
-                    .frame(height: 32)
+                    .frame(height: 28)
                 }
 
                 // Единственный едущий элемент. Локальный GeometryReader
@@ -761,14 +770,14 @@ struct CarMainView: View {
                 GeometryReader { g in
                     HStack(spacing: 0) {
                         ForEach(cars) { car in
-                            carPhoto(for: car).frame(width: g.size.width)
+                            carPhoto(for: car, width: g.size.width)
                         }
                         // Страница добавления: у неё своей машины нет
-                        carPhoto(for: nil).frame(width: g.size.width)
+                        carPhoto(for: nil, width: g.size.width)
                     }
                     .offset(x: -CGFloat(position) * g.size.width)
                 }
-                .frame(height: 190.415)
+                .frame(height: Self.photoHeight)
                 .clipped()
                 // Масштаб навешен ПОСЛЕ .clipped(): эффект применяется к уже
                 // обрезанному результату, поэтому вторая копия фото из-под
@@ -792,19 +801,54 @@ struct CarMainView: View {
     /// TODO: брать из модели, когда появится справочник марок.
     private static let carTitle = "Mercedes-Benz GL-класс"
 
+    /// Название машины. Блок в макете 370×48, текст в одну строку по центру;
+    /// высота задана рамкой, а не межстрочным интервалом — у одной строки
+    /// `figmaLineHeight` только сдвинул бы её вниз.
+    ///
+    /// Градиент не заливкой, а маской: `foregroundStyle` растягивает шкалу по
+    /// **буквам**, а в макете она идёт по всей ширине блока. Разница видна
+    /// замером — левый край названия выходил заметно темнее макетного.
     private func title(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 26, weight: .bold))
-            .figmaLineHeight(31.2, fontSize: 26, weight: .bold)
-            .foregroundStyle(.white)
-            .multilineTextAlignment(.center)
+        Self.titleGradient
             .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .mask {
+                Text(text)
+                    .font(.system(size: 26, weight: .heavy))
+                    // Трекинг снят с рендера, а не из токена: в ноде его нет
+                    // вовсе, но набор там на 5pt уже нашего — Figma рисует
+                    // заголовок статическим SF Pro Display, у которого
+                    // межбуквенное расстояние плотнее.
+                    .tracking(-0.23)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+            }
     }
 
-    /// Снимок машины, если он есть, иначе макетный ассет. `scaledToFit`
-    /// намеренно: кадр из галереи бывает любой пропорции, и обрезать его по
-    /// рамке макета — значит отрезать пользователю его же машину.
-    private func carPhoto(for car: Car?) -> some View {
+    /// Заливка названия: белый гаснет к краям до 20 % слева и 30 % справа.
+    private static let titleGradient = LinearGradient(
+        stops: [.init(color: .white.opacity(0.2), location: 0),
+                .init(color: .white, location: 0.5),
+                .init(color: .white.opacity(0.3), location: 1)],
+        startPoint: .leading, endPoint: .trailing)
+
+    /// Высота блока фото из макета: 370×245.935 на всю ширину контента.
+    private static let photoHeight: CGFloat = 245.935
+
+    /// Снимок машины, если он есть, иначе макетный ассет.
+    ///
+    /// Машина занимает блок во всю ширину и обрезается сверху и снизу — как
+    /// в макете. Это не `scaledToFill`: тот подгоняет **обе** стороны, и на
+    /// нашем широком ассете срезал машине нос и корму. Ширина задаётся явно,
+    /// высота идёт за пропорцией, лишнее уходит под клип. Кадр уже квадратного
+    /// блока ляжет с полями сверху и снизу — на чёрном фоне их не видно.
+    ///
+    /// Клип у каждого кадра свой, а не общий у контейнера: фото шире страницы
+    /// и без этого вылезало бы на соседнюю.
+    private func carPhoto(for car: Car?, width: CGFloat) -> some View {
         Group {
             if let car, let image = carImages[car.persistentModelID] {
                 Image(uiImage: image).resizable().scaledToFit()
@@ -812,8 +856,9 @@ struct CarMainView: View {
                 Image("CarPhoto").resizable().scaledToFit()
             }
         }
-        .frame(width: 295.736, height: 152.196)
-        .frame(maxWidth: .infinity)
+        .frame(width: width)
+        .frame(width: width, height: Self.photoHeight)
+        .clipped()
     }
 
     /// Ключ перезагрузки: меняется и при смене машины, и при замене снимка.
@@ -830,8 +875,8 @@ struct CarMainView: View {
     private func plate(_ raw: String) -> some View {
         let parts = raw.split(separator: " ").map(String.init)
         if parts.count == 4 {
-            HStack(spacing: 4) {
-                HStack(spacing: 4) {
+            HStack(spacing: 3.5) {
+                HStack(spacing: 3.5) {
                     Text(parts[0])
                     Text(parts[1])
                     Text(parts[2])
@@ -839,18 +884,20 @@ struct CarMainView: View {
 
                 Rectangle()
                     .fill(Figma.separatorsVibrant)
-                    .frame(width: 1, height: 20.117)
+                    .frame(width: 0.875, height: 17.603)
                     .blendMode(.softLight)
 
                 Text(parts[3])
             }
-            .font(.system(size: 17, weight: .semibold))
-            .tracking(-0.43)
+            // Узкое начертание из макета: номер набран SF Pro сжатым, поэтому
+            // плашка и держится в 98pt.
+            .font(Self.condensedFont(size: 14))
+            .tracking(-0.4)
             .foregroundStyle(Figma.graysGray2)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
-            .frame(height: 32)
-            .background(Figma.fillsPrimary, in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, 10.5)
+            .padding(.vertical, 3.5)
+            .frame(height: 28)
+            .background(Figma.fillsPrimary, in: RoundedRectangle(cornerRadius: 10.5))
         }
     }
 
@@ -901,7 +948,8 @@ struct CarMainView: View {
                 if let altTitle { Text(altTitle).opacity(progress) }
             }
             .font(.system(size: 17, weight: .semibold))
-            .tracking(-0.43)
+            // Без трекинга: объявленный −0.43 до рендера не доходит, с ним
+            // подпись выходила на 5pt уже макетной. Замер, не токен.
             .foregroundStyle(.white)
         }
     }
@@ -931,31 +979,29 @@ struct CarMainView: View {
         // значение включается только в движении, где важна плавность,
         // а не попадание в пиксель.
         .frame(height: height >= PageMetrics().cardHeight ? nil : height)
-        // Figma 45867:2944 — системный «Liquid Glass - Regular - Medium».
-        // Кромку даёт стекло, а не нарисованная обводка; раньше здесь
-        // расходились радиусы заливки (36) и обводки (34).
-        .liquidGlass(in: RoundedRectangle(cornerRadius: 36), tint: Figma.darkCard, kind: .painted) {
-            RoundedRectangle(cornerRadius: 36)
-                .fill(Figma.darkCard)
-                .overlay(RoundedRectangle(cornerRadius: 36)
-                    .stroke(Color.white.opacity(0.10), lineWidth: 0.5))
-        }
+        // Figma 45867:2944 — «Liquid Glass - Regular - Small» в тёмном
+        // варианте. Тот же рецепт, что у остальных карточек экрана.
+        .darkGlassCard(in: RoundedRectangle(cornerRadius: 36))
         .motionRim(in: RoundedRectangle(cornerRadius: 36))
         .shadow(color: .black.opacity(0.45), radius: 24, y: 8)
     }
 
     private func serviceProgressContent(for car: Car) -> some View {
         VStack(spacing: 12) {
+            // Те же боксы из макета: подпись 20, значение 34, между ними 4.
+            // Вместе с паддингами 24 это и даёт объявленные 148 высоты.
             VStack(spacing: 4) {
                 Text("ТО через")
-                    .font(.system(size: 13, weight: .semibold))
-                    .tracking(-0.08)
-                    .foregroundStyle(Figma.vibrantPrimary)
+                    .font(Self.condensedFont(size: 14))
+                    .tracking(-0.4)
+                    .foregroundStyle(Figma.graysGray2)
+                    .frame(height: 20)
 
-                Text("\(NumberFormat.grouped(kmUntilService(for: car)))\u{00A0}км ")
+                Text("\(NumberFormat.grouped(kmUntilService(for: car)))\u{00A0}км")
                     .font(.system(size: 28, weight: .bold))
                     .tracking(0.38)
                     .foregroundStyle(.white)
+                    .frame(height: 34)
             }
             .frame(maxWidth: .infinity)
 
@@ -990,60 +1036,85 @@ struct CarMainView: View {
         statCardShell(title: title) { Text(value) }
     }
 
-    /// Скругление плитки счётчика. Общая константа, потому что форма нужна и
-    /// материалу, и его подложке — разъехавшись, они дали бы двойную кромку.
-    private static let statCardShape = RoundedRectangle(cornerRadius: 34,
-                                                        style: .continuous)
+    /// Форма плитки счётчика. В макете её скругление — 1000, то есть капсула:
+    /// на высоте 96 это ровно полукруглые торцы. Константа общая, потому что
+    /// форма нужна и материалу, и его подложке — разъехавшись, они дали бы
+    /// двойную кромку.
+    private static let statCardShape = Capsule(style: .continuous)
 
-    private func statCardShell<V: View>(title: String,
-                                        @ViewBuilder value: () -> V) -> some View {
-        VStack(spacing: 0) {
+    /// Подписи и номер набраны в макете узким SF Pro (ось ширины 60). Это та
+    /// же ось, что у системного `.width`, поэтому шрифт берётся системный,
+    /// а не отдельным файлом.
+    private static func condensedFont(size: CGFloat,
+                                      weight: Font.Weight = .semibold) -> Font {
+        .system(size: size, weight: weight).width(.condensed)
+    }
+
+    /// Колонка «подпись сверху, значение снизу» высотой 47. Одна и та же и в
+    /// плитках, и в сводке истории — в макете это один блок, и разъехаться
+    /// их типографике нельзя.
+    private func statColumn<V: View>(title: String,
+                                     @ViewBuilder value: () -> V) -> some View {
+        // Боксы строк заданы рамками, а не `figmaLineHeight`: у одной строки
+        // тот добавляет половину интерлиньяжа сверху и уводит текст вниз,
+        // а в макете это два блока фиксированной высоты — 20 и 25, между
+        // ними 2. Замер показывал ровно эти 2pt расхождения.
+        VStack(spacing: 2) {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .tracking(-0.08)
+                .font(Self.condensedFont(size: 14))
+                .tracking(-0.4)
                 .foregroundStyle(Figma.vibrantSecondary)
-
-            Spacer(minLength: 0)
+                .frame(height: 20)
 
             value()
                 .font(.system(size: 20, weight: .semibold))
-                .tracking(-0.45)
-                .foregroundStyle(Figma.labelsPrimary)
+                // Без трекинга: объявленный в ноде −0.45 до рендера не доходит,
+                // и с ним значение выходило уже макетного. Проверено замером.
+                .foregroundStyle(.white)
+                .frame(height: 25)
         }
         .frame(height: 47)
         .frame(maxWidth: .infinity)
-        .frame(height: 96)
-        // В макете это «Liquid Glass - Regular - Small» (45895:3528), а не
-        // белая плитка: на устройстве материал преломляет то, что под ним.
-        // Тень из макета (0/0/32 #EBEBEB) остаётся — стекло её не заменяет.
-        .liquidGlass(in: Self.statCardShape, tint: .white) {
-            Self.statCardShape.fill(.white)
-        }
-        .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
     }
 
-    /// История обслуживания. Белая подложка снята: блок лежит прямо на фоне
-    /// страницы, поэтому и внутренний отступ 16 ушёл вместе с ней — иначе
-    /// содержимое было бы на 32pt уже остальной страницы.
-    /// Нижней кнопки «Добавить ТО» здесь больше нет: то же действие лежит в
-    /// тулбаре, и рядом друг с другом они читались дублем.
+    private func statCardShell<V: View>(title: String,
+                                        @ViewBuilder value: () -> V) -> some View {
+        statColumn(title: title, value: value)
+            .frame(height: 96)
+            .darkGlassCard(in: Self.statCardShape)
+    }
+
+    /// История обслуживания (нода 46165:2835). Белой подложки под секцией нет,
+    /// но свои 16pt сверху и снизу у неё остались — горизонтальные даёт
+    /// страница. Нижней кнопки «Добавить ТО» здесь нет: то же действие лежит
+    /// в тулбаре, и рядом друг с другом они читались дублем.
     private func historyCard() -> some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 24) {
+        VStack(spacing: 24) {
+            VStack(spacing: 20) {
                 Text("История обслуживания")
                     .font(.system(size: 22, weight: .bold))
                     .figmaLineHeight(28, fontSize: 22, weight: .bold)
-                    .foregroundStyle(Figma.labelsPrimary)
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
 
-                HStack(spacing: 16) {
-                    statCard(title: "Всего потрачено", value: totalSpent)
-                    statCard(title: "Количество ТО", value: "\(services.count)")
-                }
+                historySummary
             }
 
             historyStrip
         }
+        .padding(.vertical, 16)
+    }
+
+    /// Сводка: одна карточка на две колонки. Раньше это были две плитки —
+    /// макет сложил их в одну, и разделять её обратно нельзя: у колонок
+    /// общая подложка и общая кромка.
+    private var historySummary: some View {
+        HStack(spacing: 0) {
+            statColumn(title: "Количество ТО") { Text("\(services.count)") }
+            statColumn(title: "Всего потрачено") { Text(totalSpent) }
+        }
+        .frame(height: 96)
+        .darkGlassCard(in: Self.statCardShape)
     }
 
     // MARK: - Тулбар (нода 46165:3243)
@@ -1062,9 +1133,12 @@ struct CarMainView: View {
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Figma.vibrantControlsPrimary)
+                    .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
-                    .liquidGlass(in: Circle(), tint: .white) { Circle().fill(.white) }
+                    // Страница под баром теперь чёрная сверху донизу, поэтому
+                    // и кнопки тулбара — на тёмном стекле, как карточки.
+                    // Само это состояние в макете не нарисовано.
+                    .darkGlassCard(in: Circle())
                     .contentShape(Circle())
             }
             .menuStyle(.button)
@@ -1084,10 +1158,9 @@ struct CarMainView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .tracking(-0.23)
                 .figmaLineHeight(20, fontSize: 15, weight: .semibold)
-                // В макете белый — там под баром чёрный верх страницы.
-                // На светлом низу белый пропадает, см. `isOverLightContent`.
-                .foregroundStyle(toolbar.isOverLightContent ? Figma.labelsPrimary : .white)
-                .animation(.easeInOut(duration: 0.2), value: toolbar.isOverLightContent)
+                // Белый на всей длине страницы: светлого низа, ради которого
+                // цвет когда-то переключался, у неё больше нет.
+                .foregroundStyle(.white)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1098,9 +1171,9 @@ struct CarMainView: View {
             Button { sheet = .serviceChoice } label: {
                 Text("Добавить ТО")
                     .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(Figma.vibrantControlsPrimary)
+                    .foregroundStyle(.white)
                     .frame(width: 139, height: 44)
-                    .liquidGlass(in: Capsule(), tint: .white) { Capsule().fill(.white) }
+                    .darkGlassCard(in: Capsule())
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
@@ -1117,18 +1190,24 @@ struct CarMainView: View {
     private var historyStrip: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(services.enumerated()), id: \.element.id) { index, record in
-                if index > 0 { Spacer(minLength: 0).frame(height: 32) }
+                if index > 0 { Spacer(minLength: 0).frame(height: 24) }
 
-                // Дата — заголовок группы, 20pt Semibold из макета
+                // Дата — заголовок группы, 16pt Semibold из макета
                 Text(record.date, format: .dateTime.day(.twoDigits)
                     .month(.twoDigits).year())
-                    .font(.system(size: 20, weight: .semibold))
-                    .tracking(-0.45)
-                    .figmaLineHeight(25, fontSize: 20, weight: .semibold)
-                    .foregroundStyle(Figma.labelsPrimary)
+                    .font(.system(size: 16, weight: .semibold))
+                    // Трекинга нет намеренно. В ноде он объявлен (−0.45), но
+                    // до рендера не доходит: с ним дата выходила на 3pt уже
+                    // макета, без него сходится в пиксель. Тот же случай, что
+                    // и с заголовком, только в другую сторону, — верим замеру.
+                    .foregroundStyle(.white)
+                    // Бокс даты в макете 25pt. Рамкой, а не `figmaLineHeight`:
+                    // тот у одной строки давал 22 и уводил каждую следующую
+                    // группу на 3pt вверх — к третьей записи набегало девять.
+                    .frame(height: 25)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer(minLength: 0).frame(height: 16)
+                Spacer(minLength: 0).frame(height: 8)
 
                 serviceCard(record)
                     // HIG: действия над конкретным элементом — контекстное
@@ -1153,7 +1232,7 @@ struct CarMainView: View {
                         // карточкой, иначе возвращается та же болезнь.
                         serviceCardBody(record)
                             .frame(width: 370, height: Self.serviceCardHeight)
-                            .background(Self.serviceCardShape.fill(.white))
+                            .background(Self.serviceCardShape.fill(Figma.darkCard))
                     }
             }
         }
@@ -1168,10 +1247,9 @@ struct CarMainView: View {
         serviceCardBody(record)
             .frame(maxWidth: .infinity)
             .frame(height: Self.serviceCardHeight)
-            .liquidGlass(in: Self.serviceCardShape, tint: .white) {
-                Self.serviceCardShape.fill(.white)
-            }
-            .shadow(color: .black.opacity(0.05), radius: 12, y: 4)
+            .darkGlassCard(in: Self.serviceCardShape)
+            // Тени из прежнего макета здесь больше нет: на чёрном фоне её
+            // не видно, а кромку и объём даёт само стекло.
             .contentShape(Self.serviceCardShape)
     }
 
@@ -1185,10 +1263,12 @@ struct CarMainView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("\(NumberFormat.grouped(record.amount))\u{00A0}₽")
                 .font(.system(size: 15, weight: .semibold))
-                .tracking(-0.23)
-                .figmaLineHeight(20, fontSize: 15, weight: .semibold)
-                .foregroundStyle(Figma.labelsPrimary)
+                // Трекинг снят по той же причине, что у даты и значений плиток.
+                .foregroundStyle(.white)
+                .frame(height: 20)
 
+            // Две строки по 18 — так работы и стоят в макете; у записи с одной
+            // работой строка остаётся сверху, а карточка держит свои 96.
             Text(record.works.map(\.title).joined(separator: ", "))
                 .font(.system(size: 13))
                 .tracking(-0.08)
@@ -1197,6 +1277,7 @@ struct CarMainView: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(height: 36, alignment: .top)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1311,6 +1392,7 @@ struct CarMainView: View {
         let plate = carPlate
         let name = carName.trimmingCharacters(in: .whitespaces)
         let mileage = NumberFormat.digits(carMileage, or: 0)
+        let price = NumberFormat.digits(carPrice)
         let photoData = newCarPhoto.flatMap { ImageLoader.encode([$0]).first }
 
         Task {
@@ -1320,10 +1402,11 @@ struct CarMainView: View {
                       let found = try? await lookup.lookup(plate: plate) else { return }
                 car = Car(plate: PlateFormat.format(plate), name: found.name,
                           vin: found.displayVIN, generation: found.generation,
-                          odometer: found.odometer ?? 0, photo: photoData)
+                          odometer: found.odometer ?? 0, price: price, photo: photoData)
             } else {
                 guard !name.isEmpty else { return }
-                car = Car(plate: "", name: name, odometer: mileage, photo: photoData)
+                car = Car(plate: "", name: name, odometer: mileage,
+                          price: price, photo: photoData)
             }
 
             // Индекс берём до вставки: это и есть номер страницы новой машины
@@ -1333,9 +1416,17 @@ struct CarMainView: View {
             carPlate = ""
             carName = ""
             carMileage = ""
+            carPrice = ""
             newCarPhoto = nil
             carPhotoItems = []
         }
+    }
+
+    /// Пустое поле стирает цену: у машины её может не быть вовсе, и пустая
+    /// честнее оставленной от прошлого ввода.
+    private func savePrice() {
+        car?.price = NumberFormat.digits(priceDraft)
+        priceDraft = ""
     }
 
     private func deleteCar() {
@@ -1423,6 +1514,46 @@ struct CarMainView: View {
 /// Поднимается по иерархии UIKit до ближайшего UIScrollView — того самого,
 /// на котором стоит SwiftUI-прокрутка. Отдельного файла не заводим: правка
 /// `project.pbxproj` вручную дороже двадцати строк.
+private extension View {
+    /// Тёмное стекло карточек главной: «Liquid Glass - Regular - Small» в
+    /// тёмном варианте. Один рецепт на все карточки экрана — они и в макете
+    /// один компонент.
+    ///
+    /// Рисуем сами (`kind: .painted`), потому что `glassEffect` не отдаёт
+    /// наружу ни толщину кромки, ни внутренние тени. Профиль снят колонкой
+    /// пикселей с рендера и одинаков у всех карточек: заливка #1A1A1A, сверху
+    /// затемнение до 18/255, сходящее на нет к 28pt, снизу подсветка до 30 и
+    /// волосяная кромка по контуру.
+    func darkGlassCard<S: Shape>(in shape: S) -> some View {
+        liquidGlass(in: shape, tint: Figma.darkCard, kind: .painted) {
+            shape.fill(Figma.darkCard)
+                .overlay {
+                    // Полосы в точках, а не в долях высоты: в макете это
+                    // внутренние тени с абсолютным радиусом, и у карточки
+                    // 246pt они такие же, как у плитки 96pt.
+                    VStack(spacing: 0) {
+                        LinearGradient(colors: [.black.opacity(0.31), .clear],
+                                       startPoint: .top, endPoint: .bottom)
+                            .frame(height: 28)
+
+                        Spacer(minLength: 0)
+
+                        LinearGradient(colors: [.clear, .white.opacity(0.02)],
+                                       startPoint: .top, endPoint: .bottom)
+                            .frame(height: 12)
+                    }
+                    .clipShape(shape)
+                }
+                // Кромка. В макете она объявлена обводкой 0.5pt цветом
+                // #A6A6A6, но обводка там внутренняя, а `stroke` кладёт линию
+                // по центру контура — тем же цветом край выходил вдвое ярче
+                // рендера (107 против 65 суммарно по двум строкам). Значение
+                // подобрано замером, а не переписано из ноды.
+                .overlay(shape.stroke(Color(white: 0.4), lineWidth: 0.5))
+        }
+    }
+}
+
 private struct ScrollViewFinder: UIViewRepresentable {
     let onFound: (UIScrollView) -> Void
 
@@ -1473,6 +1604,7 @@ private struct CarMainChrome: ViewModifier {
     @Binding var carPlate: String
     @Binding var carName: String
     @Binding var carMileage: String
+    @Binding var carPrice: String
     @Binding var carPhotoItems: [PhotosPickerItem]
     let carPhoto: UIImage?
     let onCarPhotoLoaded: (UIImage?) -> Void
@@ -1489,6 +1621,7 @@ private struct CarMainChrome: ViewModifier {
                     plate: $carPlate,
                     name: $carName,
                     mileage: $carMileage,
+                    price: $carPrice,
                     photoItems: $carPhotoItems,
                     photo: carPhoto,
                     onClose: { showAddCar = false },
