@@ -350,7 +350,7 @@ struct CarMainView: View {
         // светился #F2F2F7 из-под контента.
         .background(Color.black.ignoresSafeArea())
         .ignoresSafeArea()
-        .preferredColorScheme(.dark)
+        // Тёмную схему объявляет RootView — одна на всё приложение.
         // «нативная штука добавления фото» (45885:3279) — системный пикер,
         // после выбора открываем форму с уже прикреплённым файлом.
         .animation(Motion.toast(reduceMotion: reduceMotion), value: showToast)
@@ -417,16 +417,15 @@ struct CarMainView: View {
         TabView(selection: tabSelection) {
             Tab("Машина", systemImage: "car", value: 0) {
                 NavigationStack {
-                    // Тёмная схема надета **на содержимое**, а тулбар объявлен
-                    // снаружи неё. Системное стекло берёт схему у навигационной
-                    // панели, а не у своего элемента: объявленный внутри тёмного
-                    // окружения бар выходил чёрной капсулой с чёрным текстом.
-                    ZStack { carScreen.environment(\.colorScheme, .dark) }
-                        // Свой фон обязателен. `NavigationStack` подкладывает
-                        // непрозрачный `systemBackground`, а он здесь светлый
-                        // (схему стека мы нарочно не трогаем ради тулбара) —
-                        // то есть белый. Ниже контента страницы он вылезал
-                        // чистым белым и давал шов.
+                    // С тёмной темой всего приложения схему больше никто не
+                    // переопределяет: и стек, и тулбар, и содержимое живут
+                    // в одной тёмной. Кнопки тулбара при этом рисуют своё
+                    // тёмное стекло сами (`darkGlassCard`) и от схемы бара
+                    // не зависят.
+                    ZStack { carScreen }
+                        // Свой фон обязателен: `NavigationStack` подкладывает
+                        // непрозрачный `systemBackground`, и явный чёрный
+                        // гарантирует, что ниже контента не вылезет шов.
                         .background(Color.black)
                         .ignoresSafeArea()
                         // Краевой эффект прокрутки размывал карточку «ТО через»
@@ -442,22 +441,20 @@ struct CarMainView: View {
                                            for: .navigationBar)
                 }
             }
-            Tab("Карта", systemImage: "map", value: 1) { MapScreen().environment(\.colorScheme, .dark) }
+            Tab("Карта", systemImage: "map", value: 1) { MapScreen() }
             Tab("Ошибки", systemImage: "wrench.adjustable", value: 2) {
                 IssuesScreen(hidesTabBar: $hidesTabBar)
                     .ignoresSafeArea()
-                    .environment(\.colorScheme, .dark)
                     // Видимость бара объявляется **содержимым вкладки**, а не
                     // самим `TabView`: на `TabView` модификатор молча
                     // игнорируется, и бар оставался поверх модалки.
                     .toolbarVisibility(hidesTabBar ? .hidden : .automatic, for: .tabBar)
             }
-            Tab("Ещё", systemImage: "ellipsis", value: 3) { MoreScreen().ignoresSafeArea().environment(\.colorScheme, .dark) }
+            Tab("Ещё", systemImage: "ellipsis", value: 3) { MoreScreen().ignoresSafeArea() }
         }
-        // Бар в макете объявлен светлым (`BG mode="Light"`), а экран идёт в
-        // тёмной схеме ради светлого статус-бара. Схему задаём только бару;
-        // разделы возвращают себе тёмную сами — каждый в своей вкладке.
-        .environment(\.colorScheme, .light)
+        // Тёмная тема 05.09.2026: бар больше не светлый — тёмное стекло он
+        // берёт из общей тёмной схемы приложения, как на тёмном рендере
+        // «главная» (46225:7788). Прежний светлый вариант — в истории.
         // Без своего цвета выбранная вкладка выходила **тусклее** невыбранных:
         // системный бар красит её акцентом, а по умолчанию он не читается на
         // стекле. Синий — цвет выбранной вкладки из макета.

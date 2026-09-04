@@ -20,5 +20,10 @@ struct RootView: View {
         }
         .animation(.easeInOut, value: appState.hasCompletedOnboarding)
         .animation(.easeInOut, value: cars.isEmpty)
+        // Всё приложение — в тёмной теме (тёмная редакция макета, 05.09.2026).
+        // Объявляется здесь, а не в CarMainView: онбординг и добавление
+        // машины идут до появления главной, и без этого их статус-бар и
+        // клавиатура оставались бы светлыми.
+        .preferredColorScheme(.dark)
     }
 }

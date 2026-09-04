@@ -379,10 +379,9 @@ struct IssuesScreen: View {
         .frame(maxWidth: .infinity)
         // Подложка сплошная, а не стекло. Лист на весь экран в iOS
         // непрозрачный, и это видно замером: сквозь `glassEffect` светил шар,
-        // и фон шторки уходил в зелень — rgb(245,253,251) там, где в макете
-        // нейтральные 243.
-        .background(Self.sheetShape.fill(Figma.backgroundsPrimary))
-        .environment(\.colorScheme, .light)
+        // и фон шторки уходил в зелень. С тёмной темой поверхность стала
+        // Backgrounds (Grouped)/Secondary — как у остальных шторок.
+        .background(Self.sheetShape.fill(Figma.sheetBackground))
         // Без склейки в один слой `shadow` достаётся **каждому** примитиву
         // внутри по отдельности: свою тень получала каждая карточка и каждая
         // строка текста, и фон шторки уходил с 255 до 236. Раньше это гасило
@@ -466,9 +465,9 @@ struct IssuesScreen: View {
                         .background {
                             LinearGradient(
                                 stops: [
-                                    .init(color: Figma.backgroundsPrimary.opacity(0), location: 0),
-                                    .init(color: Figma.backgroundsPrimary.opacity(0.9), location: 0.55),
-                                    .init(color: Figma.backgroundsPrimary, location: 0.68)
+                                    .init(color: Figma.sheetBackground.opacity(0), location: 0),
+                                    .init(color: Figma.sheetBackground.opacity(0.9), location: 0.55),
+                                    .init(color: Figma.sheetBackground, location: 0.68)
                                 ],
                                 startPoint: .top, endPoint: .bottom
                             )
@@ -483,24 +482,21 @@ struct IssuesScreen: View {
             VStack(spacing: 16) {
                 ForEach(findings) { issue in
                     issueBody(issue, title: Figma.labelsPrimary,
-                              detail: Figma.vibrantSecondary)
-                        .background(lightCardSurface)
+                              detail: Figma.graysGray)
+                        .background(cardSurface)
                 }
             }
             .padding(.horizontal, 16)
         }
     }
 
-    /// Карточки в макете держатся тенью, а не заливкой: их белое 255 против
-    /// фона шторки 252 — разница в три уровня. Всю работу делает тень,
-    /// проседающая до 245 у края карточки и до 243 в зазоре между двумя.
-    private var lightCardSurface: some View {
-        // В макете это «Liquid Glass - Regular - Small», а не белая заливка.
-        // Тень остаётся: она и держит карточку на подложке, разница между
-        // её белым и фоном шторки всего три уровня.
+    /// Карточка находки на тёмной шторке. Светлую держала тень, тёмную
+    /// держит заливка: Fills/Tertiary над #1C1C1E даёт ту же разницу
+    /// в несколько уровней, что была у белого 255 на 252.
+    private var cardSurface: some View {
         Color.clear
-            .liquidGlass(in: Self.cardShape, tint: .white) {
-                Self.cardShape.fill(Figma.backgroundsPrimary)
+            .liquidGlass(in: Self.cardShape, tint: Figma.sheetControl) {
+                Self.cardShape.fill(Figma.fillsTertiary)
             }
             .shadow(color: .black.opacity(0.10), radius: 10, y: 2)
     }
@@ -526,15 +522,15 @@ struct IssuesScreen: View {
                 Button { showFindings = false } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(Figma.vibrantSecondary)
+                        .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
                         // Кружок под крестиком в макете есть — Button Group со
                         // стеклом без prominent. Подача та же, что у крестика
                         // остальных шторок проекта.
-                        .liquidGlass(in: Circle()) {
+                        .liquidGlass(in: Circle(), tint: Figma.sheetControl) {
                             Circle()
-                                .fill(.white)
-                                .overlay(Circle().stroke(Color(white: 232 / 255), lineWidth: 0.5))
+                                .fill(Figma.sheetControl)
+                                .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
                         }
                 .contentShape(Circle())
                 }
@@ -544,12 +540,13 @@ struct IssuesScreen: View {
                 Spacer(minLength: 0)
 
                 if nothingHeard == nil {
+                    // Белая галочка-акцент, как у остальных шторок.
                     Button(action: approveFindings) {
                         Image(systemName: "checkmark")
                             .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.black)
                             .frame(width: 44, height: 44)
-                            .background(Circle().fill(Figma.graysBlack))
+                            .background(Circle().fill(Figma.labelsPrimary))
                             .contentShape(Circle())
                     }
                     .buttonStyle(.plain)

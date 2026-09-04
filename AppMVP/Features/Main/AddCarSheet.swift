@@ -83,7 +83,7 @@ struct AddCarSheet: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background {
             UnevenRoundedRectangle(topLeadingRadius: 38, topTrailingRadius: 38)
-                .fill(.white)
+                .fill(Figma.sheetBackground)
                 .shadow(color: .black.opacity(0.18), radius: 18.75, y: 15)
                 // Системный фон шторки отключён через .presentationBackground(.clear),
                 // поэтому подложку надо самим дотянуть до низа экрана — иначе
@@ -109,13 +109,13 @@ struct AddCarSheet: View {
                 Button(action: onClose) {
                     Image(systemName: "xmark")
                         .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(Figma.vibrantSecondary)
+                        .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
                         // Кромку круглой кнопки даёт системное стекло
-                        .liquidGlass(in: Circle()) {
+                        .liquidGlass(in: Circle(), tint: Figma.sheetControl) {
                             Circle()
-                                .fill(.white)
-                                .overlay(Circle().stroke(Color(white: 232 / 255), lineWidth: 0.5))
+                                .fill(Figma.sheetControl)
+                                .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
                         }
                         .contentShape(Circle())
                         .motionRim(in: Circle())
@@ -125,10 +125,11 @@ struct AddCarSheet: View {
 
                 Spacer()
 
+                // Белая галочка вместо синей из прототипа: акцент кнопок белый.
                 Button(action: onSubmit) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(Color(white: 245 / 255))
+                        .foregroundStyle(.black)
                         .frame(width: 44, height: 44)
                         .background(Circle().fill(Figma.labelsPrimary))
                         .contentShape(Circle())

@@ -1,7 +1,9 @@
 import SwiftUI
 
 /// Figma: «Button - Liquid Glass - Text», variant Style = Glass Prominent, Size = Large.
-/// padding 20×16, radius 1000 (капсула), заливка Labels/Primary, лейбл 17pt белый.
+/// padding 20×16, radius 1000 (капсула), заливка Labels/Primary, лейбл 17pt
+/// контрастный к ней. В тёмной теме это белая капсула с чёрным лейблом —
+/// акцент кнопок оставлен белым по прямому указанию пользователя.
 /// Высота = 16 + line-height + 16 (50 при lh 18, 54 при lh 22).
 struct GlassProminentButton: View {
     let title: String
@@ -32,7 +34,7 @@ struct GlassProminentButton: View {
             .frame(height: lineHeight + 32)
             .overlay {
                 if isBusy {
-                    ProgressView().progressViewStyle(.circular).tint(.white)
+                    ProgressView().progressViewStyle(.circular).tint(.black)
                 }
             }
     }
@@ -52,7 +54,7 @@ private struct ProminentCapsuleStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(.white)
+            .foregroundStyle(.black)
             .glassCapsule(prominent: true, fill: Figma.labelsPrimary)
             .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
             .opacity(isEnabled ? 1 : 0.4)
@@ -81,7 +83,7 @@ extension View {
 }
 
 /// Figma: «Button - Liquid Glass - Text», variant Style = Glass, Size = Large.
-/// Фон прозрачный, лейбл Labels-Vibrant-Controls/Primary #1A1A1A.
+/// Фон прозрачный, лейбл Labels-Vibrant-Controls/Primary (в тёмной теме #F5F5F5).
 struct GlassButton: View {
     let title: String
     var lineHeight: CGFloat = 22

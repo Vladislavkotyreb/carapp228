@@ -62,10 +62,12 @@ struct CarFoundSheet: View {
         }
         .padding(.top, 16)
         .frame(width: 390, height: 731, alignment: .top)
-        // в макете это стеклянная поверхность (Fill + Shadow + слой Glass Effect).
-        // Тонировать не нужно: экран добавления авто под шторкой светлый,
-        // так стекло ближе к макету.
-        .liquidGlass(in: Self.shape) { Self.shape.fill(.white) }
+        // Тёмная тема: поверхность шторки — Backgrounds (Grouped)/Secondary,
+        // как у тёмных шторок ноды 46225:7443. Тонируем: без тона стекло
+        // над чёрным экраном уходило бы в непредсказуемый серый.
+        .liquidGlass(in: Self.shape, tint: Figma.sheetBackground) {
+            Self.shape.fill(Figma.sheetBackground)
+        }
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
             Capsule()
@@ -88,13 +90,13 @@ struct CarFoundSheet: View {
                 Button(action: onClose) {
                     Image(systemName: "xmark")
                         .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(Figma.vibrantSecondary)
+                        .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
                         // Кромку круглой кнопки даёт системное стекло
-                        .liquidGlass(in: Circle()) {
+                        .liquidGlass(in: Circle(), tint: Figma.sheetControl) {
                             Circle()
-                                .fill(.white)
-                                .overlay(Circle().stroke(Figma.separatorsVibrant, lineWidth: 0.5))
+                                .fill(Figma.sheetControl)
+                                .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
                         }
                         .contentShape(Circle())
                         .motionRim(in: Circle())
@@ -104,10 +106,12 @@ struct CarFoundSheet: View {
 
                 Spacer()
 
+                // Белая галочка-акцент: в тёмном прототипе она синяя, но акцент
+                // кнопок оставлен белым по прямому указанию пользователя.
                 Button(action: onConfirm) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(Color(red: 245 / 255, green: 245 / 255, blue: 245 / 255))
+                        .foregroundStyle(.black)
                         .frame(width: 44, height: 44)
                         .background(Circle().fill(Figma.labelsPrimary))
                         .contentShape(Circle())
@@ -132,7 +136,7 @@ struct CarFoundSheet: View {
             }
 
             Rectangle()
-                .fill(Figma.separatorsVibrant)
+                .fill(Figma.separatorsOnDark)
                 .frame(width: 1, height: 20.117)
 
             Text(car.plateRegion)

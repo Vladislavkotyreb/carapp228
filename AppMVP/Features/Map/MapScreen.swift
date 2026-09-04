@@ -144,9 +144,6 @@ struct MapScreen: View {
         // его подписи сталкивались с названиями улиц (снято на симуляторе).
         .padding(3)
         .liquidGlass(in: Self.pickerShape) { Self.pickerShape.fill(Material.regular) }
-        // Схема — светлая, как у таббара и чипов: раздел идёт в тёмной ради
-        // светлого статус-бара, но сами контролы в макете светлые.
-        .environment(\.colorScheme, .light)
         .padding(.horizontal, 16)
         // HIG: смена сегмента — .selection, как у пикера и таббара.
         .sensoryFeedback(.selection, trigger: mode)
@@ -489,7 +486,7 @@ struct MapScreen: View {
         }
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Figma.mainBackground)
+        .background(Figma.backgroundsPrimary)
     }
 }
 
@@ -535,7 +532,9 @@ private struct AddPlaceSheet: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Figma.backgroundsPrimary)
+        // Системный лист в тёмной схеме — приподнятая поверхность, не чистый
+        // чёрный: фон тот же, что у остальных шторок.
+        .background(Figma.sheetBackground)
         .onAppear { titleFocused = true }
     }
 }

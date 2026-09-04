@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// Figma: «Segmented Control» — 370×50, radius 100, фон Fills/Tertiary,
-/// внутренний паддинг 2, гэп 4 между опциями. Выбранная опция — белая капсула
-/// с тенью 0/2/10 rgba(0,0,0,0.06), лейбл Semibold; невыбранная — Medium.
+/// внутренний паддинг 2, гэп 4 между опциями. Тёмная редакция (нода
+/// 46225:7962): выбранная опция — капсула Grays/Gray 2 (Dark) с тенью
+/// 0/2/10 rgba(0,0,0,0.06), лейбл Semibold; невыбранная — Medium.
 struct FigmaSegmentedControl: View {
     let titles: [String]
     @Binding var selection: Int
@@ -27,7 +28,7 @@ struct FigmaSegmentedControl: View {
                         // пилюля переезжает между сегментами, а не появляется заново
                         if isSelected {
                             Capsule()
-                                .fill(.white)
+                                .fill(Figma.segmentPill)
                                 .shadow(color: .black.opacity(0.06), radius: 5, y: 2)
                                 .matchedGeometryEffect(id: "segment", in: pill)
                         }
@@ -112,7 +113,7 @@ struct FigmaGroupedTextField: View {
             row(firstPlaceholder, text: $first, index: 0)
 
             Rectangle()
-                .fill(Figma.separatorsVibrant)
+                .fill(Figma.separatorsOnDark)
                 .frame(height: 1)
                 .padding(.leading, 16)
 
@@ -145,8 +146,9 @@ struct FigmaGroupedTextField: View {
     }
 }
 
-/// Figma: «Row - Button» — 52pt, radius 26, фон Fills/Tertiary,
-/// лейбл 17 Regular цветом Accents/Blue с иконкой.
+/// Figma: «Row - Button» — 52pt, radius 26, фон Fills/Tertiary.
+/// В тёмном прототипе лейбл синий, но акцент кнопок в приложении белый —
+/// прямое указание пользователя поверх недоделанного прототипа.
 struct FigmaRowLabel: View {
     let systemImage: String
     let title: String
@@ -158,7 +160,7 @@ struct FigmaRowLabel: View {
         }
         .font(.system(size: 17))
         .tracking(-0.43)
-        .foregroundStyle(Figma.accentsBlue)
+        .foregroundStyle(Figma.labelsPrimary)
         .lineLimit(1)
         .frame(maxWidth: .infinity)
         .frame(height: 52)

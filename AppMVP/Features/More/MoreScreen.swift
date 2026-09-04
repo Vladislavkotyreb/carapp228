@@ -22,6 +22,6 @@ struct MoreScreen: View {
         }
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Figma.mainBackground)
+        .background(Figma.backgroundsPrimary)
     }
 }

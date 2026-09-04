@@ -145,8 +145,7 @@ struct FloatingTabBar: View {
         .padding(.horizontal, 25)
         .padding(.top, 16)
         .padding(.bottom, 25)
-        // экран идёт в тёмной схеме ради светлого статус-бара, но бар сам светлый
-        .environment(\.colorScheme, .light)
+        // Тёмная тема: бар живёт в общей тёмной схеме, светлый вариант — в истории.
         // HIG: смена вкладки — .selection, не impact
         .sensoryFeedback(.selection, trigger: selection)
         .animation(Motion.tabBar(reduceMotion: reduceMotion), value: state.isMinimized)

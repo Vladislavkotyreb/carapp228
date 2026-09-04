@@ -78,13 +78,9 @@ struct OnboardingView: View {
         // Content container (45822:3998): x = 32, ширина 338 — по 32 с каждой
         // стороны, блок ровно по центру.
         ZStack(alignment: .topLeading) {
-            // Декоративная подложка из макета (45822:4013). Почти незаметна —
-            // светлое пятно на светлом фоне, — но в макете она есть.
-            Image("Dimmerwelcome")
-                .resizable()
-                .frame(width: 310.579, height: 95.997)
-                .figmaBlock(x: 40.627, width: 310.579, y: 367.618)
-
+            // Декоративная подложка из макета (45822:4013) снята: она была
+            // светлым пятном под светлый фон, на чёрном читалась бы как блик.
+            // Тёмного онбординга в прототипе нет — вернуть вместе с его нодой.
             title("Привет!")
                 .figmaBlock(x: 32, width: 338, y: 528.75)
 
@@ -101,11 +97,8 @@ struct OnboardingView: View {
     private func survey(_ page: SurveyPage, index: Int) -> some View {
         // Form Container: x = 16, ширина 370. Заголовок 529.5, описание +96, кнопки +201.
         ZStack(alignment: .topLeading) {
-            // Декоративная подложка из макета (45822:4022)
-            Image("Dimmersurvey")
-                .resizable()
-                .frame(width: 298, height: 38)
-                .figmaBlock(x: 52, width: 298, y: 294.5)
+            // Декоративная подложка из макета (45822:4022) снята вместе с
+            // тёмной темой — см. welcome.
 
             // Page Control: frame y = 61.5, h = 44; пилюля 24 по центру → 61.5 + 10
             PageIndicatorDots(count: pages.count, currentIndex: index)

@@ -34,11 +34,11 @@ struct AddServiceChoiceSheet: View {
                     .padding(24)
                     .frame(maxWidth: .infinity)
                     .frame(height: 162)
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 42), tint: Figma.darkCard) {
+                    .liquidGlass(in: RoundedRectangle(cornerRadius: 42), tint: Figma.graysBlack) {
                         RoundedRectangle(cornerRadius: 42)
-                            .fill(Figma.darkCard)
+                            .fill(Figma.graysBlack)
                             .overlay(RoundedRectangle(cornerRadius: 42)
-                                .stroke(Color(white: 217 / 255), lineWidth: 0.5))
+                                .stroke(Color.white.opacity(0.1), lineWidth: 0.5))
                     }
                     .motionRim(in: RoundedRectangle(cornerRadius: 42))
                     // Нажимается вся карточка, а не только надпись внутри.
@@ -72,11 +72,11 @@ struct AddServiceChoiceSheet: View {
         }
         .padding(.top, 16)
         .frame(height: 459)
-        // в макете это стеклянная поверхность (Fill + Shadow + слой Glass Effect)
-        // стекло тонируем белым и держим светлым: без этого над тёмной
-        // подложкой поверхность темнеет и чёрный текст становится нечитаемым
-        .liquidGlass(in: Self.shape, tint: .white) { Self.shape.fill(.white) }
-        .environment(\.colorScheme, .light)
+        // Тёмная тема (нода 46225:7551): поверхность шторки тёмная, карточка
+        // «фото или PDF» на ней — чистый чёрный с волосяной кромкой.
+        .liquidGlass(in: Self.shape, tint: Figma.sheetBackground) {
+            Self.shape.fill(Figma.sheetBackground)
+        }
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
             Capsule()
@@ -102,13 +102,13 @@ struct AddServiceChoiceSheet: View {
                 Button(action: onClose) {
                     Image(systemName: "xmark")
                         .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(Figma.vibrantSecondary)
+                        .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
                         // Кромку круглой кнопки даёт системное стекло
-                        .liquidGlass(in: Circle()) {
+                        .liquidGlass(in: Circle(), tint: Figma.sheetControl) {
                             Circle()
-                                .fill(.white)
-                                .overlay(Circle().stroke(Color(white: 232 / 255), lineWidth: 0.5))
+                                .fill(Figma.sheetControl)
+                                .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
                         }
                         .contentShape(Circle())
                         .motionRim(in: Circle())

@@ -29,32 +29,50 @@ struct Theme {
     static let buttonHeight: CGFloat = 52
 }
 
-/// Значения один-в-один из Figma (Beepy, секция «1 флоу: онбординг + добавление машины»).
+/// Значения один-в-один из Figma (Beepy). С 05.09.2026 всё приложение идёт
+/// в тёмной теме: токены переведены на тёмные варианты тех же переменных
+/// библиотеки (тёмная секция 46225:7442 и палитра HIG Dark). Акцент кнопок —
+/// белый по прямому указанию пользователя: синие кнопки прототипа не берём.
 /// Не заменять токенами AppColors/AppSpacing — там другие значения.
 enum Figma {
     // Variables
-    static let backgroundsPrimary = Color.white                                     // Backgrounds/Primary #FFFFFF
-    static let labelsPrimary = Color.black                                          // Labels/Primary #000000
+    static let backgroundsPrimary = Color.black                                     // Backgrounds/Primary (Dark) #000000
+    /// Фон шторок — Backgrounds (Grouped)/Secondary (Dark) #1C1C1E, снят
+    /// с тёмных нод «добавление то» (46225:7443) и «добавление авто» (46225:7962).
+    static let sheetBackground = Color(red: 28 / 255, green: 28 / 255, blue: 30 / 255)
+    static let labelsPrimary = Color.white                                          // Labels/Primary (Dark) #FFFFFF
     static let graysGray = Color(red: 142 / 255, green: 142 / 255, blue: 147 / 255) // Grays/Gray #8E8E93
-    static let labelsTertiary = Color(red: 60 / 255, green: 60 / 255, blue: 67 / 255)
-        .opacity(0.3)                                                               // Labels/Tertiary
-    static let vibrantControlsPrimary = Color(red: 26 / 255, green: 26 / 255, blue: 26 / 255) // #1A1A1A
+    static let labelsTertiary = Color(red: 235 / 255, green: 235 / 255, blue: 245 / 255)
+        .opacity(0.3)                                                               // Labels/Tertiary (Dark)
+    static let vibrantControlsPrimary = Color(red: 245 / 255, green: 245 / 255, blue: 245 / 255) // Labels-Vibrant-Controls/Primary (Dark) #F5F5F5
     static let fillsTertiary = Color(red: 118 / 255, green: 118 / 255, blue: 128 / 255)
-        .opacity(0.12)                                                              // Fills/Tertiary
-    static let labelsQuaternary = Color(red: 60 / 255, green: 60 / 255, blue: 67 / 255)
-        .opacity(0.18)                                                              // Labels/Quaternary
+        .opacity(0.24)                                                              // Fills/Tertiary (Dark)
+    static let labelsQuaternary = Color(red: 235 / 255, green: 235 / 255, blue: 245 / 255)
+        .opacity(0.18)                                                              // Labels/Quaternary (Dark)
     static let accentsRed = Color(red: 1, green: 56 / 255, blue: 60 / 255)           // Accents/Red #FF383C
     static let accentsBlue = Color(red: 0, green: 136 / 255, blue: 1)                // Accents/Blue #0088FF
+    /// Разделитель госномера на чёрной главной — остался светлым: экран
+    /// сверен попиксельно с тёмным рендером ещё до общей тёмной темы.
     static let separatorsVibrant = Color(red: 230 / 255, green: 230 / 255, blue: 230 / 255) // #E6E6E6
+    /// Разделители строк на тёмных заливках (капсулы полей, группы форм) —
+    /// системный Separator тёмной схемы iOS.
+    static let separatorsOnDark = Color(red: 84 / 255, green: 84 / 255, blue: 88 / 255)
+        .opacity(0.65)                                                              // #545458 65%
     static let labelsVibrantTertiary = Color(red: 191 / 255, green: 191 / 255, blue: 191 / 255) // #BFBFBF
-    static let overlaysDefault = Color.black.opacity(0.2)                           // Overlays/Default
+    static let overlaysDefault = Color.black.opacity(0.48)                          // Overlays/Default (Dark) #0000007A
     static let vibrantSecondary = Color(red: 114 / 255, green: 114 / 255, blue: 114 / 255)  // #727272
-    static let grabber = Color(red: 204 / 255, green: 204 / 255, blue: 204 / 255)    // #CCCCCC
+    static let grabber = Color(red: 51 / 255, green: 51 / 255, blue: 51 / 255)       // Fills-Vibrant/Primary (Dark) #333333
+    /// Кружок кнопки тулбара шторки (крестик): Backgrounds/Tertiary (Dark),
+    /// на рендере 46225:7443 замер даёт (47…50, 47…50, 49…52).
+    static let sheetControl = Color(red: 44 / 255, green: 44 / 255, blue: 46 / 255)  // #2C2C2E
+    /// Пилюля выбранного сегмента — Grays/Gray 2 (Dark), как у системного
+    /// сегментед-контрола тёмной схемы; замер с рендера 46225:7962: (104, 104, 107).
+    static let segmentPill = Color(red: 99 / 255, green: 99 / 255, blue: 102 / 255)  // #636366
     static let fillsPrimary = Color(red: 120 / 255, green: 120 / 255, blue: 120 / 255)
         .opacity(0.2)                                                               // Fills/Primary
-    static let fillsQuaternary = Color(red: 116 / 255, green: 116 / 255, blue: 128 / 255)
-        .opacity(0.08)                                                              // Fills/Quaternary
-    static let fillsVibrantSecondary = Color(red: 224 / 255, green: 224 / 255, blue: 224 / 255) // #E0E0E0
+    static let fillsQuaternary = Color(red: 118 / 255, green: 118 / 255, blue: 128 / 255)
+        .opacity(0.18)                                                              // Fills/Quaternary (Dark)
+    static let fillsVibrantSecondary = Color(red: 51 / 255, green: 51 / 255, blue: 51 / 255) // Fills-Vibrant (Dark) #333333
     static let graysGray2 = Color(red: 174 / 255, green: 174 / 255, blue: 178 / 255) // Grays/Gray-2 #AEAEB2
     static let graysBlack = Color.black                                              // Grays/Black
     // Цвета живого шара на экране «Ошибки». В макете он растровая заглушка,
@@ -86,15 +104,10 @@ enum Figma {
     /// «Карты» и «Телефон». Свой оттенок здесь читался бы как чужой значок.
     static let accentsYellow = Color(red: 1, green: 204 / 255, blue: 0)              // #FFCC00
     static let fillsSecondary = Color(red: 120 / 255, green: 120 / 255, blue: 128 / 255)
-        .opacity(0.16)                                                              // Fills/Secondary
+        .opacity(0.32)                                                              // Fills/Secondary (Dark)
     static let trackBackground = Color(red: 120 / 255, green: 120 / 255, blue: 120 / 255)
         .opacity(0.4)                                                               // Track прогресса ТО
-    static let vibrantPrimary = Color(red: 204 / 255, green: 204 / 255, blue: 204 / 255) // Fills-Vibrant/Primary #CCC
-
-    /// Светлый фон разделов «Карта» (без ключа) и «Ещё». На главной его
-    /// больше нет: с 02.09.2026 она чёрная целиком, вместе с градиентом ушёл
-    /// и он сам — искать в истории, если понадобится вернуть.
-    static let mainBackground = Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255) // #F2F2F7
+    static let vibrantPrimary = Color(red: 51 / 255, green: 51 / 255, blue: 51 / 255) // Fills-Vibrant/Primary (Dark) #333333
 
     // Frame макета — iPhone 16 Pro, 402×874
     static let frameWidth: CGFloat = 402
