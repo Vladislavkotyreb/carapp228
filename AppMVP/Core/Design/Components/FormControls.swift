@@ -101,6 +101,8 @@ struct FigmaGroupedTextField: View {
     let secondPlaceholder: String
     @Binding var second: String
     var secondKeyboardType: UIKeyboardType = .default
+    /// Маска второй строки (пробег: разряды по три на лету).
+    var secondFormat: ((String) -> String)?
     var submitLabel: SubmitLabel = .return
     var onSubmit: (() -> Void)?
 
@@ -117,7 +119,8 @@ struct FigmaGroupedTextField: View {
                 .frame(height: 1)
                 .padding(.leading, 16)
 
-            row(secondPlaceholder, text: $second, keyboardType: secondKeyboardType, index: 1, isLast: true)
+            row(secondPlaceholder, text: $second, keyboardType: secondKeyboardType,
+                format: secondFormat, index: 1, isLast: true)
         }
         // Капсула — ровно две строки и разделитель, 105pt. Раньше сюда входили
         // ещё 19pt пустоты снизу, из-за которых вторая строка выглядела
@@ -127,6 +130,7 @@ struct FigmaGroupedTextField: View {
 
     private func row(_ placeholder: String, text: Binding<String>,
                      keyboardType: UIKeyboardType = .default,
+                     format: ((String) -> String)? = nil,
                      index: Int,
                      isLast: Bool = false) -> some View {
         ZStack(alignment: .leading) {
@@ -140,6 +144,12 @@ struct FigmaGroupedTextField: View {
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Figma.labelsPrimary)
                 .keyboardType(keyboardType)
+                .onChange(of: text.wrappedValue) { _, new in
+                    guard let format else { return }
+                    let masked = format(new)
+                    // переписываем только при отличии, иначе будет цикл
+                    if masked != new { text.wrappedValue = masked }
+                }
         }
         .padding(.horizontal, 16)
         .frame(height: 52)

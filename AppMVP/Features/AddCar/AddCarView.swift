@@ -143,6 +143,7 @@ struct AddCarView: View {
                     secondPlaceholder: "Пробег в км",
                     second: $mileage,
                     secondKeyboardType: .numberPad,
+                    secondFormat: NumberFormat.groupedInput,
                     submitLabel: .go,
                     onSubmit: submit
                 )
@@ -161,7 +162,8 @@ struct AddCarView: View {
             // вместе с настоящей ценой на главной.
             FigmaTextField(placeholder: "Цена авто, ₽",
                            text: $price,
-                           keyboardType: .numberPad)
+                           keyboardType: .numberPad,
+                           format: NumberFormat.groupedInput)
 
             if let photo {
                 VStack(spacing: 20) {

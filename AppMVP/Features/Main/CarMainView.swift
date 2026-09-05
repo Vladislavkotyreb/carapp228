@@ -346,7 +346,7 @@ struct CarMainView: View {
                 marketPrice: car?.marketPrice,
                 marketOffers: car?.marketOffers,
                 onEdit: {
-                    priceDraft = car?.price.map(String.init) ?? ""
+                    priceDraft = car?.price.map(NumberFormat.grouped) ?? ""
                     sheet = .priceEdit
                 },
                 onClose: { sheet = .closed }
@@ -456,7 +456,9 @@ struct CarMainView: View {
         // Правка цены — системный алерт с полем: ради одного числа отдельная
         // форма была бы тяжелее самого действия.
         .alert("Цена авто", isPresented: presenting(.priceEdit)) {
-            TextField("Цена в рублях", text: $priceDraft)
+            TextField("Цена в рублях", text: Binding(
+                get: { priceDraft },
+                set: { priceDraft = NumberFormat.groupedInput($0) }))
                 .keyboardType(.numberPad)
             Button("Отмена", role: .cancel) { priceDraft = "" }
             Button("Сохранить") { savePrice() }
@@ -1622,9 +1624,9 @@ struct CarMainView: View {
         } else {
             serviceDate = Date()
         }
-        serviceMileage = "\(parsed?.mileage ?? odometer)"
+        serviceMileage = NumberFormat.grouped(parsed?.mileage ?? odometer)
         let parsedWorks = (parsed?.works ?? []).map {
-            ServiceWork(title: $0.title, amount: String($0.amount))
+            ServiceWork(title: $0.title, amount: NumberFormat.grouped($0.amount))
         }
         works = parsedWorks.isEmpty ? [ServiceWork()] : parsedWorks
         sheet = .service
@@ -1724,9 +1726,9 @@ struct CarMainView: View {
     /// Открывает шторку с полями, заполненными из записи.
     private func startEditing(_ record: ServiceRecord) {
         serviceDate = record.date
-        serviceMileage = "\(record.mileage)"
+        serviceMileage = NumberFormat.grouped(record.mileage)
         // Форма рассчитана минимум на одну группу полей: пустой список её ломает
-        let rows = record.works.map { ServiceWork(title: $0.title, amount: "\($0.amount)") }
+        let rows = record.works.map { ServiceWork(title: $0.title, amount: NumberFormat.grouped($0.amount)) }
         works = rows.isEmpty ? [ServiceWork()] : rows
 
         // Чеки восстанавливаются вне главного актора: их может быть много,

@@ -163,6 +163,15 @@ group("ServiceDocParse") {
 // --------------------------------------------------------------- NumberFormat
 
 group("NumberFormat") {
+    check("маска ввода группирует на лету",
+          NumberFormat.groupedInput("1200000"), NumberFormat.grouped(1_200_000))
+    check("маска терпит уже отформатированное",
+          NumberFormat.groupedInput(NumberFormat.grouped(92_450)), NumberFormat.grouped(92_450))
+    check("маска отбрасывает нецифры и пустоту",
+          NumberFormat.groupedInput("абв"), "")
+    check("десятая цифра не влезает",
+          NumberFormat.groupedInput("1234567890"), NumberFormat.grouped(123_456_789))
+
     let nbsp = "\u{00A0}"
     check("разряды через неразрывный пробел",
           NumberFormat.grouped(9_000_000), "9\(nbsp)000\(nbsp)000")

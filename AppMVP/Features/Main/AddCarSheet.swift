@@ -45,6 +45,7 @@ struct AddCarSheet: View {
                                 secondPlaceholder: "Пробег в км",
                                 second: $mileage,
                                 secondKeyboardType: .numberPad,
+                                secondFormat: NumberFormat.groupedInput,
                                 submitLabel: .go,
                                 onSubmit: onSubmit
                             )
@@ -53,7 +54,8 @@ struct AddCarSheet: View {
                             // та объявлена ровно на две строки и 105pt.
                             FigmaTextField(placeholder: "Цена авто, ₽",
                                            text: $price,
-                                           keyboardType: .numberPad)
+                                           keyboardType: .numberPad,
+                                           format: NumberFormat.groupedInput)
 
                             if let photo {
                                 Image(uiImage: photo)

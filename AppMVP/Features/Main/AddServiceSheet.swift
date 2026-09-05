@@ -44,7 +44,8 @@ struct AddServiceSheet: View {
 
                     separator
 
-                    fieldRow("Пробег", text: $mileage, keyboard: .numberPad)
+                    fieldRow("Пробег", text: $mileage, keyboard: .numberPad,
+                             format: NumberFormat.groupedInput)
                 }
                 .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 26))
 
@@ -64,7 +65,8 @@ struct AddServiceSheet: View {
                                 VStack(spacing: 0) {
                                     fieldRow("Название ", text: $work.title)
                                     separator
-                                    fieldRow("Сумма", text: $work.amount, keyboard: .numberPad)
+                                    fieldRow("Сумма", text: $work.amount, keyboard: .numberPad,
+                                             format: NumberFormat.groupedInput)
                                 }
                                 .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 26))
 
@@ -169,7 +171,8 @@ struct AddServiceSheet: View {
     }
 
     private func fieldRow(_ placeholder: String, text: Binding<String>,
-                          keyboard: UIKeyboardType = .default) -> some View {
+                          keyboard: UIKeyboardType = .default,
+                          format: ((String) -> String)? = nil) -> some View {
         ZStack(alignment: .leading) {
             if text.wrappedValue.isEmpty {
                 Text(placeholder)
@@ -181,6 +184,12 @@ struct AddServiceSheet: View {
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Figma.labelsPrimary)
                 .keyboardType(keyboard)
+                .onChange(of: text.wrappedValue) { _, new in
+                    guard let format else { return }
+                    let masked = format(new)
+                    // переписываем только при отличии, иначе будет цикл
+                    if masked != new { text.wrappedValue = masked }
+                }
         }
         .padding(.horizontal, 16)
         .frame(height: 52)
