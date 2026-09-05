@@ -595,7 +595,8 @@ struct CarMainView: View {
                 RadialGradient(colors: [Color.white.opacity(0.09), .clear],
                                center: UnitPoint(x: -0.25, y: 0.34),
                                startRadius: 0, endRadius: 480)
-                    .blendMode(.plusLighter)
+                    // Обычная альфа, не plusLighter: режим смешивания
+                    // заставлял перекомпозичивать весь экран каждый кадр.
                     .allowsHitTesting(false)
             }
         }
@@ -1327,7 +1328,7 @@ struct CarMainView: View {
                     // Страница под баром теперь чёрная сверху донизу, поэтому
                     // и кнопки тулбара — на тёмном стекле, как карточки.
                     // Само это состояние в макете не нарисовано.
-                    .darkGlassCard(in: Circle())
+                    .darkGlassChip(in: Circle())
                     .contentShape(Circle())
             }
             .menuStyle(.button)
@@ -1364,7 +1365,7 @@ struct CarMainView: View {
                     .font(.system(size: 17, weight: .medium))
                     .foregroundStyle(.white)
                     .frame(width: 139, height: 44)
-                    .darkGlassCard(in: Capsule())
+                    .darkGlassChip(in: Capsule())
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
@@ -1748,13 +1749,17 @@ private struct ToolbarFade: ViewModifier {
 /// на котором стоит SwiftUI-прокрутка. Отдельного файла не заводим: правка
 /// `project.pbxproj` вручную дороже двадцати строк.
 private extension View {
-    /// Тёмное стекло карточек главной — тот же рецепт, что у карточек
-    /// «Ошибок» (`darkCardSurface`): системное стекло с тоном #1A1A1A,
-    /// кромку на iOS 26 даёт само стекло, нарисованная обводка white 10 %
-    /// живёт только в подложке для старых систем. Прежний painted-профиль
-    /// с подобранной кромкой отменён по прямой просьбе пользователя:
-    /// карточки двух экранов выглядели по-разному.
+    /// Карточки главной — общий `darkCardSurface` (см. LiquidGlass.swift):
+    /// нарисованная заливка с кромкой white 10 %, единый вид с «Ошибками»
+    /// без живого стекла на каждом элементе списка.
     func darkGlassCard<S: Shape>(in shape: S) -> some View {
+        darkCardSurface(in: shape)
+    }
+
+    /// Кнопки тулбара остаются настоящим стеклом: их две, они висят поверх
+    /// уезжающего контента, и преломление там осмысленно — в отличие от
+    /// карточек на чёрном фоне.
+    func darkGlassChip<S: Shape>(in shape: S) -> some View {
         liquidGlass(in: shape, tint: Figma.darkCard) {
             shape.fill(Figma.darkCard)
                 .overlay(shape.stroke(Color.white.opacity(0.10), lineWidth: 0.5))

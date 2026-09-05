@@ -292,15 +292,9 @@ struct IssuesScreen: View {
                                                     style: .continuous)
 
     private var darkCardSurface: some View {
-        // Тот же компонент макета, только в тёмном режиме. Кромку на iOS 26
-        // даёт само стекло, поэтому нарисованная обводка живёт лишь в
-        // подложке для более старых систем — иначе кромок было бы две.
-        Color.clear
-            .liquidGlass(in: Self.cardShape, tint: Figma.darkCard) {
-                Self.cardShape
-                    .fill(Figma.darkCard)
-                    .overlay(Self.cardShape.stroke(Color.white.opacity(0.10), lineWidth: 0.5))
-            }
+        // Общий painted-рецепт (LiquidGlass.swift): живое стекло на каждой
+        // карточке пересчитывалось каждый кадр и подлагивало.
+        Color.clear.darkCardSurface(in: Self.cardShape)
     }
 
     /// Заголовок здесь Subheadline/Emphasized (15pt), а не Body: с 17pt
@@ -495,9 +489,7 @@ struct IssuesScreen: View {
     /// в несколько уровней, что была у белого 255 на 252.
     private var cardSurface: some View {
         Color.clear
-            .liquidGlass(in: Self.cardShape, tint: Figma.sheetControl) {
-                Self.cardShape.fill(Figma.fillsTertiary)
-            }
+            .background(Self.cardShape.fill(Figma.fillsTertiary))
             .shadow(color: .black.opacity(0.10), radius: 10, y: 2)
     }
 
