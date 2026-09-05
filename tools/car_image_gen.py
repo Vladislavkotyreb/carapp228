@@ -8,6 +8,9 @@
 Провайдеры:
   kandinsky   — FusionBrain API (Кандинский 3.x). Нужны бесплатные ключи
                 с fusionbrain.ai: env FUSIONBRAIN_KEY и FUSIONBRAIN_SECRET.
+  hf          — Hugging Face Inference (SD3-medium): единственный из трёх
+                провайдер, который читает негативный промпт. Токен —
+                env HF_TOKEN (лежит в ~/Desktop/motion-studio/.env).
   pollinations — публичный Flux без ключей; для быстрой проверки промпта.
 
 Запуск:
@@ -110,6 +113,33 @@ def generate_kandinsky(car: str) -> bytes:
     raise SystemExit("Кандинский не ответил за 5 минут")
 
 
+# ------------------------------------------------------------- Hugging Face
+
+HF_MODEL = "stabilityai/stable-diffusion-3-medium-diffusers"
+
+
+def generate_hf(car: str, seed: int) -> bytes:
+    """Серверлесс-инференс Hugging Face (провайдер hf-inference). Кандинский
+    там не развёрнут (веса без хостинга), зато SD3 принимает negative_prompt
+    по-настоящему — Flux его игнорирует. Фон стабильно чёрный: обе тестовые
+    генерации прошли валидатор краёв без ретраев."""
+    token = os.environ.get("HF_TOKEN", "")
+    if not token:
+        raise SystemExit("Нужен env HF_TOKEN (huggingface.co → Settings → "
+                         "Access Tokens; старый лежит в motion-studio/.env)")
+    body = json.dumps({
+        "inputs": build_prompt(car),
+        "parameters": {"negative_prompt": NEGATIVE_PROMPT, "width": 1024,
+                       "height": 1024, "seed": seed, "guidance_scale": 7.0},
+    }).encode()
+    request = urllib.request.Request(
+        f"https://router.huggingface.co/hf-inference/models/{HF_MODEL}",
+        data=body, headers={"Authorization": f"Bearer {token}",
+                            "Content-Type": "application/json"})
+    with urllib.request.urlopen(request, timeout=180) as reply:
+        return reply.read()
+
+
 # --------------------------------------------------------------- Pollinations
 
 def generate_pollinations(car: str, seed: int) -> bytes:
@@ -180,7 +210,7 @@ def edges_are_black(png_path: str, threshold: int = 26) -> tuple[bool, int]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--car", required=True, help="например: 2016 Lexus RX 350")
-    ap.add_argument("--provider", choices=["kandinsky", "pollinations"],
+    ap.add_argument("--provider", choices=["kandinsky", "hf", "pollinations"],
                     default="kandinsky")
     ap.add_argument("--out", required=True)
     ap.add_argument("--seed", type=int, default=7)
@@ -190,8 +220,12 @@ def main() -> None:
                     help="порог прижатия фона к чёрному, 0 — выключить")
     args = ap.parse_args()
 
-    data = (generate_kandinsky(args.car) if args.provider == "kandinsky"
-            else generate_pollinations(args.car, args.seed))
+    if args.provider == "kandinsky":
+        data = generate_kandinsky(args.car)
+    elif args.provider == "hf":
+        data = generate_hf(args.car, args.seed)
+    else:
+        data = generate_pollinations(args.car, args.seed)
     with open(args.out, "wb") as f:
         f.write(data)
 
