@@ -19,9 +19,11 @@ final class Car {
     var price: Int?
     /// Средняя рыночная цена по объявлениям — оценка AvtoVinCod по VIN.
     /// Показывается, пока пользователь не ввёл свою; обновляется по правилу
-    /// `MarketPrice.needsRefresh`. Оба поля пустые у машин без полного VIN.
+    /// `MarketPrice.needsRefresh`. Поля пустые у машин без полного VIN.
     var marketPrice: Int?
     var marketPriceDate: Date?
+    /// По скольким объявлениям посчитана средняя — для объяснения в шторке.
+    var marketOffers: Int?
     /// Фото машины. Крупные блобы SwiftData держит отдельным файлом, а не в базе.
     @Attribute(.externalStorage) var photo: Data?
     var createdAt: Date

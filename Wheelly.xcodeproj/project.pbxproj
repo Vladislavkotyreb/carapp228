@@ -44,6 +44,7 @@
 		AA0000010000000000000020 /* CarMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000020 /* CarMainView.swift */; };
 		AA0000010000000000000021 /* AddServiceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000021 /* AddServiceSheet.swift */; };
 		AA0000010000000000000022 /* AddServiceChoiceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000022 /* AddServiceChoiceSheet.swift */; };
+		9B000001000000000000007C /* PriceInfoSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C000001000000000000007C /* PriceInfoSheet.swift */; };
 		AA0000010000000000000023 /* AddCarSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000023 /* AddCarSheet.swift */; };
 		AA0000010000000000000024 /* LiquidGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000024 /* LiquidGlass.swift */; };
 		AA0000010000000000000025 /* BottomSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000025 /* BottomSheet.swift */; };
@@ -95,6 +96,7 @@
 		BB0000010000000000000020 /* CarMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarMainView.swift; sourceTree = "<group>"; };
 		BB0000010000000000000021 /* AddServiceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddServiceSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000022 /* AddServiceChoiceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddServiceChoiceSheet.swift; sourceTree = "<group>"; };
+		9C000001000000000000007C /* PriceInfoSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceInfoSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000023 /* AddCarSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCarSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000024 /* LiquidGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlass.swift; sourceTree = "<group>"; };
 		BB0000010000000000000025 /* BottomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomSheet.swift; sourceTree = "<group>"; };
@@ -282,6 +284,7 @@
 				BB0000010000000000000020 /* CarMainView.swift */,
 				BB0000010000000000000021 /* AddServiceSheet.swift */,
 				BB0000010000000000000022 /* AddServiceChoiceSheet.swift */,
+				9C000001000000000000007C /* PriceInfoSheet.swift */,
 				BB0000010000000000000023 /* AddCarSheet.swift */,
 			);
 			path = Main;
@@ -417,6 +420,7 @@
 				AA0000010000000000000020 /* CarMainView.swift in Sources */,
 				AA0000010000000000000021 /* AddServiceSheet.swift in Sources */,
 				AA0000010000000000000022 /* AddServiceChoiceSheet.swift in Sources */,
+				9B000001000000000000007C /* PriceInfoSheet.swift in Sources */,
 				AA0000010000000000000023 /* AddCarSheet.swift in Sources */,
 				AA0000010000000000000024 /* LiquidGlass.swift in Sources */,
 				AA0000010000000000000025 /* BottomSheet.swift in Sources */,

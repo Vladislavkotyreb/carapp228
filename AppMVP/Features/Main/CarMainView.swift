@@ -332,6 +332,21 @@ struct CarMainView: View {
                 onManual: { sheet = .service }
             )
         }
+        // Шторка цены (референс пользователя): крупная цена, объяснение
+        // средней по рынку, карандаш ведёт в алерт правки — замена шторки
+        // алертом идёт через тот же слот, как и у остальных пар.
+        .bottomSheet(isPresented: presenting(.priceInfo)) {
+            PriceInfoSheet(
+                ownPrice: car?.price,
+                marketPrice: car?.marketPrice,
+                marketOffers: car?.marketOffers,
+                onEdit: {
+                    priceDraft = car?.price.map(String.init) ?? ""
+                    sheet = .priceEdit
+                },
+                onClose: { sheet = .closed }
+            )
+        }
         .bottomSheet(isPresented: presenting(.service)) {
             AddServiceSheet(
                 title: editingRecord == nil ? "Добавление ТО" : "Изменение ТО",
@@ -408,6 +423,7 @@ struct CarMainView: View {
                 do {
                     let estimate = try await AvtoVinCodValuation.estimate(vin: vin)
                     car.marketPrice = estimate.average
+                    car.marketOffers = estimate.offers
                     car.marketPriceDate = .now
                 } catch VehicleLookupError.notFound {
                     // Данных по модели нет — не переспрашивать неделю: ответ
@@ -673,8 +689,7 @@ struct CarMainView: View {
                     // Цена правится тапом по плитке: формы правки авто в
                     // приложении нет, а тулбар с меню есть только на iOS 26.
                     Button {
-                        priceDraft = car?.price.map(String.init) ?? ""
-                        sheet = .priceEdit
+                        sheet = .priceInfo
                     } label: {
                         // Своя цена главнее рыночной: пользователь вводил её
                         // сознательно. Рыночная — с «≈»: это средняя по
@@ -692,7 +707,7 @@ struct CarMainView: View {
                     .buttonStyle(.plain)
                     .contentShape(Self.statCardShape)
                     .accessibilityLabel("Цена авто")
-                    .accessibilityHint("Изменить")
+                    .accessibilityHint("Подробнее и изменить")
 
                     statCard(title: "Пробег") { "\(NumberFormat.grouped($0.odometer))\u{00A0}км" }
                 }
