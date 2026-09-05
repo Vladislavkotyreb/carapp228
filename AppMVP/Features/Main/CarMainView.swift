@@ -74,6 +74,10 @@ struct CarMainView: View {
 
     @State private var tab = 0
     @State private var carPage = 0
+    /// Выезд машины при входе в приложение: блок фото выкатывается слева и
+    /// плавно тормозит. Играет один раз за жизнь экрана — guard в onAppear
+    /// не даёт повториться при возвратах на вкладку «Машина».
+    @State private var carDriveIn = false
     @State private var dragX: CGFloat = 0
     /// Ось жеста фиксируется на первом заметном смещении и держится до конца.
     /// Раньше решение принималось на каждом кадре — отсюда дёрганье.
@@ -925,7 +929,25 @@ struct CarMainView: View {
         }
         .padding(.horizontal, -16 * mix)
         .offset(y: HeaderLayout.photoTop - HeaderLayout.photoRise * mix)
+        // Выезд машины на первом кадре: быстрый выкат слева и длинное
+        // плавное торможение без отскока (expo-out). Едет только блок фото —
+        // подписи и карточки стоят. Два случая играют проявлением вместо
+        // движения: Reduce Motion (HIG) и режим своего снимка — у реального
+        // фото видны края кадра, и слайд читался бы как летящий прямоугольник,
+        // а не как машина.
+        .offset(x: carDriveIn || !slides ? 0 : -440)
+        .opacity(carDriveIn || slides ? 1 : 0)
+        .onAppear {
+            guard !carDriveIn else { return }
+            let animation: Animation = slides
+                ? .timingCurve(0.16, 1, 0.3, 1, duration: 1.35).delay(0.45)
+                : .easeOut(duration: 0.5).delay(0.3)
+            withAnimation(animation) { carDriveIn = true }
+        }
     }
+
+    /// Выезд уместен только у студийного кадра на чёрном фоне.
+    private var slides: Bool { !reduceMotion && photoMix < 0.5 }
 
     /// Одно место на весь экран: то же название стоит и в шапке при прокрутке.
     /// TODO: брать из модели, когда появится справочник марок.
