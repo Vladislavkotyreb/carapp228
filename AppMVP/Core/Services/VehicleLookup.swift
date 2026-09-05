@@ -79,10 +79,21 @@ struct AvtoVinCodLookup: VehicleLookup {
             throw VehicleLookupError.unavailable
         }
 
-        let name = [reply.brand, reply.model].compactMap { $0 }
-            .joined(separator: " ")
+        let name = Self.prettyName([reply.brand, reply.model].compactMap { $0 }
+            .joined(separator: " "))
         guard !name.isEmpty else { throw VehicleLookupError.notFound }
         return FoundVehicle(name: name, vin: reply.vin, year: reply.year)
+    }
+
+    /// Сервис отдаёт марку и модель в нижнем регистре («volkswagen multivan»
+    /// — снято живым запросом). `capitalized` поднимает первые буквы слов и
+    /// частей через дефис; короткие латинские слова — аббревиатуры: gl → GL,
+    /// bmw → BMW. Кириллицу («Лада») правило не трогает.
+    private static func prettyName(_ raw: String) -> String {
+        raw.capitalized.split(separator: " ").map { word in
+            word.count <= 3 && word.allSatisfy { $0.isLetter && $0.isASCII }
+                ? word.uppercased() : String(word)
+        }.joined(separator: " ")
     }
 }
 
