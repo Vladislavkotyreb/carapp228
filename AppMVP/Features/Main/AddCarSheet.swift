@@ -96,6 +96,9 @@ struct AddCarSheet: View {
                 .frame(width: 58, height: 4)
                 .padding(.top, 5)
         }
+        // Шторка живёт в системном .sheet — панель клавиатуры с экрана под
+        // ней сюда не доезжает, нужна своя.
+        .keyboardDismissBar()
     }
 
     private var toolbar: some View {

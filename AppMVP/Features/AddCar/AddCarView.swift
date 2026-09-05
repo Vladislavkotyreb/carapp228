@@ -98,6 +98,8 @@ struct AddCarView: View {
         }
         // отклик даёт SwiftUI — он уважает системные настройки
         .sensoryFeedback(.error, trigger: shake)
+        // Панель «Скрыть/Готово» над клавиатурой: у цифровой нет Return.
+        .keyboardDismissBar()
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
             Task {

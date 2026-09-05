@@ -153,11 +153,14 @@ enum Figma {
 @MainActor
 final class DeviceMetrics: ObservableObject {
     @Published private(set) var safeBottom: CGFloat = Figma.frameSafeBottom
+    /// Верхняя safe area (статус-бар). Нужна подложке тулбара главной.
+    @Published private(set) var safeTop: CGFloat = 59
     @Published private(set) var height: CGFloat = Figma.frameHeight
 
     func update(size: CGSize, insets: EdgeInsets) {
         let fullHeight = size.height + insets.top + insets.bottom
         if safeBottom != insets.bottom { safeBottom = insets.bottom }
+        if safeTop != insets.top { safeTop = insets.top }
         if height != fullHeight { height = fullHeight }
     }
 

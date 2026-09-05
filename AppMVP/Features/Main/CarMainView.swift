@@ -406,6 +406,9 @@ struct CarMainView: View {
             if new != 2 { hidesTabBar = false }
         }
         .sensoryFeedback(.success, trigger: addedServiceTick)
+        // Панель «Скрыть/Готово» над клавиатурой: цифровую иначе не закрыть.
+        // Один общий предок покрывает и шторки-оверлеи (форма ТО, цена).
+        .keyboardDismissBar()
         // Декодирование вне главного актора, как и у чеков ТО
         .task(id: carPhotoKey) {
             var decoded: [PersistentIdentifier: UIImage] = [:]
@@ -495,14 +498,20 @@ struct CarMainView: View {
                         // Краевой эффект прокрутки размывал карточку «ТО через»
                         // под баром. В макете под тулбаром контент чёткий.
                         .scrollEdgeEffectHidden(true, for: .top)
+                        // Подложка бара с тенью — HIG-отделение шапки от
+                        // контента, когда он уходит под неё. Прозрачностью,
+                        // а не условием: слой должен растворяться.
+                        .overlay(alignment: .top) { toolbarBackdrop }
                         .toolbar { carToolbar }
                         // Фон бара скрыт: в макете контент уходит под тулбар,
                         // фото машины видно за ним.
                         .toolbarBackground(.hidden, for: .navigationBar)
-                        // В покое тулбара нет — он появляется при прокрутке,
-                        // как показано в ноде «поведение при скролле».
-                        .toolbarVisibility(toolbar.isVisible ? .visible : .hidden,
-                                           for: .navigationBar)
+                        // Бар существует всегда, прячется только содержимое
+                        // (прозрачностью в carToolbar). Переключение
+                        // .visible/.hidden меняло инсеты UIScrollView без
+                        // анимации — позиция прокрутки «возвращалась сменой
+                        // кадра», это и был баг из отзыва пользователя.
+                        .toolbarVisibility(.visible, for: .navigationBar)
                 }
             }
             Tab("Карта", systemImage: "map", value: 1) { MapScreen() }
@@ -571,11 +580,24 @@ struct CarMainView: View {
             // управляет только содержимым — текстами и видимостью блоков.
             let p = addProgress
 
-            carPageBody(progress: p)
-                // simultaneousGesture, а не gesture: заполненная страница —
-                // вертикальный ScrollView, и он забирал свайп себе, поэтому
-                // над картинкой машины и карточкой ТО карусель не листалась.
-                .simultaneousGesture(carouselDrag(width: width))
+            ZStack {
+                carPageBody(progress: p)
+                    // simultaneousGesture, а не gesture: заполненная страница —
+                    // вертикальный ScrollView, и он забирал свайп себе, поэтому
+                    // над картинкой машины и карточкой ТО карусель не листалась.
+                    .simultaneousGesture(carouselDrag(width: width))
+
+                // Источник света у левого края — глубина чёрного экрана.
+                // Поверх контента аддитивно, а не подложкой: под непрозрачной
+                // ячейкой фото подложка не светит, и блок выдавал себя
+                // резкой границей. Неподвижен при прокрутке: свет принадлежит
+                // сцене, а не контенту. Просьба пользователя, в макете его нет.
+                RadialGradient(colors: [Color.white.opacity(0.09), .clear],
+                               center: UnitPoint(x: -0.25, y: 0.34),
+                               startRadius: 0, endRadius: 480)
+                    .blendMode(.plusLighter)
+                    .allowsHitTesting(false)
+            }
         }
         // важно: сам GeometryReader должен игнорировать safe area, иначе он
         // отдаёт урезанный размер и все координаты макета съезжают вниз
@@ -1311,6 +1333,7 @@ struct CarMainView: View {
             .menuStyle(.button)
             .buttonStyle(.plain)
             .accessibilityLabel("Действия с автомобилем")
+            .modifier(ToolbarFade(toolbar: toolbar))
         }
         // Системная подложка элемента бара гасится: она рисует своё стекло
         // ПОД нашей капсулой и над чёрной карточкой выходила тёмным кольцом
@@ -1319,8 +1342,8 @@ struct CarMainView: View {
 
         ToolbarItem(placement: .principal) {
             // 15pt Semibold, две строки, по левому краю — как в макете.
-            // Ширина 167 из ноды: без неё слот жмётся к одной строке и
-            // название обрезается многоточием.
+            // Ширина была 167 из ноды; ужата до 155 — просьба пользователя
+            // отодвинуть название от кнопки «Добавить ТО» на 12pt.
             Text(car?.name ?? "")
                 .font(.system(size: 15, weight: .semibold))
                 .tracking(-0.23)
@@ -1331,7 +1354,8 @@ struct CarMainView: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(width: 167, alignment: .leading)
+                .frame(width: 155, alignment: .leading)
+                .modifier(ToolbarFade(toolbar: toolbar))
         }
 
         ToolbarItem(placement: .topBarTrailing) {
@@ -1344,8 +1368,23 @@ struct CarMainView: View {
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
+            .modifier(ToolbarFade(toolbar: toolbar))
         }
         .sharedBackgroundVisibility(.hidden)
+    }
+
+    /// Подложка бара: чёрная плашка с мягкой тенью вниз — HIG-отделение
+    /// шапки от уходящего под неё контента. Живёт прозрачностью вместе
+    /// с содержимым бара.
+    private var toolbarBackdrop: some View {
+        Rectangle()
+            .fill(Color.black)
+            .frame(height: metrics.safeTop + 44)
+            .shadow(color: .black.opacity(0.55), radius: 14, y: 6)
+            .ignoresSafeArea(edges: .top)
+            .opacity(toolbar.isVisible ? 1 : 0)
+            .animation(.easeInOut(duration: 0.18), value: toolbar.isVisible)
+            .allowsHitTesting(false)
     }
 
     /// Записи ТО вертикальным списком: дата заголовком, под ней карточка.
@@ -1376,31 +1415,25 @@ struct CarMainView: View {
 
                 Spacer(minLength: 0).frame(height: 8)
 
-                serviceCard(record)
-                    // HIG: действия над конкретным элементом — контекстное
-                    // меню. Подъём карточки и хаптик даёт сама система,
-                    // добавлять sensoryFeedback не нужно.
-                    .contextMenu {
-                        Button { startEditing(record) } label: {
-                            Label("Изменить", systemImage: "pencil")
-                        }
-
-                        Button(role: .destructive) {
-                            // Работы уходят каскадом — правило в модели
-                            modelContext.delete(record)
-                        } label: {
-                            Label("Удалить", systemImage: "trash")
-                        }
-                    } preview: {
-                        // Своё превью, а не подъём оригинала: у карточки тень
-                        // нарисована за пределами её формы, и границы снимка
-                        // не совпадали с ней — касание давало сжатие-отскок не
-                        // по той геометрии. Размер обязан совпадать с самой
-                        // карточкой, иначе возвращается та же болезнь.
-                        serviceCardBody(record)
-                            .frame(width: 370, height: Self.serviceCardHeight)
-                            .background(Self.serviceCardShape.fill(Figma.darkCard))
+                // Меню, а не contextMenu: система поднимала превью карточки
+                // к центру экрана — «улетает вверх», по замечанию
+                // пользователя. Menu открывается у пальца, элемент стоит на
+                // месте; работает и тапом, и удержанием.
+                Menu {
+                    Button { startEditing(record) } label: {
+                        Label("Изменить", systemImage: "pencil")
                     }
+
+                    Button(role: .destructive) {
+                        // Работы уходят каскадом — правило в модели
+                        modelContext.delete(record)
+                    } label: {
+                        Label("Удалить", systemImage: "trash")
+                    }
+                } label: {
+                    serviceCard(record)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -1678,45 +1711,35 @@ struct CarMainView: View {
     }
 }
 
+/// Содержимое тулбара появляется прозрачностью. Сам бар существует всегда:
+/// переключение его видимости меняло инсеты прокрутки скачком — позиция
+/// «возвращалась сменой кадра».
+private struct ToolbarFade: ViewModifier {
+    @ObservedObject var toolbar: ToolbarVisibility
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(toolbar.isVisible ? 1 : 0)
+            // Погашенная кнопка не должна ловить тапы вслепую.
+            .allowsHitTesting(toolbar.isVisible)
+            .animation(.easeInOut(duration: 0.18), value: toolbar.isVisible)
+    }
+}
+
 /// Поднимается по иерархии UIKit до ближайшего UIScrollView — того самого,
 /// на котором стоит SwiftUI-прокрутка. Отдельного файла не заводим: правка
 /// `project.pbxproj` вручную дороже двадцати строк.
 private extension View {
-    /// Тёмное стекло карточек главной: «Liquid Glass - Regular - Small» в
-    /// тёмном варианте. Один рецепт на все карточки экрана — они и в макете
-    /// один компонент.
-    ///
-    /// Рисуем сами (`kind: .painted`), потому что `glassEffect` не отдаёт
-    /// наружу ни толщину кромки, ни внутренние тени. Профиль снят колонкой
-    /// пикселей с рендера и одинаков у всех карточек: заливка #1A1A1A, сверху
-    /// затемнение до 18/255, сходящее на нет к 28pt, снизу подсветка до 30 и
-    /// волосяная кромка по контуру.
+    /// Тёмное стекло карточек главной — тот же рецепт, что у карточек
+    /// «Ошибок» (`darkCardSurface`): системное стекло с тоном #1A1A1A,
+    /// кромку на iOS 26 даёт само стекло, нарисованная обводка white 10 %
+    /// живёт только в подложке для старых систем. Прежний painted-профиль
+    /// с подобранной кромкой отменён по прямой просьбе пользователя:
+    /// карточки двух экранов выглядели по-разному.
     func darkGlassCard<S: Shape>(in shape: S) -> some View {
-        liquidGlass(in: shape, tint: Figma.darkCard, kind: .painted) {
+        liquidGlass(in: shape, tint: Figma.darkCard) {
             shape.fill(Figma.darkCard)
-                .overlay {
-                    // Полосы в точках, а не в долях высоты: в макете это
-                    // внутренние тени с абсолютным радиусом, и у карточки
-                    // 246pt они такие же, как у плитки 96pt.
-                    VStack(spacing: 0) {
-                        LinearGradient(colors: [.black.opacity(0.31), .clear],
-                                       startPoint: .top, endPoint: .bottom)
-                            .frame(height: 28)
-
-                        Spacer(minLength: 0)
-
-                        LinearGradient(colors: [.clear, .white.opacity(0.02)],
-                                       startPoint: .top, endPoint: .bottom)
-                            .frame(height: 12)
-                    }
-                    .clipShape(shape)
-                }
-                // Кромка. В макете она объявлена обводкой 0.5pt цветом
-                // #A6A6A6, но обводка там внутренняя, а `stroke` кладёт линию
-                // по центру контура — тем же цветом край выходил вдвое ярче
-                // рендера (107 против 65 суммарно по двум строкам). Значение
-                // подобрано замером, а не переписано из ноды.
-                .overlay(shape.stroke(Color(white: 0.4), lineWidth: 0.5))
+                .overlay(shape.stroke(Color.white.opacity(0.10), lineWidth: 0.5))
         }
     }
 }

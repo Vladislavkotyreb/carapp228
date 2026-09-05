@@ -168,6 +168,32 @@ struct FigmaRowLabel: View {
     }
 }
 
+extension View {
+    /// Панель над клавиатурой: слева иконка сворачивания, справа «Готово» —
+    /// подача как в Сбере, по просьбе пользователя. Нужна цифровой
+    /// клавиатуре: у неё нет Return, и закрыть её иначе нечем (тап мимо
+    /// поля шторки не перехватывают). Оба действия закрывают клавиатуру.
+    func keyboardDismissBar() -> some View {
+        toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                // Белый акцент приложения — на кнопках, а не на всём вью:
+                // общий tint перекрасил бы и курсоры с пикерами.
+                Button { dismissKeyboard() } label: {
+                    Image(systemName: "keyboard.chevron.compact.down")
+                }
+                .tint(.white)
+                .accessibilityLabel("Скрыть клавиатуру")
+
+                Spacer()
+
+                Button("Готово") { dismissKeyboard() }
+                    .fontWeight(.semibold)
+                    .tint(.white)
+            }
+        }
+    }
+}
+
 /// Тряска инпута — по аннотации в макете: «хаптик негативное действие и тряска инпута».
 struct ShakeEffect: GeometryEffect {
     var animatableData: CGFloat
