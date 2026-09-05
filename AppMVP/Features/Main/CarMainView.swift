@@ -23,10 +23,11 @@ private enum ScrollHeader {
 /// Пружина под фото машины: чем сильнее оттянут список, тем крупнее картинка.
 /// Константы вне вью по той же причине, что и у `ScrollHeader`.
 private enum PhotoStretch {
-    /// Положение блока фото от верха контента в покое: 103 (отступ страницы)
-    /// + заголовок 48 + 6 + номер 28 + 24. Из текущего положения вычитается
-    /// это — разница и есть натяжка. Ошибка в константе видна сразу: фото
-    /// окажется увеличенным уже в покое, поэтому она проверяется кадром.
+    /// Положение блока фото в покое в макетном режиме: 103 (отступ страницы)
+    /// + заголовок 48 + 6 + номер 28 + 24. Прокси `visualEffect` меряет рамку
+    /// **после** `offset` — проверено кадром: с точкой покоя без офсета фото
+    /// рисовалось растянутым на 1.21 уже в покое. В режиме своего фото блок
+    /// поднят на `HeaderLayout.photoRise`, и точку покоя двигает вызывающий.
     static let restingY: CGFloat = 209
 
     /// Прирост масштаба на точку натяжки и потолок роста.
@@ -36,6 +37,31 @@ private enum PhotoStretch {
     static func scale(pull: CGFloat) -> CGFloat {
         1 + min(max(0, pull) * perPoint, maxGain)
     }
+}
+
+/// Геометрия шапки, от её верха (экранные координаты = эти + 103).
+/// Низ фото, точки и всё, что ниже, стоят на месте в обоих режимах фото;
+/// от режима зависят только верх и ширина блока фото и положение названия
+/// с номером — различия смешиваются числом `photoMix`, а не переключением.
+private enum HeaderLayout {
+    /// Заголовок 48 + зазор 6 + номер 28.
+    static let titleBlock: CGFloat = 82
+    /// Верх блока фото в режиме макета: заголовок с номером + зазор 24.
+    static let photoTop: CGFloat = 106
+    /// Высота блока фото из макета: 370×245.935 на всю ширину контента.
+    static let photoHeight: CGFloat = 245.935
+    /// На сколько блок дорастает вверх в режиме своего фото: до самого края
+    /// экрана — верхний отступ страницы 103 плюс место заголовка 106.
+    static let photoRise: CGFloat = 209
+    /// Низ фото — общий для обоих режимов, к нему прижат и студийный ассет.
+    static let photoBottom: CGFloat = photoTop + photoHeight
+    /// Название с номером в режиме своего фото: блок опускается на нижнюю
+    /// кромку фото, за читаемость отвечает растворение фото в чёрный.
+    static let titleDrop: CGFloat = photoBottom - 10 - titleBlock
+    /// Пейдж-контрол: 12 под фото, как в макете.
+    static let dotsTop: CGFloat = photoBottom + 12
+    /// Высота шапки в потоке: точки (44) — её последний элемент.
+    static let height: CGFloat = dotsTop + 44
 }
 
 /// Figma «раздел «машина»»: «главная» (45854:3547), «главная_то_добавлено» (45867:3007),
@@ -154,7 +180,7 @@ struct CarMainView: View {
 
 
     /// Тот же поставщик, что и на первом экране добавления.
-    private let lookup: any VehicleLookup = StubVehicleLookup()
+    private let lookup: any VehicleLookup = VehicleLookupProvider.make()
 
     /// Индекс страницы добавления: она всегда последняя, после всех машин.
     private var addPageIndex: Int { cars.count }
@@ -562,10 +588,15 @@ struct CarMainView: View {
     }
 
     /// Величины страницы. У машины — по её состоянию (ноды 45854:3547 и
-    /// 45867:3007), у страницы добавления — как у последней машины: переход
-    /// к ней и так гладкий, двигать там нечего.
+    /// 45867:3007). Страница добавления раньше наследовала метрики последней
+    /// машины, и «Добавить авто» меняла высоту: 92 после машины без ТО против
+    /// 148 после машины с историей. Теперь у неё всегда крупная карточка —
+    /// смешивание по весам сглаживает переход и от 92, и от 148.
     private func metrics(of page: Int) -> PageMetrics {
-        let index = min(max(0, page), cars.count - 1)
+        guard page < cars.count else {
+            return PageMetrics(headerGap: 24, cardHeight: 148, statsGap: 24, history: 0)
+        }
+        let index = max(0, page)
         guard cars.indices.contains(index) else { return PageMetrics() }
         return cars[index].services.isEmpty
             ? PageMetrics(headerGap: 24, cardHeight: 92, statsGap: 24, history: 0)
@@ -736,62 +767,116 @@ struct CarMainView: View {
 
     // MARK: - Шапка: название, номер, фото, пейдж-контрол
 
+    /// Смесь режимов фото по страницам: 0 — студийный ассет в блоке макета,
+    /// 1 — свой снимок во весь верх экрана (референс IMG_2402: фото под
+    /// статус-бар, название поверх нижней кромки). Смешивается весами
+    /// страниц, как остальные метрики: при свайпе между машинами с фото и
+    /// без него блок перетекает, а не переключается.
+    private var photoMix: Double {
+        var mix = 0.0
+        for car in cars where car.photo != nil {
+            mix += weight(of: index(of: car))
+        }
+        return mix
+    }
+
     /// `stretches` включает пружину. На экране без ТО прокрутки нет, а
     /// пространства координат `ScrollHeader.space` не существует вовсе —
     /// `frame(in:)` по неизвестному имени вернул бы мусор.
+    ///
+    /// Шапка собрана ZStack с офсетами, а не потоком: у неё два режима
+    /// (макетный и «своё фото во весь верх»), и разница между ними — числа,
+    /// которые смешивает `photoMix`. Высота в потоке постоянна, поэтому всё,
+    /// что ниже шапки, не двигается ни в одном режиме.
     private func header(progress p: Double, stretches: Bool) -> some View {
-        VStack(spacing: 12) {
-            VStack(spacing: 24) {
-                // Заголовок и номер стоят на месте, текст перекрёстно меняется
-                VStack(spacing: 6) {
-                    ZStack {
-                        ForEach(cars) { car in
-                            title(car.name).opacity(weight(of: index(of: car)))
-                        }
-                        title("Добавьте новый авто").opacity(weight(of: addPageIndex))
-                    }
+        let mix = photoMix
+        return ZStack(alignment: .top) {
+            photoStrip(mix: mix, stretches: stretches)
 
-                    ZStack {
-                        ForEach(cars) { car in
-                            plate(car.plate).opacity(weight(of: index(of: car)))
-                        }
+            // Заголовок и номер стоят на месте, текст перекрёстно меняется.
+            // В режиме своего фото блок целиком опущен на нижнюю кромку фото.
+            VStack(spacing: 6) {
+                ZStack {
+                    ForEach(cars) { car in
+                        title(car.name).opacity(weight(of: index(of: car)))
                     }
-                    .frame(height: 28)
+                    title("Добавьте новый авто").opacity(weight(of: addPageIndex))
                 }
 
-                // Единственный едущий элемент. Локальный GeometryReader
-                // намеренно: он принимает предложенную ширину контентной
-                // области (370), а не экранную. Раньше здесь стояла
-                // width * 2 от ширины экрана, и вся раскладка вылезала
-                // за края на 16pt с каждой стороны.
-                GeometryReader { g in
-                    HStack(spacing: 0) {
-                        ForEach(cars) { car in
-                            carPhoto(for: car, width: g.size.width)
-                        }
-                        // Страница добавления: у неё своей машины нет
-                        carPhoto(for: nil, width: g.size.width)
+                ZStack {
+                    ForEach(cars) { car in
+                        plate(car.plate).opacity(weight(of: index(of: car)))
                     }
-                    .offset(x: -CGFloat(position) * g.size.width)
                 }
-                .frame(height: Self.photoHeight)
-                .clipped()
-                // Масштаб навешен ПОСЛЕ .clipped(): эффект применяется к уже
-                // обрезанному результату, поэтому вторая копия фото из-под
-                // клипа не вылезает.
-                //
-                // visualEffect, а не @State: геометрия читается на этапе
-                // отрисовки и не пересобирает ScrollView — см. журнал.
-                .visualEffect { content, proxy in
-                    let pull = stretches
-                        ? proxy.frame(in: .named(ScrollHeader.space)).minY - PhotoStretch.restingY
-                        : 0
-                    return content.scaleEffect(PhotoStretch.scale(pull: pull), anchor: .center)
-                }
+                .frame(height: 28)
             }
+            .offset(y: HeaderLayout.titleDrop * mix)
 
             pageControl
+                .offset(y: HeaderLayout.dotsTop)
         }
+        .frame(height: HeaderLayout.height, alignment: .top)
+    }
+
+    /// Лента фото — единственный едущий элемент карусели.
+    ///
+    /// Вертикаль делает `offset`, а не позиция в раскладке: layout-рамка
+    /// блока стоит на месте при любом режиме, и `PhotoStretch.restingY`
+    /// остаётся одной константой. Ширину в режиме своего фото добавляет
+    /// отрицательный паддинг **после** клипа — так блок дорастает до краёв
+    /// экрана, а обрезка идёт по уже расширенным границам.
+    private func photoStrip(mix: Double, stretches: Bool) -> some View {
+        // Точка покоя пружины следует за офсетом режима: прокси видит рамку
+        // уже сдвинутой. Значение захватывается замыканием — оно Sendable.
+        let resting = PhotoStretch.restingY - HeaderLayout.photoRise * mix
+        return GeometryReader { g in
+            HStack(spacing: 0) {
+                ForEach(cars) { car in
+                    carPhoto(for: car, width: g.size.width, height: g.size.height,
+                             assetWidth: g.size.width - 32 * mix)
+                }
+                // Страница добавления: у неё своей машины нет
+                carPhoto(for: nil, width: g.size.width, height: g.size.height,
+                         assetWidth: g.size.width - 32 * mix)
+            }
+            .offset(x: -CGFloat(position) * g.size.width)
+        }
+        .frame(height: HeaderLayout.photoHeight + HeaderLayout.photoRise * mix)
+        // Растворение фото в чёрный фон страницы: держит читаемость названия
+        // на снимке и сшивает низ фото с экраном, как в референсе. На
+        // студийных страницах гаснет вместе с mix.
+        .overlay(alignment: .bottom) {
+            LinearGradient(
+                stops: [.init(color: .black.opacity(0), location: 0),
+                        .init(color: .black.opacity(0.75), location: 0.62),
+                        .init(color: .black, location: 1)],
+                startPoint: .top, endPoint: .bottom
+            )
+            .frame(height: 190)
+            .opacity(mix)
+        }
+        // Лёгкая тень под статус-бар: белое время на светлом небе снимка.
+        .overlay(alignment: .top) {
+            LinearGradient(colors: [.black.opacity(0.45), .black.opacity(0)],
+                           startPoint: .top, endPoint: .bottom)
+                .frame(height: 120)
+                .opacity(mix)
+        }
+        .clipped()
+        // Масштаб навешен ПОСЛЕ .clipped(): эффект применяется к уже
+        // обрезанному результату, поэтому вторая копия фото из-под
+        // клипа не вылезает.
+        //
+        // visualEffect, а не @State: геометрия читается на этапе
+        // отрисовки и не пересобирает ScrollView — см. журнал.
+        .visualEffect { content, proxy in
+            let pull = stretches
+                ? proxy.frame(in: .named(ScrollHeader.space)).minY - resting
+                : 0
+            return content.scaleEffect(PhotoStretch.scale(pull: pull), anchor: .center)
+        }
+        .padding(.horizontal, -16 * mix)
+        .offset(y: HeaderLayout.photoTop - HeaderLayout.photoRise * mix)
     }
 
     /// Одно место на весь экран: то же название стоит и в шапке при прокрутке.
@@ -832,29 +917,36 @@ struct CarMainView: View {
                 .init(color: .white.opacity(0.3), location: 1)],
         startPoint: .leading, endPoint: .trailing)
 
-    /// Высота блока фото из макета: 370×245.935 на всю ширину контента.
-    private static let photoHeight: CGFloat = 245.935
-
-    /// Снимок машины, если он есть, иначе макетный ассет.
+    /// Кадр одной страницы карусели.
     ///
-    /// Машина занимает блок во всю ширину и обрезается сверху и снизу — как
-    /// в макете. Это не `scaledToFill`: тот подгоняет **обе** стороны, и на
-    /// нашем широком ассете срезал машине нос и корму. Ширина задаётся явно,
-    /// высота идёт за пропорцией, лишнее уходит под клип. Кадр уже квадратного
-    /// блока ляжет с полями сверху и снизу — на чёрном фоне их не видно.
+    /// Свой снимок заполняет ячейку целиком с обрезкой (`scaledToFill`) — как
+    /// в референсе IMG_2402, где фото уходит под статус-бар во всю ширину.
+    /// Студийный ассет остаётся в ширине контента (`assetWidth`) и прижат к
+    /// низу ячейки: низ фото — общая точка обоих режимов, и при смешивании
+    /// ассет не ездит по вертикали, а ячейка просто дорастает вверх.
     ///
     /// Клип у каждого кадра свой, а не общий у контейнера: фото шире страницы
     /// и без этого вылезало бы на соседнюю.
-    private func carPhoto(for car: Car?, width: CGFloat) -> some View {
+    private func carPhoto(for car: Car?, width: CGFloat, height: CGFloat,
+                          assetWidth: CGFloat) -> some View {
         Group {
             if let car, let image = carImages[car.persistentModelID] {
-                Image(uiImage: image).resizable().scaledToFit()
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: width, height: height)
             } else {
-                Image("CarPhoto").resizable().scaledToFit()
+                // Не `scaledToFill`: тот подгоняет обе стороны, и на нашем
+                // широком ассете срезал машине нос и корму. Ширина явная,
+                // высота за пропорцией, поля на чёрном фоне не видны.
+                Image("CarPhoto")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: assetWidth)
+                    .frame(width: width, height: height, alignment: .bottom)
             }
         }
-        .frame(width: width)
-        .frame(width: width, height: Self.photoHeight)
+        .frame(width: width, height: height)
         .clipped()
     }
 

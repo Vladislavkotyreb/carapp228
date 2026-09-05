@@ -24,16 +24,82 @@ enum VehicleLookupError: Error {
 }
 
 /// Поиск машины по госномеру.
-///
-/// Реализации поверх реального API появятся, когда будет свой сервер: ключ
-/// поставщика нельзя держать в приложении — он вынимается из `.ipa`, и за него
-/// спишут баланс платного API. Запрос пойдёт через свой эндпоинт,
-/// см. docs/BACKEND.md.
 protocol VehicleLookup: Sendable {
     func lookup(plate: String) async throws -> FoundVehicle
 }
 
-/// Заглушка до подключения поставщика: любой корректный номер находит машину
+/// Поставщик для экранов: настоящий, когда токен на месте, и заглушка из
+/// макета, пока его нет, — тот же приём, что у раздела «Карта» без ключа.
+enum VehicleLookupProvider {
+    static func make() -> any VehicleLookup {
+        VehicleLookupKey.isConfigured ? RSAVehicleLookup() : StubVehicleLookup()
+    }
+}
+
+/// Поиск по базе полисов ОСАГО (НСИС/РСА) через api-cloud.ru — открытый
+/// источник, где по одному госномеру отдают марку с моделью и VIN.
+/// Года выпуска, поколения и пробега там нет; VIN бывает замаскирован
+/// звёздочками — такой отсеивает `FoundVehicle.displayVIN`.
+struct RSAVehicleLookup: VehicleLookup {
+    func lookup(plate: String) async throws -> FoundVehicle {
+        // API ждёт номер слитно кириллицей: «В777ОР777».
+        let compact = PlateFormat.significant(plate)
+        guard !compact.isEmpty else { throw VehicleLookupError.notFound }
+
+        var components = URLComponents(string: "https://api-cloud.ru/api/rsa.php")!
+        components.queryItems = [
+            URLQueryItem(name: "type", value: "osago"),
+            URLQueryItem(name: "regNumber", value: compact),
+            URLQueryItem(name: "token", value: VehicleLookupKey.token)
+        ]
+        guard let url = components.url else { throw VehicleLookupError.unavailable }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+
+        let data: Data
+        do {
+            (data, _) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw VehicleLookupError.unavailable
+        }
+
+        guard let response = try? JSONDecoder().decode(RSAResponse.self, from: data) else {
+            throw VehicleLookupError.unavailable
+        }
+        // 200 с пустым rez — «сведения не найдены», это notFound из макета.
+        // Остальные статусы (неверный токен 499, пустой баланс 498, таймаут
+        // источника 404) — недоступность, номер тут ни при чём.
+        guard response.status == 200 else { throw VehicleLookupError.unavailable }
+
+        // Полисов на номер может быть несколько (страховка перезаключалась);
+        // действующий говорит о машине надёжнее прекращённого.
+        let entries = response.rez ?? []
+        let entry = entries.first { $0.status == "Действует" } ?? entries.first
+        guard let entry, let name = entry.brandmodel, !name.isEmpty else {
+            throw VehicleLookupError.notFound
+        }
+        return FoundVehicle(name: name, vin: entry.vin)
+    }
+}
+
+/// Ответ `rsa.php`. Поля, которых здесь нет, приходят, но не используются.
+/// `status` необязательный: ошибки сервис отдаёт в другой форме —
+/// `{"error":"503","message":…}` без него вовсе (снято curl-ом).
+private struct RSAResponse: Decodable {
+    let status: Int?
+    let rez: [Entry]?
+
+    struct Entry: Decodable {
+        let brandmodel: String?
+        let vin: String?
+        /// Статус полиса: «Действует» или «Прекращён». Не путать с `status`
+        /// верхнего уровня — тот числовой код ответа.
+        let status: String?
+    }
+}
+
+/// Заглушка до подключения токена: любой корректный номер находит машину
 /// с данными из макета (node 45854:2936).
 struct StubVehicleLookup: VehicleLookup {
     func lookup(plate: String) async throws -> FoundVehicle {

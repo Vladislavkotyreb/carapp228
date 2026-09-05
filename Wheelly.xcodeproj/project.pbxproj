@@ -14,6 +14,7 @@
 		CA0000010000000000000005 /* MapGeo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000005 /* MapGeo.swift */; };
 		9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */ = {isa = PBXBuildFile; productRef = 9A0000010000000000000002 /* YandexMapsMobileFull */; };
 		9B0000010000000000000001 /* MapKitKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000001 /* MapKitKey.swift */; };
+		9B0000010000000000000077 /* VehicleLookupKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000077 /* VehicleLookupKey.swift */; };
 		9B0000000000000000000001 /* CarDiagnosis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000001 /* CarDiagnosis.swift */; };
 		9B0000000000000000000005 /* EngineCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000005 /* EngineCheck.swift */; };
 		9B0000000000000000000004 /* MapController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000004 /* MapController.swift */; };
@@ -58,6 +59,7 @@
 		CB0000010000000000000002 /* NumberFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberFormat.swift; sourceTree = "<group>"; };
 		CB0000010000000000000005 /* MapGeo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapGeo.swift; sourceTree = "<group>"; };
 		9C0000010000000000000001 /* MapKitKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitKey.swift; sourceTree = "<group>"; };
+		9C0000010000000000000077 /* VehicleLookupKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleLookupKey.swift; sourceTree = "<group>"; };
 		9C0000000000000000000001 /* CarDiagnosis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarDiagnosis.swift; sourceTree = "<group>"; };
 		9C0000000000000000000005 /* EngineCheck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineCheck.swift; sourceTree = "<group>"; };
 		9C0000000000000000000004 /* MapController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapController.swift; sourceTree = "<group>"; };
@@ -283,6 +285,7 @@
 			isa = PBXGroup;
 			children = (
 				BB00000100000000000000B1 /* VehicleLookup.swift */,
+				9C0000010000000000000077 /* VehicleLookupKey.swift */,
 				9C0000010000000000000001 /* MapKitKey.swift */,
 				9C0000000000000000000001 /* CarDiagnosis.swift */,
 				8B0000010000000000000001 /* AudioLevelMeter.swift */,
@@ -410,6 +413,7 @@
 				9B0000000000000000000004 /* MapController.swift in Sources */,
 				7A0000010000000000000002 /* MoreScreen.swift in Sources */,
 				9B0000010000000000000001 /* MapKitKey.swift in Sources */,
+				9B0000010000000000000077 /* VehicleLookupKey.swift in Sources */,
 				9B0000000000000000000001 /* CarDiagnosis.swift in Sources */,
 			);
 		};

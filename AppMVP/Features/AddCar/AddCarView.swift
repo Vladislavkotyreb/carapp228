@@ -26,9 +26,9 @@ struct AddCarView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var isSearching = false
 
-    /// Пока поставщика нет — заглушка. Реализация поверх своего сервера
-    /// появится вместе с бэкендом, см. docs/BACKEND.md.
-    private let lookup: any VehicleLookup = StubVehicleLookup()
+    /// Настоящий поиск по базе ОСАГО, когда токен в `VehicleLookupKey`
+    /// заполнен; без него — заглушка с данными из макета.
+    private let lookup: any VehicleLookup = VehicleLookupProvider.make()
     @State private var photo: Image?
 
     /// Высота контейнера: от координаты макета до нижней safe area.
