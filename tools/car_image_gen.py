@@ -34,14 +34,19 @@ import urllib.request
 # Третья итерация: сторона ракурса у модели нестабильна — берём её
 # стабильное «влево» и зеркалим программно; дымку и асфальт глушим прямо
 # в тексте, остаток фона прижимает к нулю постобработка (--floor).
+# Четвёртая итерация — под ключевой референс пользователя: камера ближе и
+# чуть выше капота, широкоугольная перспектива, машина занимает почти весь
+# кадр; «каталожный» дальний план с полями по центру убран.
 MASTER_PROMPT = (
-    "advertising photo of a {car}, glossy white paint, entire car fully "
-    "visible in frame with margins, front three-quarter view, headlights "
-    "visible, no license plate, centered composition, car floating in "
-    "complete darkness, pure black empty background, image corners pure "
-    "black, no fog, no haze, no spotlight glow, no road, no floor, "
-    "no ground reflections, low-key automotive photography, subtle rim "
-    "lighting on body lines, dark alloy wheels, photorealistic, sharp focus"
+    "advertising photo of a {car}, glossy white paint, dramatic front "
+    "three-quarter view from a slightly elevated camera looking down at "
+    "the car, wide-angle perspective, the car is large and fills most of "
+    "the frame, entire car still fully visible with tight margins, "
+    "headlights visible, no license plate, car floating in complete "
+    "darkness, pure black empty background, image corners pure black, "
+    "no fog, no haze, no spotlight glow, no road, no floor, no ground "
+    "reflections, low-key automotive photography, subtle rim lighting on "
+    "body lines, dark alloy wheels, photorealistic, sharp focus"
 )
 
 NEGATIVE_PROMPT = (
