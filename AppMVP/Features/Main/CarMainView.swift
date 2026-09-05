@@ -40,13 +40,13 @@ private enum PhotoStretch {
 }
 
 /// Геометрия шапки, от её верха (экранные координаты = эти + 103).
-/// Низ фото, точки и всё, что ниже, стоят на месте в обоих режимах фото;
-/// от режима зависят только верх и ширина блока фото и положение названия
-/// с номером — различия смешиваются числом `photoMix`, а не переключением.
+/// Название с номером, низ фото, точки и всё, что ниже, стоят на месте в
+/// обоих режимах фото — надпись не прыгает при свайпе между машинами.
+/// От режима зависят только верх и ширина блока фото: в режиме своего
+/// снимка он дорастает до края экрана и уходит ПОД надпись, читаемость
+/// которой держит затенение верха фото.
 private enum HeaderLayout {
-    /// Заголовок 48 + зазор 6 + номер 28.
-    static let titleBlock: CGFloat = 82
-    /// Верх блока фото в режиме макета: заголовок с номером + зазор 24.
+    /// Верх блока фото в режиме макета: заголовок 48 + 6 + номер 28 + 24.
     static let photoTop: CGFloat = 106
     /// Высота блока фото из макета: 370×245.935 на всю ширину контента.
     static let photoHeight: CGFloat = 245.935
@@ -55,9 +55,6 @@ private enum HeaderLayout {
     static let photoRise: CGFloat = 209
     /// Низ фото — общий для обоих режимов, к нему прижат и студийный ассет.
     static let photoBottom: CGFloat = photoTop + photoHeight
-    /// Название с номером в режиме своего фото: блок опускается на нижнюю
-    /// кромку фото, за читаемость отвечает растворение фото в чёрный.
-    static let titleDrop: CGFloat = photoBottom - 10 - titleBlock
     /// Пейдж-контрол: 12 под фото, как в макете.
     static let dotsTop: CGFloat = photoBottom + 12
     /// Высота шапки в потоке: точки (44) — её последний элемент.
@@ -793,8 +790,9 @@ struct CarMainView: View {
         return ZStack(alignment: .top) {
             photoStrip(mix: mix, stretches: stretches)
 
-            // Заголовок и номер стоят на месте, текст перекрёстно меняется.
-            // В режиме своего фото блок целиком опущен на нижнюю кромку фото.
+            // Заголовок и номер стоят на месте в обоих режимах — надпись не
+            // прыгает при свайпе; в режиме своего фото снимок уходит под неё,
+            // читаемость держит затенение верха фото.
             VStack(spacing: 6) {
                 ZStack {
                     ForEach(cars) { car in
@@ -810,7 +808,6 @@ struct CarMainView: View {
                 }
                 .frame(height: 28)
             }
-            .offset(y: HeaderLayout.titleDrop * mix)
 
             pageControl
                 .offset(y: HeaderLayout.dotsTop)
@@ -855,12 +852,18 @@ struct CarMainView: View {
             .frame(height: 190)
             .opacity(mix)
         }
-        // Лёгкая тень под статус-бар: белое время на светлом небе снимка.
+        // Затенение верха: под статус-баром и названием, которое в этом
+        // режиме лежит поверх снимка. Гуще у кромки, сходит на нет к трети
+        // высоты — как у системных экранов с фото под заголовком.
         .overlay(alignment: .top) {
-            LinearGradient(colors: [.black.opacity(0.45), .black.opacity(0)],
-                           startPoint: .top, endPoint: .bottom)
-                .frame(height: 120)
-                .opacity(mix)
+            LinearGradient(
+                stops: [.init(color: .black.opacity(0.65), location: 0),
+                        .init(color: .black.opacity(0.35), location: 0.45),
+                        .init(color: .black.opacity(0), location: 1)],
+                startPoint: .top, endPoint: .bottom
+            )
+            .frame(height: 260)
+            .opacity(mix)
         }
         .clipped()
         // Масштаб навешен ПОСЛЕ .clipped(): эффект применяется к уже
