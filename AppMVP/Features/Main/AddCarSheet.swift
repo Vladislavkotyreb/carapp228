@@ -62,6 +62,10 @@ struct AddCarSheet: View {
                                     .frame(height: 160)
                                     .frame(maxWidth: .infinity)
                                     .clipShape(RoundedRectangle(cornerRadius: 26))
+                                    // scaledToFill вылезает за рамку и
+                                    // хит-зоной: портретный снимок накрывал
+                                    // поля выше и съедал их тапы.
+                                    .allowsHitTesting(false)
                             }
 
                             PhotosPicker(selection: $photoItems, matching: .images) {

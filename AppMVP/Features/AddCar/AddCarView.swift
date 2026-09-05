@@ -170,6 +170,11 @@ struct AddCarView: View {
                         .scaledToFill()
                         .frame(height: 200)
                         .clipShape(RoundedRectangle(cornerRadius: 26))
+                        // Обязательно: scaledToFill вылезает за рамку не
+                        // только отрисовкой, но и хит-зоной — clipShape режет
+                        // пиксели, а тапы нет. Портретный снимок накрывал
+                        // поля ввода выше, и они «переставали работать».
+                        .allowsHitTesting(false)
 
                     PhotosPicker(selection: $photoItem, matching: .images) {
                         FigmaRowLabel(systemImage: "photo", title: "Выбрать другое фото")
