@@ -8,6 +8,44 @@ func dismissKeyboard() {
                                     to: nil, from: nil, for: nil)
 }
 
+/// Переводит фокус на следующее текстовое поле окна — сверху вниз, слева
+/// направо; после последнего закрывает клавиатуру. Ходит по UIKit-иерархии:
+/// у SwiftUI нет понятия «следующее поле», а общий `FocusState` пришлось бы
+/// заводить в каждой форме заново. Вызывать только из замыканий — по той же
+/// причине, что и `dismissKeyboard()`.
+@MainActor
+func focusNextField() {
+    let window = UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .flatMap(\.windows)
+        .first { $0.isKeyWindow }
+    guard let window else { return dismissKeyboard() }
+
+    var fields: [UITextField] = []
+    func collect(_ view: UIView) {
+        for sub in view.subviews {
+            if let field = sub as? UITextField, field.isEnabled, !field.isHidden {
+                fields.append(field)
+            }
+            collect(sub)
+        }
+    }
+    collect(window)
+
+    guard let current = fields.first(where: { $0.isFirstResponder }) else {
+        return dismissKeyboard()
+    }
+    let ordered = fields.sorted {
+        let a = $0.convert($0.bounds.origin, to: window)
+        let b = $1.convert($1.bounds.origin, to: window)
+        return a.y == b.y ? a.x < b.x : a.y < b.y
+    }
+    guard let index = ordered.firstIndex(of: current), index + 1 < ordered.count else {
+        return dismissKeyboard()
+    }
+    ordered[index + 1].becomeFirstResponder()
+}
+
 /// Общая механика шторок: затемнение с кросс-фейдом, выезд снизу пружиной,
 /// закрытие свайпом вниз и тапом по фону. До этого три шторки были написаны
 /// по отдельности и анимировались по-разному (одна вообще просто проявлялась).

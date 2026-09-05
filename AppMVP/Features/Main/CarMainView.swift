@@ -1373,18 +1373,36 @@ struct CarMainView: View {
         .sharedBackgroundVisibility(.hidden)
     }
 
-    /// Подложка бара: чёрная плашка с мягкой тенью вниз — HIG-отделение
-    /// шапки от уходящего под неё контента. Живёт прозрачностью вместе
-    /// с содержимым бара.
+    /// Подложка бара по HIG: размытие плюс градиент затемнения, оба
+    /// растворяются книзу — сплошная заливка с тенью читалась как плашка,
+    /// по замечанию пользователя. Живёт прозрачностью вместе с содержимым.
     private var toolbarBackdrop: some View {
-        Rectangle()
-            .fill(Color.black)
-            .frame(height: metrics.safeTop + 44)
-            .shadow(color: .black.opacity(0.55), radius: 14, y: 6)
-            .ignoresSafeArea(edges: .top)
-            .opacity(toolbar.isVisible ? 1 : 0)
-            .animation(.easeInOut(duration: 0.18), value: toolbar.isVisible)
-            .allowsHitTesting(false)
+        ZStack(alignment: .top) {
+            // Блюр гаснет маской: резкая нижняя кромка размытия выдаёт
+            // прямоугольник так же, как выдавала заливка.
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .mask {
+                    LinearGradient(
+                        stops: [.init(color: .black, location: 0),
+                                .init(color: .black, location: 0.68),
+                                .init(color: .clear, location: 1)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                }
+
+            LinearGradient(
+                stops: [.init(color: .black.opacity(0.85), location: 0),
+                        .init(color: .black.opacity(0.5), location: 0.55),
+                        .init(color: .clear, location: 1)],
+                startPoint: .top, endPoint: .bottom
+            )
+        }
+        .frame(height: metrics.safeTop + 64)
+        .ignoresSafeArea(edges: .top)
+        .opacity(toolbar.isVisible ? 1 : 0)
+        .animation(.easeInOut(duration: 0.18), value: toolbar.isVisible)
+        .allowsHitTesting(false)
     }
 
     /// Записи ТО вертикальным списком: дата заголовком, под ней карточка.
