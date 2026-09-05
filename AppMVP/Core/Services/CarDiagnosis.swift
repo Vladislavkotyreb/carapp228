@@ -116,6 +116,26 @@ struct Diagnosis: Decodable {
     /// список: полей у сегмента шесть, и ни одно на экран не идёт.
     private struct AnySegment: Decodable {}
 
+    /// Локальный разбор (`LocalDiagnosis`) собирает тот же ответ без JSON.
+    /// Сегментов у него нет по построению — каскад изоляции не портирован,
+    /// значение всегда ноль, как фактически было у телефонных записей
+    /// и на сервере.
+    init(verdict: String, faultProbability: Double, engineKnockProbability: Double,
+         regions: [Region], causes: [Cause], note: String,
+         isEngine: Bool, engineProbability: Double, heard: HeardKind) {
+        self.verdict = verdict
+        self.faultProbability = faultProbability
+        self.engineKnockProbability = engineKnockProbability
+        self.regions = regions
+        self.causes = causes
+        self.note = note
+        self.segmentCount = 0
+        self.modelLoaded = true
+        self.isEngine = isEngine
+        self.engineProbability = engineProbability
+        self.heard = heard
+    }
+
     init(from decoder: Decoder) throws {
         let box = try decoder.container(keyedBy: CodingKeys.self)
         verdict = try box.decodeIfPresent(String.self, forKey: .verdict) ?? "uncertain"

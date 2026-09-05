@@ -580,8 +580,9 @@ struct IssuesScreen: View {
     /// только после ответа: показать её сразу и потом подменить содержимое
     /// значит соврать пользователю про то, что уже «нашли».
     private func analyse() {
-        guard DiagnosisEndpoint.isConfigured, let recording = meter.lastRecording else {
-            // Сервер не настроен — работаем как раньше, на заглушке. Это
+        let canDiagnose = LocalDiagnosis.isAvailable || DiagnosisEndpoint.isConfigured
+        guard canDiagnose, let recording = meter.lastRecording else {
+            // Ни локальных моделей, ни сервера — работаем на заглушке. Это
             // честнее пустого экрана и совпадает с поведением «Карты» без ключа.
             nothingHeard = nil
             findings = IssuesStub.findings
@@ -597,10 +598,16 @@ struct IssuesScreen: View {
         analysisTask = Task {
             let result: [EngineIssue]
             do {
-                result = issues(from: try await CarDiagnosisClient.diagnose(fileURL: recording))
+                // Локальный разбор первым: модели лежат в бандле, сеть не
+                // нужна вовсе. Сервер остаётся отладочным запасным путём на
+                // случай сборки без моделей.
+                let diagnosis = LocalDiagnosis.isAvailable
+                    ? try await LocalDiagnosis.diagnose(fileURL: recording)
+                    : try await CarDiagnosisClient.diagnose(fileURL: recording)
+                result = issues(from: diagnosis)
             } catch {
                 let reason = (error as? LocalizedError)?.errorDescription
-                    ?? "Не удалось связаться с сервером"
+                    ?? "Не удалось разобрать запись"
                 result = [EngineIssue(title: "Не удалось разобрать запись", detail: reason)]
             }
             guard !Task.isCancelled else { return }
