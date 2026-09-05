@@ -98,6 +98,8 @@ struct AddCarView: View {
         }
         // отклик даёт SwiftUI — он уважает системные настройки
         .sensoryFeedback(.error, trigger: shake)
+        // Панель «Скрыть/Готово» над клавиатурой: у цифровой нет Return.
+        .keyboardDismissBar()
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
             Task {
@@ -168,6 +170,11 @@ struct AddCarView: View {
                         .scaledToFill()
                         .frame(height: 200)
                         .clipShape(RoundedRectangle(cornerRadius: 26))
+                        // Обязательно: scaledToFill вылезает за рамку не
+                        // только отрисовкой, но и хит-зоной — clipShape режет
+                        // пиксели, а тапы нет. Портретный снимок накрывал
+                        // поля ввода выше, и они «переставали работать».
+                        .allowsHitTesting(false)
 
                     PhotosPicker(selection: $photoItem, matching: .images) {
                         FigmaRowLabel(systemImage: "photo", title: "Выбрать другое фото")

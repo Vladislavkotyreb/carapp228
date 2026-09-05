@@ -93,6 +93,11 @@ struct AddServiceSheet: View {
                                         .scaledToFill()
                                         .frame(width: 98.842, height: 94)
                                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                                        // Хит-зона scaledToFill шире рамки —
+                                        // вылезшие поля крали тапы у крестиков
+                                        // соседних превью. Кнопка ниже в
+                                        // overlay и не гаснет.
+                                        .allowsHitTesting(false)
                                         .overlay(alignment: .topTrailing) {
                                             Button { photos.remove(at: index) } label: {
                                                 Image(systemName: "xmark")

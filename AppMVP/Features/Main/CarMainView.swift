@@ -1,6 +1,7 @@
 import PhotosUI
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Разделяет разряды пробелами, как в макете: «9 000 000 км».
 /// Константы шапки при прокрутке. Вынесены из вью намеренно: замыкание
@@ -74,6 +75,10 @@ struct CarMainView: View {
 
     @State private var tab = 0
     @State private var carPage = 0
+    /// Выезд машины при входе в приложение: блок фото выкатывается слева и
+    /// плавно тормозит. Играет один раз за жизнь экрана — guard в onAppear
+    /// не даёт повториться при возвратах на вкладку «Машина».
+    @State private var carDriveIn = false
     @State private var dragX: CGFloat = 0
     /// Ось жеста фиксируется на первом заметном смещении и держится до конца.
     /// Раньше решение принималось на каждом кадре — отсюда дёрганье.
@@ -328,8 +333,23 @@ struct CarMainView: View {
                 // Замена шторки — один переход, а не «закрыть и открыть»:
                 // двух присваиваний подряд больше нет, и промежуточного
                 // состояния с двумя открытыми тоже.
-                onPickPhoto: { sheet = .photoPicker },
+                onPickPhoto: { sheet = .docSource },
                 onManual: { sheet = .service }
+            )
+        }
+        // Шторка цены (референс пользователя): крупная цена, объяснение
+        // средней по рынку, карандаш ведёт в алерт правки — замена шторки
+        // алертом идёт через тот же слот, как и у остальных пар.
+        .bottomSheet(isPresented: presenting(.priceInfo)) {
+            PriceInfoSheet(
+                ownPrice: car?.price,
+                marketPrice: car?.marketPrice,
+                marketOffers: car?.marketOffers,
+                onEdit: {
+                    priceDraft = car?.price.map(String.init) ?? ""
+                    sheet = .priceEdit
+                },
+                onClose: { sheet = .closed }
             )
         }
         .bottomSheet(isPresented: presenting(.service)) {
@@ -365,7 +385,12 @@ struct CarMainView: View {
             onSubmitCar: addCar,
             onPhotosLoaded: { loaded in
                 photos = loaded
-                if !loaded.isEmpty { applyParsedService() }
+                guard let first = loaded.first else { return }
+                Task {
+                    let parsed = await ServiceDocScanner.parse(image: first)
+                    guard !Task.isCancelled else { return }
+                    applyParsedService(parsed)
+                }
             }
         ))
         // Подложка под всеми разделами. Страница машины стала чёрной целиком
@@ -387,6 +412,9 @@ struct CarMainView: View {
             if new != 2 { hidesTabBar = false }
         }
         .sensoryFeedback(.success, trigger: addedServiceTick)
+        // Панель «Скрыть/Готово» над клавиатурой: цифровую иначе не закрыть.
+        // Один общий предок покрывает и шторки-оверлеи (форма ТО, цена).
+        .keyboardDismissBar()
         // Декодирование вне главного актора, как и у чеков ТО
         .task(id: carPhotoKey) {
             var decoded: [PersistentIdentifier: UIImage] = [:]
@@ -397,6 +425,28 @@ struct CarMainView: View {
                 }
             }
             carImages = decoded
+        }
+        // Рыночная цена: раз в неделю на машину, только по полному VIN.
+        .task(id: marketPriceKey) {
+            guard AvtoVinCodValuation.isConfigured else { return }
+            for car in cars {
+                guard MarketPrice.canEstimate(vin: car.vin),
+                      MarketPrice.needsRefresh(updatedAt: car.marketPriceDate, now: .now),
+                      let vin = car.vin else { continue }
+                do {
+                    let estimate = try await AvtoVinCodValuation.estimate(vin: vin)
+                    car.marketPrice = estimate.average
+                    car.marketOffers = estimate.offers
+                    car.marketPriceDate = .now
+                } catch VehicleLookupError.notFound {
+                    // Данных по модели нет — не переспрашивать неделю: ответ
+                    // не изменится, а запросы платные. Дата без цены ровно
+                    // это и значит.
+                    car.marketPriceDate = .now
+                } catch {
+                    // Сеть или сервис: попробуем при следующем входе на экран.
+                }
+            }
         }
         // Отклик при смене машины: мягкий удар, а не сухой щелчок пикера —
         // перелистывание карточки ощущается «мясистее». Срабатывает на
@@ -416,6 +466,18 @@ struct CarMainView: View {
             Button("Отмена", role: .cancel) {}
         } message: {
             Text("История обслуживания тоже будет удалена.")
+        }
+        // «Добавить фото или PDF»: галерея отдаёт только снимки, PDF живёт
+        // в «Файлах» — источник выбирается системным диалогом.
+        .confirmationDialog("Откуда взять бланк?", isPresented: presenting(.docSource),
+                            titleVisibility: .visible) {
+            Button("Из галереи") { sheet = .photoPicker }
+            Button("Файл PDF или скан") { sheet = .filePicker }
+            Button("Отмена", role: .cancel) {}
+        }
+        .fileImporter(isPresented: presenting(.filePicker),
+                      allowedContentTypes: [.pdf, .image]) { result in
+            if case .success(let url) = result { importServiceDocument(url) }
         }
     }
 
@@ -454,14 +516,20 @@ struct CarMainView: View {
                         // Краевой эффект прокрутки размывал карточку «ТО через»
                         // под баром. В макете под тулбаром контент чёткий.
                         .scrollEdgeEffectHidden(true, for: .top)
+                        // Подложка бара с тенью — HIG-отделение шапки от
+                        // контента, когда он уходит под неё. Прозрачностью,
+                        // а не условием: слой должен растворяться.
+                        .overlay(alignment: .top) { toolbarBackdrop }
                         .toolbar { carToolbar }
                         // Фон бара скрыт: в макете контент уходит под тулбар,
                         // фото машины видно за ним.
                         .toolbarBackground(.hidden, for: .navigationBar)
-                        // В покое тулбара нет — он появляется при прокрутке,
-                        // как показано в ноде «поведение при скролле».
-                        .toolbarVisibility(toolbar.isVisible ? .visible : .hidden,
-                                           for: .navigationBar)
+                        // Бар существует всегда, прячется только содержимое
+                        // (прозрачностью в carToolbar). Переключение
+                        // .visible/.hidden меняло инсеты UIScrollView без
+                        // анимации — позиция прокрутки «возвращалась сменой
+                        // кадра», это и был баг из отзыва пользователя.
+                        .toolbarVisibility(.visible, for: .navigationBar)
                 }
             }
             Tab("Карта", systemImage: "map", value: 1) { MapScreen() }
@@ -530,11 +598,25 @@ struct CarMainView: View {
             // управляет только содержимым — текстами и видимостью блоков.
             let p = addProgress
 
-            carPageBody(progress: p)
-                // simultaneousGesture, а не gesture: заполненная страница —
-                // вертикальный ScrollView, и он забирал свайп себе, поэтому
-                // над картинкой машины и карточкой ТО карусель не листалась.
-                .simultaneousGesture(carouselDrag(width: width))
+            ZStack {
+                carPageBody(progress: p)
+                    // simultaneousGesture, а не gesture: заполненная страница —
+                    // вертикальный ScrollView, и он забирал свайп себе, поэтому
+                    // над картинкой машины и карточкой ТО карусель не листалась.
+                    .simultaneousGesture(carouselDrag(width: width))
+
+                // Источник света у левого края — глубина чёрного экрана.
+                // Поверх контента аддитивно, а не подложкой: под непрозрачной
+                // ячейкой фото подложка не светит, и блок выдавал себя
+                // резкой границей. Неподвижен при прокрутке: свет принадлежит
+                // сцене, а не контенту. Просьба пользователя, в макете его нет.
+                RadialGradient(colors: [Color.white.opacity(0.09), .clear],
+                               center: UnitPoint(x: -0.25, y: 0.34),
+                               startRadius: 0, endRadius: 480)
+                    // Обычная альфа, не plusLighter: режим смешивания
+                    // заставлял перекомпозичивать весь экран каждый кадр.
+                    .allowsHitTesting(false)
+            }
         }
         // важно: сам GeometryReader должен игнорировать safe area, иначе он
         // отдаёт урезанный размер и все координаты макета съезжают вниз
@@ -652,17 +734,25 @@ struct CarMainView: View {
                     // Цена правится тапом по плитке: формы правки авто в
                     // приложении нет, а тулбар с меню есть только на iOS 26.
                     Button {
-                        priceDraft = car?.price.map(String.init) ?? ""
-                        sheet = .priceEdit
+                        sheet = .priceInfo
                     } label: {
+                        // Своя цена главнее рыночной: пользователь вводил её
+                        // сознательно. Рыночная — с «≈»: это средняя по
+                        // объявлениям, а не цена этой машины.
                         statCard(title: "Цена авто") { car in
-                            car.price.map { "\(NumberFormat.grouped($0))\u{00A0}₽" } ?? "—"
+                            if let price = car.price {
+                                "\(NumberFormat.grouped(price))\u{00A0}₽"
+                            } else if let market = car.marketPrice {
+                                "≈\u{00A0}\(NumberFormat.grouped(market))\u{00A0}₽"
+                            } else {
+                                "—"
+                            }
                         }
                     }
                     .buttonStyle(.plain)
                     .contentShape(Self.statCardShape)
                     .accessibilityLabel("Цена авто")
-                    .accessibilityHint("Изменить")
+                    .accessibilityHint("Подробнее и изменить")
 
                     statCard(title: "Пробег") { "\(NumberFormat.grouped($0.odometer))\u{00A0}км" }
                 }
@@ -880,7 +970,26 @@ struct CarMainView: View {
         }
         .padding(.horizontal, -16 * mix)
         .offset(y: HeaderLayout.photoTop - HeaderLayout.photoRise * mix)
+        // Выезд машины на первом кадре — первая версия по выбору пользователя:
+        // пружинный докат с лёгким клевком при остановке. Едет только блок
+        // фото — подписи и карточки стоят. Два случая играют проявлением
+        // вместо движения: Reduce Motion (HIG) и режим своего снимка —
+        // у реального фото видны края кадра, и слайд читался бы как летящий
+        // прямоугольник, а не как машина.
+        .offset(x: carDriveIn || !slides ? 0 : -440)
+        .rotationEffect(.degrees(carDriveIn || !slides ? 0 : -1.6), anchor: .bottom)
+        .opacity(carDriveIn || slides ? 1 : 0)
+        .onAppear {
+            guard !carDriveIn else { return }
+            let animation: Animation = slides
+                ? .interpolatingSpring(stiffness: 110, damping: 15).delay(0.5)
+                : .easeOut(duration: 0.5).delay(0.3)
+            withAnimation(animation) { carDriveIn = true }
+        }
     }
+
+    /// Выезд уместен только у студийного кадра на чёрном фоне.
+    private var slides: Bool { !reduceMotion && photoMix < 0.5 }
 
     /// Одно место на весь экран: то же название стоит и в шапке при прокрутке.
     /// TODO: брать из модели, когда появится справочник марок.
@@ -958,6 +1067,14 @@ struct CarMainView: View {
     /// обновлении вью бессмысленно дорого.
     private var carPhotoKey: String {
         cars.map { "\($0.persistentModelID.hashValue)-\($0.photo?.count ?? 0)" }
+            .joined(separator: "|")
+    }
+
+    /// Ключ обновления рыночных цен: состав машин и их VIN. Даты последнего
+    /// обновления в ключе нет намеренно: запись свежей даты из самой задачи
+    /// не должна перезапускать задачу.
+    private var marketPriceKey: String {
+        cars.map { "\($0.persistentModelID.hashValue)-\($0.vin ?? "")" }
             .joined(separator: "|")
     }
 
@@ -1230,12 +1347,13 @@ struct CarMainView: View {
                     // Страница под баром теперь чёрная сверху донизу, поэтому
                     // и кнопки тулбара — на тёмном стекле, как карточки.
                     // Само это состояние в макете не нарисовано.
-                    .darkGlassCard(in: Circle())
+                    .darkGlassChip(in: Circle())
                     .contentShape(Circle())
             }
             .menuStyle(.button)
             .buttonStyle(.plain)
             .accessibilityLabel("Действия с автомобилем")
+            .modifier(ToolbarFade(toolbar: toolbar))
         }
         // Системная подложка элемента бара гасится: она рисует своё стекло
         // ПОД нашей капсулой и над чёрной карточкой выходила тёмным кольцом
@@ -1244,8 +1362,8 @@ struct CarMainView: View {
 
         ToolbarItem(placement: .principal) {
             // 15pt Semibold, две строки, по левому краю — как в макете.
-            // Ширина 167 из ноды: без неё слот жмётся к одной строке и
-            // название обрезается многоточием.
+            // Ширина была 167 из ноды; ужата до 155 — просьба пользователя
+            // отодвинуть название от кнопки «Добавить ТО» на 12pt.
             Text(car?.name ?? "")
                 .font(.system(size: 15, weight: .semibold))
                 .tracking(-0.23)
@@ -1256,7 +1374,8 @@ struct CarMainView: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(width: 167, alignment: .leading)
+                .frame(width: 155, alignment: .leading)
+                .modifier(ToolbarFade(toolbar: toolbar))
         }
 
         ToolbarItem(placement: .topBarTrailing) {
@@ -1265,12 +1384,45 @@ struct CarMainView: View {
                     .font(.system(size: 17, weight: .medium))
                     .foregroundStyle(.white)
                     .frame(width: 139, height: 44)
-                    .darkGlassCard(in: Capsule())
+                    .darkGlassChip(in: Capsule())
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
+            .modifier(ToolbarFade(toolbar: toolbar))
         }
         .sharedBackgroundVisibility(.hidden)
+    }
+
+    /// Подложка бара по HIG: размытие плюс градиент затемнения, оба
+    /// растворяются книзу — сплошная заливка с тенью читалась как плашка,
+    /// по замечанию пользователя. Живёт прозрачностью вместе с содержимым.
+    private var toolbarBackdrop: some View {
+        ZStack(alignment: .top) {
+            // Блюр гаснет маской: резкая нижняя кромка размытия выдаёт
+            // прямоугольник так же, как выдавала заливка.
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .mask {
+                    LinearGradient(
+                        stops: [.init(color: .black, location: 0),
+                                .init(color: .black, location: 0.68),
+                                .init(color: .clear, location: 1)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                }
+
+            LinearGradient(
+                stops: [.init(color: .black.opacity(0.85), location: 0),
+                        .init(color: .black.opacity(0.5), location: 0.55),
+                        .init(color: .clear, location: 1)],
+                startPoint: .top, endPoint: .bottom
+            )
+        }
+        .frame(height: metrics.safeTop + 64)
+        .ignoresSafeArea(edges: .top)
+        .opacity(toolbar.isVisible ? 1 : 0)
+        .animation(.easeInOut(duration: 0.18), value: toolbar.isVisible)
+        .allowsHitTesting(false)
     }
 
     /// Записи ТО вертикальным списком: дата заголовком, под ней карточка.
@@ -1301,31 +1453,25 @@ struct CarMainView: View {
 
                 Spacer(minLength: 0).frame(height: 8)
 
-                serviceCard(record)
-                    // HIG: действия над конкретным элементом — контекстное
-                    // меню. Подъём карточки и хаптик даёт сама система,
-                    // добавлять sensoryFeedback не нужно.
-                    .contextMenu {
-                        Button { startEditing(record) } label: {
-                            Label("Изменить", systemImage: "pencil")
-                        }
-
-                        Button(role: .destructive) {
-                            // Работы уходят каскадом — правило в модели
-                            modelContext.delete(record)
-                        } label: {
-                            Label("Удалить", systemImage: "trash")
-                        }
-                    } preview: {
-                        // Своё превью, а не подъём оригинала: у карточки тень
-                        // нарисована за пределами её формы, и границы снимка
-                        // не совпадали с ней — касание давало сжатие-отскок не
-                        // по той геометрии. Размер обязан совпадать с самой
-                        // карточкой, иначе возвращается та же болезнь.
-                        serviceCardBody(record)
-                            .frame(width: 370, height: Self.serviceCardHeight)
-                            .background(Self.serviceCardShape.fill(Figma.darkCard))
+                // Меню, а не contextMenu: система поднимала превью карточки
+                // к центру экрана — «улетает вверх», по замечанию
+                // пользователя. Menu открывается у пальца, элемент стоит на
+                // месте; работает и тапом, и удержанием.
+                Menu {
+                    Button { startEditing(record) } label: {
+                        Label("Изменить", systemImage: "pencil")
                     }
+
+                    Button(role: .destructive) {
+                        // Работы уходят каскадом — правило в модели
+                        modelContext.delete(record)
+                    } label: {
+                        Label("Удалить", systemImage: "trash")
+                    }
+                } label: {
+                    serviceCard(record)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -1466,11 +1612,46 @@ struct CarMainView: View {
     /// Разбор фото/PDF: скрипт достаёт базовые показатели и форма открывается
     /// уже заполненной — ручной ввод с нуля здесь неуместен.
     /// TODO: заменить заглушку на реальный парсер.
-    private func applyParsedService() {
-        serviceDate = Date()
-        serviceMileage = "\(odometer)"
-        works = [ServiceWork(title: "Замена масла", amount: "12000")]
+    /// Открывает форму ТО с тем, что удалось вычитать из бланка. Пустой
+    /// разбор — честная пустая форма с сегодняшней датой и текущим пробегом:
+    /// приложить нечитаемое фото чеком всё равно можно.
+    private func applyParsedService(_ parsed: ParsedServiceDoc?) {
+        if let parsed, let d = parsed.day, let m = parsed.month, let y = parsed.year,
+           let date = Calendar.current.date(from: DateComponents(year: y, month: m, day: d)) {
+            serviceDate = date
+        } else {
+            serviceDate = Date()
+        }
+        serviceMileage = "\(parsed?.mileage ?? odometer)"
+        let parsedWorks = (parsed?.works ?? []).map {
+            ServiceWork(title: $0.title, amount: String($0.amount))
+        }
+        works = parsedWorks.isEmpty ? [ServiceWork()] : parsedWorks
         sheet = .service
+    }
+
+    /// Считывает бланк из выбранного файла («Файлы»: PDF или изображение),
+    /// кладёт превью в чеки и открывает заполненную форму.
+    private func importServiceDocument(_ url: URL) {
+        let secured = url.startAccessingSecurityScopedResource()
+        Task {
+            defer { if secured { url.stopAccessingSecurityScopedResource() } }
+            let parsed: ParsedServiceDoc?
+            if url.pathExtension.lowercased() == "pdf" {
+                parsed = await ServiceDocScanner.parse(pdfURL: url)
+                if let preview = ServiceDocScanner.preview(pdfURL: url) {
+                    photos = [preview]
+                }
+            } else if let data = try? Data(contentsOf: url),
+                      let image = await ImageLoader.decode([data]).first {
+                photos = [image]
+                parsed = await ServiceDocScanner.parse(image: image)
+            } else {
+                parsed = nil
+            }
+            guard !Task.isCancelled else { return }
+            applyParsedService(parsed)
+        }
     }
 
     /// Создаёт машину из формы «Добавить авто». Раньше onSubmit только
@@ -1603,45 +1784,39 @@ struct CarMainView: View {
     }
 }
 
+/// Содержимое тулбара появляется прозрачностью. Сам бар существует всегда:
+/// переключение его видимости меняло инсеты прокрутки скачком — позиция
+/// «возвращалась сменой кадра».
+private struct ToolbarFade: ViewModifier {
+    @ObservedObject var toolbar: ToolbarVisibility
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(toolbar.isVisible ? 1 : 0)
+            // Погашенная кнопка не должна ловить тапы вслепую.
+            .allowsHitTesting(toolbar.isVisible)
+            .animation(.easeInOut(duration: 0.18), value: toolbar.isVisible)
+    }
+}
+
 /// Поднимается по иерархии UIKit до ближайшего UIScrollView — того самого,
 /// на котором стоит SwiftUI-прокрутка. Отдельного файла не заводим: правка
 /// `project.pbxproj` вручную дороже двадцати строк.
 private extension View {
-    /// Тёмное стекло карточек главной: «Liquid Glass - Regular - Small» в
-    /// тёмном варианте. Один рецепт на все карточки экрана — они и в макете
-    /// один компонент.
-    ///
-    /// Рисуем сами (`kind: .painted`), потому что `glassEffect` не отдаёт
-    /// наружу ни толщину кромки, ни внутренние тени. Профиль снят колонкой
-    /// пикселей с рендера и одинаков у всех карточек: заливка #1A1A1A, сверху
-    /// затемнение до 18/255, сходящее на нет к 28pt, снизу подсветка до 30 и
-    /// волосяная кромка по контуру.
+    /// Карточки главной — общий `darkCardSurface` (см. LiquidGlass.swift):
+    /// нарисованная заливка с кромкой white 10 %, единый вид с «Ошибками»
+    /// без живого стекла на каждом элементе списка.
     func darkGlassCard<S: Shape>(in shape: S) -> some View {
-        liquidGlass(in: shape, tint: Figma.darkCard, kind: .painted) {
+        darkCardSurface(in: shape)
+    }
+
+    /// Кнопки тулбара остаются настоящим стеклом: их две, они висят поверх
+    /// уезжающего контента, и преломление там осмысленно — в отличие от
+    /// карточек на чёрном фоне.
+    func darkGlassChip<S: Shape>(in shape: S) -> some View {
+        liquidGlass(in: shape, tint: Figma.darkCard) {
             shape.fill(Figma.darkCard)
-                .overlay {
-                    // Полосы в точках, а не в долях высоты: в макете это
-                    // внутренние тени с абсолютным радиусом, и у карточки
-                    // 246pt они такие же, как у плитки 96pt.
-                    VStack(spacing: 0) {
-                        LinearGradient(colors: [.black.opacity(0.31), .clear],
-                                       startPoint: .top, endPoint: .bottom)
-                            .frame(height: 28)
-
-                        Spacer(minLength: 0)
-
-                        LinearGradient(colors: [.clear, .white.opacity(0.02)],
-                                       startPoint: .top, endPoint: .bottom)
-                            .frame(height: 12)
-                    }
-                    .clipShape(shape)
-                }
-                // Кромка. В макете она объявлена обводкой 0.5pt цветом
-                // #A6A6A6, но обводка там внутренняя, а `stroke` кладёт линию
-                // по центру контура — тем же цветом край выходил вдвое ярче
-                // рендера (107 против 65 суммарно по двум строкам). Значение
-                // подобрано замером, а не переписано из ноды.
-                .overlay(shape.stroke(Color(white: 0.4), lineWidth: 0.5))
+                .overlay(shape.stroke(Color.white.opacity(0.10), lineWidth: 0.5))
         }
     }
 }

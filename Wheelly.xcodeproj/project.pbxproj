@@ -12,10 +12,13 @@
 		CA0000010000000000000001 /* ServiceMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000001 /* ServiceMath.swift */; };
 		CA0000010000000000000002 /* NumberFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000002 /* NumberFormat.swift */; };
 		CA0000010000000000000005 /* MapGeo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000005 /* MapGeo.swift */; };
+		CA0000010000000000000006 /* MarketPrice.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000006 /* MarketPrice.swift */; };
+		CA0000010000000000000007 /* ServiceDocParse.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000007 /* ServiceDocParse.swift */; };
 		9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */ = {isa = PBXBuildFile; productRef = 9A0000010000000000000002 /* YandexMapsMobileFull */; };
 		9B0000010000000000000001 /* MapKitKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000001 /* MapKitKey.swift */; };
 		9B0000010000000000000077 /* VehicleLookupKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000077 /* VehicleLookupKey.swift */; };
 		9B0000010000000000000078 /* LocalCarDiagnosis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000078 /* LocalCarDiagnosis.swift */; };
+		9B000001000000000000007D /* ServiceDocScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C000001000000000000007D /* ServiceDocScanner.swift */; };
 		9B0000010000000000000079 /* ClapMelFrontend.mlmodelc in Resources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000079 /* ClapMelFrontend.mlmodelc */; };
 		9B000001000000000000007A /* ClapAudioEncoder.mlmodelc in Resources */ = {isa = PBXBuildFile; fileRef = 9C000001000000000000007A /* ClapAudioEncoder.mlmodelc */; };
 		9B000001000000000000007B /* DiagnosisSupport.json in Resources */ = {isa = PBXBuildFile; fileRef = 9C000001000000000000007B /* DiagnosisSupport.json */; };
@@ -43,6 +46,7 @@
 		AA0000010000000000000020 /* CarMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000020 /* CarMainView.swift */; };
 		AA0000010000000000000021 /* AddServiceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000021 /* AddServiceSheet.swift */; };
 		AA0000010000000000000022 /* AddServiceChoiceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000022 /* AddServiceChoiceSheet.swift */; };
+		9B000001000000000000007C /* PriceInfoSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C000001000000000000007C /* PriceInfoSheet.swift */; };
 		AA0000010000000000000023 /* AddCarSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000023 /* AddCarSheet.swift */; };
 		AA0000010000000000000024 /* LiquidGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000024 /* LiquidGlass.swift */; };
 		AA0000010000000000000025 /* BottomSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000025 /* BottomSheet.swift */; };
@@ -62,9 +66,12 @@
 		CB0000010000000000000001 /* ServiceMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceMath.swift; sourceTree = "<group>"; };
 		CB0000010000000000000002 /* NumberFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberFormat.swift; sourceTree = "<group>"; };
 		CB0000010000000000000005 /* MapGeo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapGeo.swift; sourceTree = "<group>"; };
+		CB0000010000000000000006 /* MarketPrice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketPrice.swift; sourceTree = "<group>"; };
+		CB0000010000000000000007 /* ServiceDocParse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDocParse.swift; sourceTree = "<group>"; };
 		9C0000010000000000000001 /* MapKitKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitKey.swift; sourceTree = "<group>"; };
 		9C0000010000000000000077 /* VehicleLookupKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleLookupKey.swift; sourceTree = "<group>"; };
 		9C0000010000000000000078 /* LocalCarDiagnosis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCarDiagnosis.swift; sourceTree = "<group>"; };
+		9C000001000000000000007D /* ServiceDocScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDocScanner.swift; sourceTree = "<group>"; };
 		9C0000010000000000000079 /* ClapMelFrontend.mlmodelc */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = ClapMelFrontend.mlmodelc; sourceTree = "<group>"; };
 		9C000001000000000000007A /* ClapAudioEncoder.mlmodelc */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = ClapAudioEncoder.mlmodelc; sourceTree = "<group>"; };
 		9C000001000000000000007B /* DiagnosisSupport.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = DiagnosisSupport.json; sourceTree = "<group>"; };
@@ -93,6 +100,7 @@
 		BB0000010000000000000020 /* CarMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarMainView.swift; sourceTree = "<group>"; };
 		BB0000010000000000000021 /* AddServiceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddServiceSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000022 /* AddServiceChoiceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddServiceChoiceSheet.swift; sourceTree = "<group>"; };
+		9C000001000000000000007C /* PriceInfoSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceInfoSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000023 /* AddCarSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCarSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000024 /* LiquidGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlass.swift; sourceTree = "<group>"; };
 		BB0000010000000000000025 /* BottomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomSheet.swift; sourceTree = "<group>"; };
@@ -126,6 +134,8 @@
 				CB0000010000000000000003 /* UIState.swift */,
 				CB0000010000000000000004 /* UIStateCatalog.swift */,
 				CB0000010000000000000005 /* MapGeo.swift */,
+				CB0000010000000000000006 /* MarketPrice.swift */,
+				CB0000010000000000000007 /* ServiceDocParse.swift */,
 			);
 			path = Pure;
 			sourceTree = "<group>";
@@ -279,6 +289,7 @@
 				BB0000010000000000000020 /* CarMainView.swift */,
 				BB0000010000000000000021 /* AddServiceSheet.swift */,
 				BB0000010000000000000022 /* AddServiceChoiceSheet.swift */,
+				9C000001000000000000007C /* PriceInfoSheet.swift */,
 				BB0000010000000000000023 /* AddCarSheet.swift */,
 			);
 			path = Main;
@@ -298,6 +309,7 @@
 				BB00000100000000000000B1 /* VehicleLookup.swift */,
 				9C0000010000000000000077 /* VehicleLookupKey.swift */,
 				9C0000010000000000000078 /* LocalCarDiagnosis.swift */,
+				9C000001000000000000007D /* ServiceDocScanner.swift */,
 				9C0000010000000000000001 /* MapKitKey.swift */,
 				9C0000000000000000000001 /* CarDiagnosis.swift */,
 				8B0000010000000000000001 /* AudioLevelMeter.swift */,
@@ -393,6 +405,8 @@
 				CA0000010000000000000001 /* ServiceMath.swift in Sources */,
 				CA0000010000000000000002 /* NumberFormat.swift in Sources */,
 				CA0000010000000000000005 /* MapGeo.swift in Sources */,
+				CA0000010000000000000006 /* MarketPrice.swift in Sources */,
+				CA0000010000000000000007 /* ServiceDocParse.swift in Sources */,
 				CA0000010000000000000003 /* UIState.swift in Sources */,
 				CA0000010000000000000004 /* UIStateCatalog.swift in Sources */,
 				AA0000010000000000000003 /* Theme.swift in Sources */,
@@ -413,6 +427,7 @@
 				AA0000010000000000000020 /* CarMainView.swift in Sources */,
 				AA0000010000000000000021 /* AddServiceSheet.swift in Sources */,
 				AA0000010000000000000022 /* AddServiceChoiceSheet.swift in Sources */,
+				9B000001000000000000007C /* PriceInfoSheet.swift in Sources */,
 				AA0000010000000000000023 /* AddCarSheet.swift in Sources */,
 				AA0000010000000000000024 /* LiquidGlass.swift in Sources */,
 				AA0000010000000000000025 /* BottomSheet.swift in Sources */,
@@ -430,6 +445,7 @@
 				9B0000010000000000000001 /* MapKitKey.swift in Sources */,
 				9B0000010000000000000077 /* VehicleLookupKey.swift in Sources */,
 				9B0000010000000000000078 /* LocalCarDiagnosis.swift in Sources */,
+				9B000001000000000000007D /* ServiceDocScanner.swift in Sources */,
 				9B0000000000000000000001 /* CarDiagnosis.swift in Sources */,
 			);
 		};

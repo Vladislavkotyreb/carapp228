@@ -87,6 +87,18 @@ struct LiquidGlassBackground<S: Shape, Fallback: View>: ViewModifier {
 }
 
 extension View {
+    /// Тёмная карточка обоих тёмных экранов: заливка #1A1A1A с волосяной
+    /// кромкой white 10 %. Нарисована, а не `glassEffect`: под карточками
+    /// чёрный фон и преломлять нечего, а живой материал на каждой карточке
+    /// прокручиваемого списка пересчитывался каждый кадр — приложение
+    /// подлагивало на iPhone 15 Pro. Вид со стеклом на чёрном совпадает.
+    func darkCardSurface<S: Shape>(in shape: S) -> some View {
+        background {
+            shape.fill(Figma.darkCard)
+                .overlay(shape.stroke(Color.white.opacity(0.10), lineWidth: 0.5))
+        }
+    }
+
     /// `tint` задаёт цвет стекла на iOS 26; `fallback` рисует подложку из макета
     /// на iOS 17–25.
     func liquidGlass<S: Shape, Fallback: View>(

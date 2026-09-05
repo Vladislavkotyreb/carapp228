@@ -62,6 +62,10 @@ struct AddCarSheet: View {
                                     .frame(height: 160)
                                     .frame(maxWidth: .infinity)
                                     .clipShape(RoundedRectangle(cornerRadius: 26))
+                                    // scaledToFill вылезает за рамку и
+                                    // хит-зоной: портретный снимок накрывал
+                                    // поля выше и съедал их тапы.
+                                    .allowsHitTesting(false)
                             }
 
                             PhotosPicker(selection: $photoItems, matching: .images) {
@@ -96,6 +100,12 @@ struct AddCarSheet: View {
                 .frame(width: 58, height: 4)
                 .padding(.top, 5)
         }
+        // Шторка живёт в системном .sheet — панель клавиатуры с экрана под
+        // ней сюда не доезжает, нужна своя.
+        .keyboardDismissBar()
+        // Кнопка «Добавить» остаётся на месте, а не прыгает на клавиатуру:
+        // просьба пользователя. Клавиатура её просто накрывает.
+        .ignoresSafeArea(.keyboard)
     }
 
     private var toolbar: some View {
