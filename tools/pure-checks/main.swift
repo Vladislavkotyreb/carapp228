@@ -112,6 +112,54 @@ group("MarketPrice") {
           MarketPrice.needsRefresh(updatedAt: now.addingTimeInterval(-MarketPrice.refreshInterval), now: now), true)
 }
 
+// ------------------------------------------------------------ ServiceDocParse
+
+group("ServiceDocParse") {
+    // Мини-наряд фрагментами Vision: шапка, авто, две строки работ, запчасть,
+    // итоги. y растёт снизу вверх, как в Vision.
+    let doc = ServiceDocParse.parse([
+        OCRFragment("ЗАКАЗ-НАРЯД № 1042 от 14.08.2026", minX: 0.1, midY: 0.95),
+        OCRFragment("Lexus RX, пробег 92 450 км", minX: 0.1, midY: 0.90),
+        OCRFragment("1 Замена масла ДВС", minX: 0.05, midY: 0.80),
+        OCRFragment("1 200,00", minX: 0.8, midY: 0.80),
+        OCRFragment("2 Диагностика подвески", minX: 0.05, midY: 0.75),
+        OCRFragment("800", minX: 0.8, midY: 0.75),
+        OCRFragment("Масло Mobil 5W-30 4л", minX: 0.05, midY: 0.65),
+        OCRFragment("4 500", minX: 0.8, midY: 0.65),
+        OCRFragment("Итого работы", minX: 0.05, midY: 0.55),
+        OCRFragment("2 000", minX: 0.8, midY: 0.55),
+        OCRFragment("Всего к оплате: 6 500 руб.", minX: 0.05, midY: 0.45)
+    ])
+    check("дата из шапки", doc.day == 14 && doc.month == 8 && doc.year == 2026, true)
+    check("пробег из строки авто", doc.mileage, 92_450)
+    check("три строки таблиц, итоги отсеяны", doc.works,
+          [ParsedWork(title: "Замена масла ДВС", amount: 1200),
+           ParsedWork(title: "Диагностика подвески", amount: 800),
+           ParsedWork(title: "Масло Mobil 5W-30 4л", amount: 4500)])
+    check("итог — наибольший из итогов", doc.total, 6500)
+
+    // Тот же бланк построчным потоком текстового PDF: координат нет,
+    // каждая строка — отдельный ряд.
+    let flat = ServiceDocParse.parse([
+        OCRFragment("Заказ-наряд от 03.02.25", midY: 6),
+        OCRFragment("Пробег: 15000 км", midY: 5),
+        OCRFragment("Замена колодок 3 400,50", midY: 4),
+        OCRFragment("ИТОГО: 3 400,50", midY: 3)
+    ])
+    check("построчный поток: дата с двузначным годом",
+          flat.day == 3 && flat.month == 2 && flat.year == 2025, true)
+    check("построчный поток: работа с копейками",
+          flat.works, [ParsedWork(title: "Замена колодок", amount: 3400)])
+    check("построчный поток: пробег", flat.mileage, 15_000)
+
+    check("хвостовая сумма с разрядами", ServiceDocParse.trailingAmount(of: "Мойка 1 500"), 1500)
+    check("строка без суммы — не работа", ServiceDocParse.trailingAmount(of: "Гарантия на работы"), nil)
+    check("телефон не принимается за работу",
+          ServiceDocParse.parse([OCRFragment("Телефон 79001234567", midY: 1)]).works, [])
+    check("хвост госномера не принимается за сумму",
+          ServiceDocParse.parse([OCRFragment("Автомобиль: Lexus RX Гос. номер: В 777 ОР 777", midY: 1)]).works, [])
+}
+
 // --------------------------------------------------------------- NumberFormat
 
 group("NumberFormat") {

@@ -1,6 +1,7 @@
 import PhotosUI
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Разделяет разряды пробелами, как в макете: «9 000 000 км».
 /// Константы шапки при прокрутке. Вынесены из вью намеренно: замыкание
@@ -332,7 +333,7 @@ struct CarMainView: View {
                 // Замена шторки — один переход, а не «закрыть и открыть»:
                 // двух присваиваний подряд больше нет, и промежуточного
                 // состояния с двумя открытыми тоже.
-                onPickPhoto: { sheet = .photoPicker },
+                onPickPhoto: { sheet = .docSource },
                 onManual: { sheet = .service }
             )
         }
@@ -384,7 +385,12 @@ struct CarMainView: View {
             onSubmitCar: addCar,
             onPhotosLoaded: { loaded in
                 photos = loaded
-                if !loaded.isEmpty { applyParsedService() }
+                guard let first = loaded.first else { return }
+                Task {
+                    let parsed = await ServiceDocScanner.parse(image: first)
+                    guard !Task.isCancelled else { return }
+                    applyParsedService(parsed)
+                }
             }
         ))
         // Подложка под всеми разделами. Страница машины стала чёрной целиком
@@ -460,6 +466,18 @@ struct CarMainView: View {
             Button("Отмена", role: .cancel) {}
         } message: {
             Text("История обслуживания тоже будет удалена.")
+        }
+        // «Добавить фото или PDF»: галерея отдаёт только снимки, PDF живёт
+        // в «Файлах» — источник выбирается системным диалогом.
+        .confirmationDialog("Откуда взять бланк?", isPresented: presenting(.docSource),
+                            titleVisibility: .visible) {
+            Button("Из галереи") { sheet = .photoPicker }
+            Button("Файл PDF или скан") { sheet = .filePicker }
+            Button("Отмена", role: .cancel) {}
+        }
+        .fileImporter(isPresented: presenting(.filePicker),
+                      allowedContentTypes: [.pdf, .image]) { result in
+            if case .success(let url) = result { importServiceDocument(url) }
         }
     }
 
@@ -952,18 +970,19 @@ struct CarMainView: View {
         }
         .padding(.horizontal, -16 * mix)
         .offset(y: HeaderLayout.photoTop - HeaderLayout.photoRise * mix)
-        // Выезд машины на первом кадре: быстрый выкат слева и длинное
-        // плавное торможение без отскока (expo-out). Едет только блок фото —
-        // подписи и карточки стоят. Два случая играют проявлением вместо
-        // движения: Reduce Motion (HIG) и режим своего снимка — у реального
-        // фото видны края кадра, и слайд читался бы как летящий прямоугольник,
-        // а не как машина.
+        // Выезд машины на первом кадре — первая версия по выбору пользователя:
+        // пружинный докат с лёгким клевком при остановке. Едет только блок
+        // фото — подписи и карточки стоят. Два случая играют проявлением
+        // вместо движения: Reduce Motion (HIG) и режим своего снимка —
+        // у реального фото видны края кадра, и слайд читался бы как летящий
+        // прямоугольник, а не как машина.
         .offset(x: carDriveIn || !slides ? 0 : -440)
+        .rotationEffect(.degrees(carDriveIn || !slides ? 0 : -1.6), anchor: .bottom)
         .opacity(carDriveIn || slides ? 1 : 0)
         .onAppear {
             guard !carDriveIn else { return }
             let animation: Animation = slides
-                ? .timingCurve(0.16, 1, 0.3, 1, duration: 1.35).delay(0.45)
+                ? .interpolatingSpring(stiffness: 110, damping: 15).delay(0.5)
                 : .easeOut(duration: 0.5).delay(0.3)
             withAnimation(animation) { carDriveIn = true }
         }
@@ -1593,11 +1612,46 @@ struct CarMainView: View {
     /// Разбор фото/PDF: скрипт достаёт базовые показатели и форма открывается
     /// уже заполненной — ручной ввод с нуля здесь неуместен.
     /// TODO: заменить заглушку на реальный парсер.
-    private func applyParsedService() {
-        serviceDate = Date()
-        serviceMileage = "\(odometer)"
-        works = [ServiceWork(title: "Замена масла", amount: "12000")]
+    /// Открывает форму ТО с тем, что удалось вычитать из бланка. Пустой
+    /// разбор — честная пустая форма с сегодняшней датой и текущим пробегом:
+    /// приложить нечитаемое фото чеком всё равно можно.
+    private func applyParsedService(_ parsed: ParsedServiceDoc?) {
+        if let parsed, let d = parsed.day, let m = parsed.month, let y = parsed.year,
+           let date = Calendar.current.date(from: DateComponents(year: y, month: m, day: d)) {
+            serviceDate = date
+        } else {
+            serviceDate = Date()
+        }
+        serviceMileage = "\(parsed?.mileage ?? odometer)"
+        let parsedWorks = (parsed?.works ?? []).map {
+            ServiceWork(title: $0.title, amount: String($0.amount))
+        }
+        works = parsedWorks.isEmpty ? [ServiceWork()] : parsedWorks
         sheet = .service
+    }
+
+    /// Считывает бланк из выбранного файла («Файлы»: PDF или изображение),
+    /// кладёт превью в чеки и открывает заполненную форму.
+    private func importServiceDocument(_ url: URL) {
+        let secured = url.startAccessingSecurityScopedResource()
+        Task {
+            defer { if secured { url.stopAccessingSecurityScopedResource() } }
+            let parsed: ParsedServiceDoc?
+            if url.pathExtension.lowercased() == "pdf" {
+                parsed = await ServiceDocScanner.parse(pdfURL: url)
+                if let preview = ServiceDocScanner.preview(pdfURL: url) {
+                    photos = [preview]
+                }
+            } else if let data = try? Data(contentsOf: url),
+                      let image = await ImageLoader.decode([data]).first {
+                photos = [image]
+                parsed = await ServiceDocScanner.parse(image: image)
+            } else {
+                parsed = nil
+            }
+            guard !Task.isCancelled else { return }
+            applyParsedService(parsed)
+        }
     }
 
     /// Создаёт машину из формы «Добавить авто». Раньше onSubmit только

@@ -152,8 +152,12 @@ enum CarSheet: String, CaseIterable {
     case service
     /// Шторка «Добавить авто».
     case addCar
+    /// Выбор источника документа ТО: галерея или файл PDF.
+    case docSource
     /// Системный пикер фото.
     case photoPicker
+    /// Системный выбор файла (PDF или скан из «Файлов»).
+    case filePicker
     /// Подтверждение удаления машины.
     case deleteConfirm
     /// Шторка цены: крупная цена, объяснение средней по рынку, карандаш
