@@ -92,6 +92,26 @@ group("ServiceMath") {
           ServiceMath.odometerAfterService(current: 50_000, serviceMileage: 52_000), 52_000)
 }
 
+// ---------------------------------------------------------------- MarketPrice
+
+group("MarketPrice") {
+    check("полный VIN пригоден для оценки",
+          MarketPrice.canEstimate(vin: "XTAGFL110MY463366"), true)
+    check("замаскированный VIN не пригоден",
+          MarketPrice.canEstimate(vin: "XTA****10MY463366"), false)
+    check("короткий VIN не пригоден",
+          MarketPrice.canEstimate(vin: "423423432FRFRIFR"), false)
+    check("без VIN оценки нет", MarketPrice.canEstimate(vin: nil), false)
+
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    check("без даты обновление нужно",
+          MarketPrice.needsRefresh(updatedAt: nil, now: now), true)
+    check("свежая оценка не переспрашивается",
+          MarketPrice.needsRefresh(updatedAt: now.addingTimeInterval(-3600), now: now), false)
+    check("недельная оценка устарела",
+          MarketPrice.needsRefresh(updatedAt: now.addingTimeInterval(-MarketPrice.refreshInterval), now: now), true)
+}
+
 // --------------------------------------------------------------- NumberFormat
 
 group("NumberFormat") {

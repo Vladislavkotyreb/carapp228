@@ -116,6 +116,80 @@ private struct Gos2VinResponse: Decodable {
     let year: Int?
 }
 
+/// Средняя рыночная цена по объявлениям — то, что показывает карточка
+/// «Цена авто», когда пользователь не вводил свою.
+struct MarketEstimate {
+    let average: Int
+    let low: Int?
+    let high: Int?
+    let offers: Int?
+}
+
+/// Рыночная оценка avtovincod.ru, метод `price`: средняя, минимальная и
+/// максимальная цена и число предложений по VIN. Когда данных по модели
+/// недостаточно, запрос по их тарифам не списывается.
+enum AvtoVinCodValuation {
+    static var isConfigured: Bool { VehicleLookupKey.hasAvtoVinCod }
+
+    static func estimate(vin: String) async throws -> MarketEstimate {
+        guard MarketPrice.canEstimate(vin: vin) else { throw VehicleLookupError.notFound }
+
+        var components = URLComponents(string: "https://api.avtovincod.ru/price")!
+        components.queryItems = [URLQueryItem(name: "vin", value: vin)]
+        guard let url = components.url else { throw VehicleLookupError.unavailable }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 20
+        request.setValue("Bearer \(VehicleLookupKey.avtoVinCodToken)",
+                         forHTTPHeaderField: "Authorization")
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await lookupSession.data(for: request)
+        } catch {
+            throw VehicleLookupError.unavailable
+        }
+        if let http = response as? HTTPURLResponse, http.statusCode == 404 {
+            throw VehicleLookupError.notFound
+        }
+
+        guard let reply = try? JSONDecoder().decode(PriceResponse.self, from: data),
+              reply.success == 1 else {
+            throw VehicleLookupError.unavailable
+        }
+        guard reply.found != false, let average = reply.averageValue, average > 0 else {
+            throw VehicleLookupError.notFound
+        }
+        return MarketEstimate(average: average, low: reply.lowValue,
+                              high: reply.highValue, offers: reply.offersValue)
+    }
+}
+
+/// Ответ `price`. Живой сервис кладёт числа во вложенный объект `price`
+/// (снято curl-ом), пример в их документации — плоский; декодер терпит оба.
+private struct PriceResponse: Decodable {
+    struct Block: Decodable {
+        let average: Int?
+        let min: Int?
+        let max: Int?
+        let count: Int?
+    }
+
+    let success: Int?
+    let found: Bool?
+    let price: Block?
+    let average: Int?
+    let min: Int?
+    let max: Int?
+    let offers: Int?
+
+    var averageValue: Int? { price?.average ?? average }
+    var lowValue: Int? { price?.min ?? min }
+    var highValue: Int? { price?.max ?? max }
+    var offersValue: Int? { price?.count ?? offers }
+}
+
 /// Поиск по базе полисов ОСАГО (НСИС/РСА) через api-cloud.ru — открытый
 /// источник, где по одному госномеру отдают марку с моделью и VIN.
 /// Года выпуска, поколения и пробега там нет; VIN бывает замаскирован

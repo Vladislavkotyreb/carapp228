@@ -398,6 +398,27 @@ struct CarMainView: View {
             }
             carImages = decoded
         }
+        // Рыночная цена: раз в неделю на машину, только по полному VIN.
+        .task(id: marketPriceKey) {
+            guard AvtoVinCodValuation.isConfigured else { return }
+            for car in cars {
+                guard MarketPrice.canEstimate(vin: car.vin),
+                      MarketPrice.needsRefresh(updatedAt: car.marketPriceDate, now: .now),
+                      let vin = car.vin else { continue }
+                do {
+                    let estimate = try await AvtoVinCodValuation.estimate(vin: vin)
+                    car.marketPrice = estimate.average
+                    car.marketPriceDate = .now
+                } catch VehicleLookupError.notFound {
+                    // Данных по модели нет — не переспрашивать неделю: ответ
+                    // не изменится, а запросы платные. Дата без цены ровно
+                    // это и значит.
+                    car.marketPriceDate = .now
+                } catch {
+                    // Сеть или сервис: попробуем при следующем входе на экран.
+                }
+            }
+        }
         // Отклик при смене машины: мягкий удар, а не сухой щелчок пикера —
         // перелистывание карточки ощущается «мясистее». Срабатывает на
         // защёлкивании страницы, а не по ходу пальца: незасчитанный свайп
@@ -655,8 +676,17 @@ struct CarMainView: View {
                         priceDraft = car?.price.map(String.init) ?? ""
                         sheet = .priceEdit
                     } label: {
+                        // Своя цена главнее рыночной: пользователь вводил её
+                        // сознательно. Рыночная — с «≈»: это средняя по
+                        // объявлениям, а не цена этой машины.
                         statCard(title: "Цена авто") { car in
-                            car.price.map { "\(NumberFormat.grouped($0))\u{00A0}₽" } ?? "—"
+                            if let price = car.price {
+                                "\(NumberFormat.grouped(price))\u{00A0}₽"
+                            } else if let market = car.marketPrice {
+                                "≈\u{00A0}\(NumberFormat.grouped(market))\u{00A0}₽"
+                            } else {
+                                "—"
+                            }
                         }
                     }
                     .buttonStyle(.plain)
@@ -958,6 +988,14 @@ struct CarMainView: View {
     /// обновлении вью бессмысленно дорого.
     private var carPhotoKey: String {
         cars.map { "\($0.persistentModelID.hashValue)-\($0.photo?.count ?? 0)" }
+            .joined(separator: "|")
+    }
+
+    /// Ключ обновления рыночных цен: состав машин и их VIN. Даты последнего
+    /// обновления в ключе нет намеренно: запись свежей даты из самой задачи
+    /// не должна перезапускать задачу.
+    private var marketPriceKey: String {
+        cars.map { "\($0.persistentModelID.hashValue)-\($0.vin ?? "")" }
             .joined(separator: "|")
     }
 
