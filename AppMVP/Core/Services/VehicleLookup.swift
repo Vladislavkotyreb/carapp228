@@ -31,6 +31,16 @@ protocol VehicleLookup: Sendable {
     func lookup(plate: String) async throws -> FoundVehicle
 }
 
+/// Сессия обоих поставщиков: эфемерная, без дискового кэша и кук.
+/// Ответы поиска — госномер и VIN, то есть персональные данные; общий
+/// `URLSession.shared` мог бы отложить их в нешифрованный кэш на диске.
+private let lookupSession: URLSession = {
+    let config = URLSessionConfiguration.ephemeral
+    config.urlCache = nil
+    config.requestCachePolicy = .reloadIgnoringLocalCacheData
+    return URLSession(configuration: config)
+}()
+
 /// Поставщик для экранов: настоящий, когда токен на месте, и заглушка из
 /// макета, пока его нет, — тот же приём, что у раздела «Карта» без ключа.
 /// AvtoVinCod предпочтительнее: он отдаёт год выпуска и доступен физлицу
@@ -63,7 +73,7 @@ struct AvtoVinCodLookup: VehicleLookup {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await lookupSession.data(for: request)
         } catch {
             throw VehicleLookupError.unavailable
         }
@@ -119,17 +129,19 @@ struct RSAVehicleLookup: VehicleLookup {
         var components = URLComponents(string: "https://api-cloud.ru/api/rsa.php")!
         components.queryItems = [
             URLQueryItem(name: "type", value: "osago"),
-            URLQueryItem(name: "regNumber", value: compact),
-            URLQueryItem(name: "token", value: VehicleLookupKey.apiCloudToken)
+            URLQueryItem(name: "regNumber", value: compact)
         ]
         guard let url = components.url else { throw VehicleLookupError.unavailable }
 
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
+        // Токен — заголовком, а не в query: URL с токеном оседает в кэшах и
+        // логах промежуточных узлов. Документация допускает оба способа.
+        request.setValue(VehicleLookupKey.apiCloudToken, forHTTPHeaderField: "Token")
 
         let data: Data
         do {
-            (data, _) = try await URLSession.shared.data(for: request)
+            (data, _) = try await lookupSession.data(for: request)
         } catch {
             throw VehicleLookupError.unavailable
         }

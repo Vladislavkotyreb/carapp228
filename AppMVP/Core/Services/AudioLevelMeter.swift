@@ -63,6 +63,14 @@ final class AudioLevelMeter: ObservableObject {
             let input = engine.inputNode
             let format = input.outputFormat(forBus: 0)
 
+            // Прошлая запись больше никому не нужна — разбор по ней либо уже
+            // прошёл, либо не случится. Без чистки файлы копились во временном
+            // каталоге до прихода системы: минута звука — около 11 МБ.
+            if let old = lastRecording {
+                lastRecording = nil
+                try? FileManager.default.removeItem(at: old)
+            }
+
             // Пишем в WAV, а не в m4a: сервер разбора читает файл через
             // soundfile, а тот берёт PCM без ffmpeg. С m4a пришлось бы тащить
             // ffmpeg на сервер ради ничего.
