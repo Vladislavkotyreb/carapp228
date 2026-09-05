@@ -45,6 +45,9 @@ struct CarFoundSheet: View {
                         if let generation = car.vehicle.generation {
                             specLine("Поколение: ", generation)
                         }
+                        if let year = car.vehicle.year {
+                            specLine("Год выпуска: ", String(year))
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }

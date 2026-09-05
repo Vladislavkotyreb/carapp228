@@ -8,6 +8,9 @@ struct FoundVehicle: Equatable {
     var vin: String?
     var generation: String?
     var odometer: Int?
+    /// Год выпуска. Отдаёт только AvtoVinCod; в модель `Car` пока не
+    /// сохраняется — показывается в шторке подтверждения.
+    var year: Int?
 
     /// Замаскированный VIN считаем отсутствующим.
     var displayVIN: String? {
@@ -30,10 +33,66 @@ protocol VehicleLookup: Sendable {
 
 /// Поставщик для экранов: настоящий, когда токен на месте, и заглушка из
 /// макета, пока его нет, — тот же приём, что у раздела «Карта» без ключа.
+/// AvtoVinCod предпочтительнее: он отдаёт год выпуска и доступен физлицу
+/// без месячных платежей.
 enum VehicleLookupProvider {
     static func make() -> any VehicleLookup {
-        VehicleLookupKey.isConfigured ? RSAVehicleLookup() : StubVehicleLookup()
+        if VehicleLookupKey.hasAvtoVinCod { return AvtoVinCodLookup() }
+        if VehicleLookupKey.hasAPICloud { return RSAVehicleLookup() }
+        return StubVehicleLookup()
     }
+}
+
+/// Поиск через avtovincod.ru, метод `gos2vin`: VIN, марка, модель, год
+/// выпуска. Доступен физлицам и самозанятым, ненайденный номер бесплатный.
+struct AvtoVinCodLookup: VehicleLookup {
+    func lookup(plate: String) async throws -> FoundVehicle {
+        // API ждёт номер слитно кириллицей: «В777ОР777».
+        let compact = PlateFormat.significant(plate)
+        guard !compact.isEmpty else { throw VehicleLookupError.notFound }
+
+        var components = URLComponents(string: "https://api.avtovincod.ru/gos2vin")!
+        components.queryItems = [URLQueryItem(name: "plate", value: compact)]
+        guard let url = components.url else { throw VehicleLookupError.unavailable }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        request.setValue("Bearer \(VehicleLookupKey.avtoVinCodToken)",
+                         forHTTPHeaderField: "Authorization")
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw VehicleLookupError.unavailable
+        }
+
+        // 404 задокументирован как «номер не найден» — это состояние макета.
+        // Остальные не-200 (401 токен, 402 баланс, 429 частота) — недоступность.
+        if let http = response as? HTTPURLResponse, http.statusCode == 404 {
+            throw VehicleLookupError.notFound
+        }
+
+        guard let reply = try? JSONDecoder().decode(Gos2VinResponse.self, from: data),
+              reply.success == 1 else {
+            throw VehicleLookupError.unavailable
+        }
+
+        let name = [reply.brand, reply.model].compactMap { $0 }
+            .joined(separator: " ")
+        guard !name.isEmpty else { throw VehicleLookupError.notFound }
+        return FoundVehicle(name: name, vin: reply.vin, year: reply.year)
+    }
+}
+
+/// Ответ `gos2vin`. Поля, которых здесь нет, приходят, но не используются.
+private struct Gos2VinResponse: Decodable {
+    let success: Int?
+    let vin: String?
+    let brand: String?
+    let model: String?
+    let year: Int?
 }
 
 /// Поиск по базе полисов ОСАГО (НСИС/РСА) через api-cloud.ru — открытый
@@ -50,7 +109,7 @@ struct RSAVehicleLookup: VehicleLookup {
         components.queryItems = [
             URLQueryItem(name: "type", value: "osago"),
             URLQueryItem(name: "regNumber", value: compact),
-            URLQueryItem(name: "token", value: VehicleLookupKey.token)
+            URLQueryItem(name: "token", value: VehicleLookupKey.apiCloudToken)
         ]
         guard let url = components.url else { throw VehicleLookupError.unavailable }
 
