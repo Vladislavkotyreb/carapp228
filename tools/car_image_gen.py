@@ -196,43 +196,56 @@ def recompose(path: str, size: int = 1024, margin: float = 0.08,
     out.save(path)
 
 
-def compose_hero(path: str, bbox_source: str | None = None,
-                 size: tuple[int, int] = (1536, 1024),
-                 width_share: float = 0.86, bottom: float = 0.81) -> None:
-    """Собирает кадр в формате ассета главной (`CarPhoto`, 3:2): машина 86%
-    ширины, низ на 0.81 высоты. В кадр идёт `path` целиком — у сырой
-    генерации под колёсами живёт естественная контактная тень, и вырезание
-    фона её убивало, машина «висела» без глубины. Границы самой машины
-    (без тени) берутся из `bbox_source` — файла вырезки; без него — из
-    `path`, и тогда тень посчитается машиной."""
-    from PIL import Image
+def compose_hero(path: str, size: tuple[int, int] = (1536, 1024),
+                 width_share: float = 0.86, bottom: float = 0.81,
+                 glow: float = 0.25, blur: int = 75, drop: int = 40) -> None:
+    """Собирает кадр в формате ассета главной (`CarPhoto`, 3:2): чистая
+    вырезка машины (86% ширины, низ на 0.81 высоты) плюс ЕДИНЫЙ
+    синтетический ореол — требование пользователя: тень одинаковая на всех
+    кадрах, как у эталонного RX, а не своя у каждой генерации. Профиль
+    снят с ассета: свечение повторяет силуэт, пик 30-58 вплотную к борту,
+    спад за ~100-150 px, под машиной полоса до ~70 px ниже колёс. Ореол —
+    маска силуэта, продлённая вниз на `drop`, размытая `blur`, яркостью
+    `glow`; машина кладётся поверх через маску, чтобы не затирать ореол.
+    На вход — файл ВЫРЕЗКИ (фон уже чёрный)."""
+    from PIL import Image, ImageChops, ImageFilter
     im = Image.open(path).convert("RGB")
-    ref = Image.open(bbox_source).convert("RGB") if bbox_source else im
-    box = ref.convert("L").point(lambda v: 255 if v > 14 else 0).getbbox()
+    box = im.convert("L").point(lambda v: 255 if v > 14 else 0).getbbox()
     if not box:
         return
+    car = im.crop(box)
 
     canvas_w, canvas_h = size
-    car_w, car_h = box[2] - box[0], box[3] - box[1]
-    scale = min(canvas_w * width_share / car_w, canvas_h * 0.78 / car_h)
-    scaled = im.resize((max(1, round(im.width * scale)),
-                        max(1, round(im.height * scale))))
+    scale = min(canvas_w * width_share / car.width, canvas_h * 0.78 / car.height)
+    car = car.resize((max(1, round(car.width * scale)),
+                      max(1, round(car.height * scale))))
+    x = (canvas_w - car.width) // 2
+    y = round(canvas_h * bottom) - car.height
 
-    out = Image.new("RGB", size, (0, 0, 0))
-    x = round(canvas_w / 2 - (box[0] + box[2]) / 2 * scale)
-    y = round(canvas_h * bottom - box[3] * scale)
-    out.paste(scaled, (x, y))
+    layer = Image.new("RGB", size, (0, 0, 0))
+    layer.paste(car, (x, y))
+    silhouette = layer.convert("L").point(lambda v: 255 if v > 10 else 0)
 
-    # Виньетка: фоновое свечение сырой генерации при увеличении доезжает
-    # до краёв канвы и валит валидатор. Края плавно гасятся к нулю, тень
-    # под машиной в центре не трогается.
-    from PIL import ImageChops, ImageDraw, ImageFilter
-    fade = 90
-    mask = Image.new("L", size, 0)
-    ImageDraw.Draw(mask).rectangle(
+    halo_mask = ImageChops.lighter(
+        silhouette, ImageChops.offset(silhouette, 0, drop))
+    halo = halo_mask.filter(ImageFilter.GaussianBlur(blur))
+    halo = halo.point(lambda v: round(v * glow))
+    out = Image.merge("RGB", (halo, halo, halo))
+
+    # Машина поверх ореола через мягкую маску: прямоугольный paste затёр
+    # бы свечение вокруг корпуса чёрными полями вырезки.
+    edge = silhouette.filter(ImageFilter.GaussianBlur(1.5))
+    out.paste(layer, (0, 0), edge)
+
+    # Страховочная виньетка: у высоких машин ореол дотягивается до кромки
+    # (пики 27-30 против порога 26 валидатора). Гасятся только края.
+    from PIL import ImageDraw
+    fade = 70
+    vignette = Image.new("L", size, 0)
+    ImageDraw.Draw(vignette).rectangle(
         (fade, fade, canvas_w - fade, canvas_h - fade), fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(fade / 2))
-    out = ImageChops.multiply(out, Image.merge("RGB", (mask, mask, mask)))
+    vignette = vignette.filter(ImageFilter.GaussianBlur(fade / 2))
+    out = ImageChops.multiply(out, Image.merge("RGB", (vignette,) * 3))
     out.save(path)
 
 
