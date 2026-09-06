@@ -673,8 +673,8 @@ do {
     check("X5 раньше серий", CarCatalog.slug(name: "BMW X5 30d"), "bmw-x5")
     check("Mazda 3 не ловит CX-5", CarCatalog.slug(name: "Mazda CX-5"), "mazda-cx5")
     check("бренд без модели — nil", CarCatalog.slug(name: "Kia Mohave"), nil)
-    check("GL-Class не ловится на «class»",
-          CarCatalog.slug(name: "Mercedes-Benz GL-Class"), nil)
+    check("GL-Class — свой кадр, а не «class» → C",
+          CarCatalog.slug(name: "Mercedes-Benz GL-Class"), "mercedes-gl")
     check("C-класс матчится по индексу",
           CarCatalog.slug(name: "Mercedes-Benz C180"), "mercedes-c-w205")
     check("незнакомый бренд — nil", CarCatalog.slug(name: "Zeekr 001"), nil)

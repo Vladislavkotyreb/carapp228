@@ -211,6 +211,7 @@ enum CarCatalog {
         // Без `c*`/`e*`: такой префикс ловил «class» из «GL-Class», и GL
         // получал кадр C-класса. Индексы моделей перечислены явно.
         Brand("mercedes", "мерседес", "benz", rules: [
+            Rule("mercedes-gl", Group("gl", "гл", "gls", "x166")),
             Rule("mercedes-e-w212", Group("e", "е", "w212", "e200", "e220",
                                           "e250", "e300", "e350", "e400")),
             Rule("mercedes-c-w205", Group("c", "с", "w205", "c180", "c200",
