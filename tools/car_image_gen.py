@@ -37,16 +37,20 @@ import urllib.request
 # Четвёртая итерация — под ключевой референс пользователя: камера ближе и
 # чуть выше капота, широкоугольная перспектива, машина занимает почти весь
 # кадр; «каталожный» дальний план с полями по центру убран.
+# Пятая итерация — под стиль Nano Banana (эталонный ассет): свет
+# драматичнее («subtle» → «dramatic», проверено side-тестом), машина
+# стоит на тёмной земле с мягкой контактной тенью, а не парит в пустоте;
+# запреты пола сняты, края кадра по-прежнему обязаны гаснуть в чёрный.
 MASTER_PROMPT = (
     "advertising photo of a {car}, glossy white paint, dramatic front "
     "three-quarter view from a slightly elevated camera looking down at "
     "the car, wide-angle perspective, the car is large and fills most of "
     "the frame, entire car still fully visible with tight margins, "
-    "headlights visible, no license plate, car floating in complete "
-    "darkness, pure black empty background, image corners pure black, "
-    "no fog, no haze, no spotlight glow, no road, no floor, no ground "
-    "reflections, low-key automotive photography, subtle rim lighting on "
-    "body lines, dark alloy wheels, photorealistic, sharp focus"
+    "headlights visible, no license plate, the car stands on dark ground "
+    "with a soft contact shadow and faint reflection beneath it, "
+    "background fades to pure black at the edges, image corners pure "
+    "black, no fog, no haze, low-key automotive photography, dramatic rim "
+    "lighting on body lines, dark alloy wheels, photorealistic, sharp focus"
 )
 
 NEGATIVE_PROMPT = (
