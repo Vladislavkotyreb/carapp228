@@ -105,6 +105,9 @@ struct CarMainView: View {
     /// Раскодированные снимки машин. Держим готовыми: `body` пересобирается
     /// на каждом кадре свайпа, декодировать в нём нельзя.
     @State private var carImages: [PersistentIdentifier: UIImage] = [:]
+    /// Студийные кадры каталога для машин без своего фото — подбор по
+    /// названию через `CarCatalog`, файлы в `Resources/CarCatalog/`.
+    @State private var catalogImages: [PersistentIdentifier: UIImage] = [:]
     @State private var showToast = false
     /// Запись, которую сейчас правят. nil — значит шторка создаёт новую.
     @State private var editingRecord: ServiceRecord?
@@ -418,13 +421,23 @@ struct CarMainView: View {
         // Декодирование вне главного актора, как и у чеков ТО
         .task(id: carPhotoKey) {
             var decoded: [PersistentIdentifier: UIImage] = [:]
+            var catalog: [PersistentIdentifier: UIImage] = [:]
             for car in cars {
-                guard let data = car.photo else { continue }
-                if let image = await ImageLoader.decode([data]).first {
-                    decoded[car.persistentModelID] = image
+                if let data = car.photo {
+                    if let image = await ImageLoader.decode([data]).first {
+                        decoded[car.persistentModelID] = image
+                    }
+                } else if let slug = CarCatalog.slug(name: car.name,
+                                                     generation: car.generation),
+                          let url = Bundle.main.url(forResource: slug,
+                                                    withExtension: "heic",
+                                                    subdirectory: "CarCatalog"),
+                          let image = UIImage(contentsOfFile: url.path) {
+                    catalog[car.persistentModelID] = image
                 }
             }
             carImages = decoded
+            catalogImages = catalog
         }
         // Рыночная цена: раз в неделю на машину, только по полному VIN.
         .task(id: marketPriceKey) {
@@ -1049,6 +1062,14 @@ struct CarMainView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: width, height: height)
+            } else if let car, let image = catalogImages[car.persistentModelID] {
+                // Кадр каталога — той же природы, что общий ассет (студийный
+                // на чёрном), и рендерится тем же режимом, а не scaledToFill.
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: assetWidth)
+                    .frame(width: width, height: height, alignment: .bottom)
             } else {
                 // Не `scaledToFill`: тот подгоняет обе стороны, и на нашем
                 // широком ассете срезал машине нос и корму. Ширина явная,

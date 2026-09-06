@@ -650,6 +650,36 @@ group("UIStateCatalog") {
     check("у каждой ошибки поля свой текст", messages.count, Set(messages).count)
 }
 
+// MARK: - CarCatalog: название машины → слаг кадра каталога
+
+do {
+    // Русские и латинские написания, бренд-гейт, поколения по году.
+    check("Веста по-русски", CarCatalog.slug(name: "Лада Веста"), "lada-vesta")
+    check("Веста SW Cross", CarCatalog.slug(name: "LADA VESTA SW CROSS"), "lada-vesta-sw")
+    check("ВАЗ-21074 — классика", CarCatalog.slug(name: "ВАЗ-21074"), "lada-2107")
+    check("Нива без уточнения — Legend",
+          CarCatalog.slug(name: "Lada Niva"), "lada-niva-legend")
+    check("Нива Шевроле — не Лада",
+          CarCatalog.slug(name: "Chevrolet Niva"), "chevrolet-niva")
+    check("Rio нового поколения по году",
+          CarCatalog.slug(name: "Kia Rio", generation: "IV (2017-2022)"), "kia-rio-4")
+    check("Rio старого поколения по году",
+          CarCatalog.slug(name: "Kia Rio", generation: "III (2011-2016)"), "kia-rio-3")
+    check("Rio без поколения — новейшее", CarCatalog.slug(name: "Киа Рио"), "kia-rio-4")
+    check("Camry по году поколения",
+          CarCatalog.slug(name: "Toyota Camry", generation: "XV50 (2011-2017)"),
+          "toyota-camry-50")
+    check("BMW серии по префиксу", CarCatalog.slug(name: "BMW 320d"), "bmw-3-f30")
+    check("X5 раньше серий", CarCatalog.slug(name: "BMW X5 30d"), "bmw-x5")
+    check("Mazda 3 не ловит CX-5", CarCatalog.slug(name: "Mazda CX-5"), "mazda-cx5")
+    check("бренд без модели — nil", CarCatalog.slug(name: "Kia Mohave"), nil)
+    check("незнакомый бренд — nil", CarCatalog.slug(name: "Zeekr 001"), nil)
+    check("модель чужого бренда не матчится",
+          CarCatalog.slug(name: "Москвич Веста"), nil)
+    check("год из строки поколения", CarCatalog.firstYear("X166 (2015-2026)"), 2015)
+    check("год не находится в мусоре", CarCatalog.firstYear("седан 12345"), nil)
+}
+
 print("")
 print("Состояний в каталоге: \(UIStateCatalog.all.count), "
       + "из них без ноды макета: \(UIStateCatalog.withoutNode.count).")
