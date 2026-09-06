@@ -198,15 +198,14 @@ def recompose(path: str, size: int = 1024, margin: float = 0.08,
 
 def compose_hero(path: str, size: tuple[int, int] = (1536, 1024),
                  width_share: float = 0.86, bottom: float = 0.81,
-                 glow: float = 0.25, blur: int = 75, drop: int = 40) -> None:
+                 glow: float = 0.20, blur: int = 70) -> None:
     """Собирает кадр в формате ассета главной (`CarPhoto`, 3:2): чистая
-    вырезка машины (86% ширины, низ на 0.81 высоты) плюс ЕДИНЫЙ
-    синтетический ореол — требование пользователя: тень одинаковая на всех
-    кадрах, как у эталонного RX, а не своя у каждой генерации. Профиль
-    снят с ассета: свечение повторяет силуэт, пик 30-58 вплотную к борту,
-    спад за ~100-150 px, под машиной полоса до ~70 px ниже колёс. Ореол —
-    маска силуэта, продлённая вниз на `drop`, размытая `blur`, яркостью
-    `glow`; машина кладётся поверх через маску, чтобы не затирать ореол.
+    вырезка машины (86% ширины, низ на 0.81 высоты) плюс ЕДИНАЯ
+    синтетическая земля — требование пользователя: обычная тень ПОД
+    машиной, консистентная на всех кадрах, никакого свечения вокруг
+    корпуса. Модель: светлый эллипс пола под низом машины (пик задаёт
+    `glow`, мягкость — `blur`), на нём тень от днища — сплюснутый
+    размытый силуэт, гасящий пол; машина кладётся поверх через маску.
     На вход — файл ВЫРЕЗКИ (фон уже чёрный)."""
     from PIL import Image, ImageChops, ImageFilter
     im = Image.open(path).convert("RGB")
@@ -226,14 +225,31 @@ def compose_hero(path: str, size: tuple[int, int] = (1536, 1024),
     layer.paste(car, (x, y))
     silhouette = layer.convert("L").point(lambda v: 255 if v > 10 else 0)
 
-    halo_mask = ImageChops.lighter(
-        silhouette, ImageChops.offset(silhouette, 0, drop))
-    halo = halo_mask.filter(ImageFilter.GaussianBlur(blur))
-    halo = halo.point(lambda v: round(v * glow))
-    out = Image.merge("RGB", (halo, halo, halo))
+    # Пол: светлый эллипс под машиной. Не ореол вокруг силуэта — прямое
+    # требование пользователя: «не свечение, а тень ПОД машиной».
+    from PIL import ImageDraw
+    bottom_y = y + car.height
+    floor = Image.new("L", size, 0)
+    fw, fh = round(car.width * 0.56), round(car.height * 0.12)
+    ImageDraw.Draw(floor).ellipse(
+        (canvas_w // 2 - fw, bottom_y - fh, canvas_w // 2 + fw, bottom_y + fh),
+        fill=round(255 * glow))
+    floor = floor.filter(ImageFilter.GaussianBlur(blur))
 
-    # Машина поверх ореола через мягкую маску: прямоугольный paste затёр
-    # бы свечение вокруг корпуса чёрными полями вырезки.
+    # Тень от днища — тёмный эллипс поуже прямо под машиной: снаружи
+    # остаётся светлая кромка земли, под днищем темно. Силуэтная тень
+    # давала рваную кляксу — обычный эллипс чище и одинаков у всех.
+    sw, sh = round(car.width * 0.52), round(car.height * 0.06)
+    shadow = Image.new("L", size, 0)
+    ImageDraw.Draw(shadow).ellipse(
+        (canvas_w // 2 - sw, bottom_y - sh, canvas_w // 2 + sw, bottom_y + sh),
+        fill=110)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(25))
+    floor = ImageChops.subtract(floor, shadow)
+
+    out = Image.merge("RGB", (floor, floor, floor))
+    # Машина поверх через мягкую маску: прямоугольный paste затёр бы пол
+    # чёрными полями вырезки.
     edge = silhouette.filter(ImageFilter.GaussianBlur(1.5))
     out.paste(layer, (0, 0), edge)
 
