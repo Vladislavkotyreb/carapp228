@@ -94,7 +94,9 @@ def main() -> None:
                 guidance_scale=3.5,
                 generator=torch.Generator("cpu").manual_seed(seed),
             ).image[0]
-            candidate = out_path + ".try"
+            # .try.png, а не .try: PIL выводит формат из расширения и на
+            # незнакомом падает — причём и здесь, и внутри finalize.
+            candidate = out_path + ".try.png"
             image.save(candidate)
             finalize(candidate, flip=True, floor=24)
             ok, peak = edges_are_black(candidate)
