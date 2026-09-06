@@ -196,6 +196,38 @@ def recompose(path: str, size: int = 1024, margin: float = 0.08,
     out.save(path)
 
 
+def compose_hero(path: str, size: tuple[int, int] = (1536, 1024),
+                 width_share: float = 0.86, bottom: float = 0.81,
+                 glow: float = 0.09, blur: int = 40) -> None:
+    """Собирает кадр в формате ассета главной (`CarPhoto`, 3:2): машина 86%
+    ширины, низ на 0.81 высоты, вокруг корпуса мягкий ореол — размытая копия
+    силуэта (на ассете его пик ~17-20 в 25-40 px от борта, к краям ноль).
+    Без ореола вырезанная машина на чёрном теряет глубину и «висит».
+    Запускать после вырезания фона."""
+    from PIL import Image, ImageChops, ImageFilter
+    im = Image.open(path).convert("RGB")
+    box = im.convert("L").point(lambda v: 255 if v > 14 else 0).getbbox()
+    if not box:
+        return
+    car = im.crop(box)
+
+    canvas_w, canvas_h = size
+    scale = min(canvas_w * width_share / car.width,
+                canvas_h * 0.78 / car.height)
+    car = car.resize((max(1, round(car.width * scale)),
+                      max(1, round(car.height * scale))))
+    x = (canvas_w - car.width) // 2
+    y = round(canvas_h * bottom) - car.height
+
+    layer = Image.new("RGB", size, (0, 0, 0))
+    layer.paste(car, (x, y))
+    halo = layer.convert("L").point(lambda v: 255 if v > 10 else 0)
+    halo = halo.filter(ImageFilter.GaussianBlur(blur))
+    halo = halo.point(lambda v: round(v * glow))
+    out = ImageChops.lighter(layer, Image.merge("RGB", (halo, halo, halo)))
+    out.save(path)
+
+
 def edges_are_black(png_path: str, threshold: int = 26) -> tuple[bool, int]:
     """Периметр кадра обязан быть чёрным — это условие бесшовности на чёрном
     экране. Возвращает (прошёл ли, максимальную яркость на периметре)."""
