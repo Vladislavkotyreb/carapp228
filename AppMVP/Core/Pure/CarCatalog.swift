@@ -9,10 +9,22 @@ import Foundation
 /// карточке подрывает доверие ко всему приложению, поэтому правила
 /// консервативны — бренд обязан совпасть, модель обязана совпасть.
 enum CarCatalog {
+    /// Пасхалки: у конкретного госномера свой кадр, минуя подбор по модели.
+    /// Ключ — номер без пробелов заглавными («Н600НА190»).
+    static let plateOverrides: [String: String] = [
+        "Н600НА190": "giraffe-discovery",
+    ]
+
     /// Слаг кадра каталога или `nil`. `generation` — строка вида
     /// «X166 (2015-2026)»: первый год из неё выбирает поколение
-    /// (Rio 3/4, Camry 50/70), без года берётся новейшее.
-    static func slug(name: String, generation: String? = nil) -> String? {
+    /// (Rio 3/4, Camry 50/70), без года берётся новейшее. `plate`
+    /// проверяется первым — см. `plateOverrides`.
+    static func slug(name: String, generation: String? = nil,
+                     plate: String? = nil) -> String? {
+        if let plate {
+            let key = plate.uppercased().filter { !$0.isWhitespace }
+            if let special = plateOverrides[key] { return special }
+        }
         let tokens = normalize(name)
         guard !tokens.isEmpty else { return nil }
         let year = generation.flatMap(firstYear)

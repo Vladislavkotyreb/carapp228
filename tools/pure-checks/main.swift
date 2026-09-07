@@ -680,6 +680,12 @@ do {
     check("незнакомый бренд — nil", CarCatalog.slug(name: "Zeekr 001"), nil)
     check("модель чужого бренда не матчится",
           CarCatalog.slug(name: "Москвич Веста"), nil)
+    check("пасхалка по номеру важнее модели",
+          CarCatalog.slug(name: "Land Rover Discovery 3",
+                          plate: "Н 600 НА 190"), "giraffe-discovery")
+    check("чужой номер пасхалку не трогает",
+          CarCatalog.slug(name: "Лада Веста", plate: "В 777 ОР 777"),
+          "lada-vesta")
     check("год из строки поколения", CarCatalog.firstYear("X166 (2015-2026)"), 2015)
     check("год не находится в мусоре", CarCatalog.firstYear("седан 12345"), nil)
 }

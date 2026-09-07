@@ -456,7 +456,8 @@ struct CarMainView: View {
                         decoded[car.persistentModelID] = image
                     }
                 } else if let slug = CarCatalog.slug(name: car.name,
-                                                     generation: car.generation),
+                                                     generation: car.generation,
+                                                     plate: car.plate),
                           let url = Bundle.main.url(forResource: slug,
                                                     withExtension: "heic",
                                                     subdirectory: "CarCatalog"),
