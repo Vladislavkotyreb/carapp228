@@ -21,10 +21,19 @@ struct AddServiceSheet: View {
     let onClose: () -> Void
     let onSave: () -> Void
 
+    /// Двухтактное удаление: первый тап взводит кнопку (красная, «Удалить»),
+    /// второй удаляет. Взведена одна на всю форму; таймер сбрасывает.
+    @State private var armedTrash: UUID?
+    @State private var disarmTask: Task<Void, Never>?
+
     var body: some View {
         VStack(spacing: 16) {
             toolbar
 
+            // Прокрутка обязательна: с распарсенным документом работ
+            // становится много, и без неё низ формы недостижим, а верх
+            // наезжает на тулбар (баг с телефона).
+            ScrollView(showsIndicators: false) {
             VStack(spacing: 32) {
                 // Дата + Пробег
                 VStack(spacing: 0) {
@@ -72,7 +81,9 @@ struct AddServiceSheet: View {
 
                                 HStack(spacing: 12) {
                                     if works.count > 1 {
-                                        circleButton("trash", label: "Удалить работу") { works.remove(at: index) }
+                                        trashButton(for: work.id) {
+                                            works.remove(at: index)
+                                        }
                                     }
                                     if index == works.count - 1 {
                                         circleButton("plus", label: "Добавить работу") { works.append(ServiceWork()) }
@@ -129,8 +140,8 @@ struct AddServiceSheet: View {
                 .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 26))
             }
             .padding(.horizontal, 16)
-
-            Spacer(minLength: 0)
+            .padding(.bottom, 24)
+            }
         }
         .padding(.top, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -145,6 +156,52 @@ struct AddServiceSheet: View {
                 .frame(width: 58, height: 4)
                 .padding(.top, 5)
         }
+    }
+
+    /// Корзина в два такта — просьба пользователя: случайный тап не должен
+    /// сносить заполненную работу. Первый тап взводит (красная капсула с
+    /// «Удалить», хаптик), второй — удаляет; три секунды без второго тапа
+    /// или тап по другой корзине снимают взвод.
+    private func trashButton(for id: UUID,
+                             delete: @escaping () -> Void) -> some View {
+        let armed = armedTrash == id
+        return Button {
+            if armed {
+                armedTrash = nil
+                disarmTask?.cancel()
+                delete()
+            } else {
+                armedTrash = id
+                disarmTask?.cancel()
+                disarmTask = Task {
+                    try? await Task.sleep(for: .seconds(3))
+                    guard !Task.isCancelled else { return }
+                    armedTrash = nil
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "trash")
+                    .font(.system(size: 15))
+                if armed {
+                    Text("Удалить")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+            }
+            .foregroundStyle(armed ? .white : Figma.accentsRed)
+            .padding(.horizontal, armed ? 14 : 0)
+            .frame(minWidth: 34)
+            .frame(height: 34)
+            .background(armed ? Figma.accentsRed : Figma.fillsTertiary,
+                        in: Capsule())
+            .frame(height: 44)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .animation(Motion.toast, value: armed)
+        .sensoryFeedback(.warning, trigger: armed) { _, isArmed in isArmed }
+        .accessibilityLabel(armed ? "Подтвердить удаление работы"
+                                  : "Удалить работу")
     }
 
     /// Визуально 34pt как в макете, но область нажатия расширена до 44pt по HIG.

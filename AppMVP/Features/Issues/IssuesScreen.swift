@@ -42,6 +42,11 @@ struct IssuesScreen: View {
 
     /// Морф кнопки «Слушать» в панель записи — герой-переход.
     @Namespace private var morph
+    /// Палец на кнопке «Слушать» (своя пресс-анимация вместо ButtonStyle).
+    @State private var pressingListen = false
+    /// Запись начата зажатием и держится до отпускания пальца.
+    @State private var holdListening = false
+    @State private var holdTask: Task<Void, Never>?
     private static let morphID = "listenMorph"
 
     private var hasHistory: Bool { !history.isEmpty }
@@ -202,44 +207,84 @@ struct IssuesScreen: View {
     /// Стиль — Glass Prominent в светлом режиме, то есть **чёрная** пилюля со
     /// стеклом. Раньше стояла заливка `darkCard` (#1A1A1A) с обводкой, и она
     /// читалась серой.
+    /// Кнопка живёт в двух режимах — просьба пользователя, референс
+    /// «переключение музыки в Dynamic Island»:
+    /// - короткий тап — старт/стоп, как и раньше;
+    /// - зажатие — push-to-listen: через 0.25 с запись начинается (модалка
+    ///   вырастает из кнопки с увесистым хаптиком) и идёт, ПОКА палец на
+    ///   экране; отпустил — стоп и разбор.
+    /// Свой жест вместо Button: системному не различить «тап» и «держу».
     private func listenButton(morphs: Bool = false) -> some View {
-        Button(action: toggleRecording) {
-            Text(isRecording ? "Стоп" : "Слушать")
-                .font(.system(size: 17))
-                .tracking(-0.43)
-                .foregroundStyle(.white)
-                // Индикатор оверлеем поверх скрытого лейбла — тот же приём,
-                // что у `GlassProminentButton`: геометрия кнопки не должна
-                // меняться, состояния разбора в макете нет.
-                .opacity(isAnalyzing ? 0 : 1)
-                .frame(maxWidth: .infinity)
-                .frame(height: 54)
-                .overlay {
-                    if isAnalyzing {
-                        ProgressView().progressViewStyle(.circular).tint(.white)
-                    }
+        Text(isRecording ? "Стоп" : "Слушать")
+            .font(.system(size: 17))
+            .tracking(-0.43)
+            .foregroundStyle(.white)
+            // Индикатор оверлеем поверх скрытого лейбла — тот же приём,
+            // что у `GlassProminentButton`: геометрия кнопки не должна
+            // меняться, состояния разбора в макете нет.
+            .opacity(isAnalyzing ? 0 : 1)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .overlay {
+                if isAnalyzing {
+                    ProgressView().progressViewStyle(.circular).tint(.white)
                 }
-                // Тон ослаблен с 0.86 до 0.55: под почти непрозрачной чёрной
-                // заливкой системное стекло не читалось вовсе — замечание
-                // пользователя «нет стекла». Кромка и блик теперь дышат, как
-                // у кнопок главного экрана.
-                .liquidGlass(in: Capsule(), tint: Figma.graysBlack.opacity(0.55)) {
-                    Capsule()
-                        .fill(Figma.graysBlack)
-                        .overlay(Capsule().stroke(Color.white.opacity(0.14), lineWidth: 0.5))
+            }
+            // Тон ослаблен с 0.86 до 0.55: под почти непрозрачной чёрной
+            // заливкой системное стекло не читалось вовсе — замечание
+            // пользователя «нет стекла». Кромка и блик теперь дышат, как
+            // у кнопок главного экрана.
+            .liquidGlass(in: Capsule(), tint: Figma.graysBlack.opacity(0.55)) {
+                Capsule()
+                    .fill(Figma.graysBlack)
+                    .overlay(Capsule().stroke(Color.white.opacity(0.14), lineWidth: 0.5))
+            }
+            .motionRim(in: Capsule())
+            // Нажатие как у остальных кнопок (масштаб 0.97 + гашение).
+            .opacity(pressingListen ? 0.6 : 1)
+            .scaleEffect(pressingListen ? 0.97 : 1)
+            .animation(Motion.tabPress, value: pressingListen)
+            .contentShape(Capsule())
+            // Якорь героя: панель записи наследует геометрию капсулы.
+            .matchedGeometryEffect(id: Self.morphID, in: morph,
+                                   isSource: morphs && !isModalRecording)
+            .gesture(listenGesture)
+            .allowsHitTesting(!isAnalyzing)
+            .accessibilityLabel(isAnalyzing ? "Разбираем запись"
+                                : (isRecording ? "Стоп" : "Слушать"))
+            .accessibilityAddTraits(.isButton)
+    }
+
+    private var listenGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { _ in
+                guard !pressingListen else { return }
+                pressingListen = true
+                guard !isRecording else { return }
+                // Планируем вход в push-to-listen: если палец всё ещё на
+                // кнопке через 0.25 с — запись стартует, не дожидаясь
+                // отпускания.
+                holdTask?.cancel()
+                holdTask = Task {
+                    try? await Task.sleep(for: .milliseconds(250))
+                    guard !Task.isCancelled, pressingListen, !isRecording,
+                          !isAnalyzing else { return }
+                    holdListening = true
+                    toggleRecording()
                 }
-                .motionRim(in: Capsule())
-                // Без этого нажималась только надпись: фон цель не расширяет.
-                .contentShape(Capsule())
-                // Якорь героя: панель записи наследует геометрию капсулы.
-                .matchedGeometryEffect(id: Self.morphID, in: morph,
-                                       isSource: morphs && !isModalRecording)
-        }
-        // Нажатие как у остальных кнопок приложения (масштаб 0.97 + гашение),
-        // а не мёртвый .plain — второе замечание «нет анимаций».
-        .buttonStyle(ListenPressStyle())
-        .disabled(isAnalyzing)
-        .accessibilityLabel(isAnalyzing ? "Разбираем запись" : (isRecording ? "Стоп" : "Слушать"))
+            }
+            .onEnded { _ in
+                pressingListen = false
+                holdTask?.cancel()
+                if holdListening {
+                    // Отпустил — стоп и разбор, как у рации.
+                    holdListening = false
+                    if isRecording { toggleRecording() }
+                } else {
+                    // Короткое касание — прежний старт/стоп.
+                    toggleRecording()
+                }
+            }
     }
 
     // MARK: - История (нода 46090:2356)
@@ -799,17 +844,4 @@ enum IssuesStub {
         EngineIssue(title: "Шум подшипника",
                     detail: "Гул нарастает с оборотами, похоже на подшипник помпы")
     ]
-}
-
-/// Нажатие «Слушать»: масштаб и гашение как у капсульных кнопок приложения
-/// (`PlainCapsuleStyle`), только без перекраски лейбла — цвет задаёт макет.
-private struct ListenPressStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.6 : 1)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
-            .animation(Motion.tabPress, value: configuration.isPressed)
-    }
 }
