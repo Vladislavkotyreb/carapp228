@@ -26,6 +26,9 @@ struct PriceInfoSheet: View {
     @State private var editing = false
     @State private var draft = ""
     @FocusState private var focused: Bool
+    /// Подъём над клавиатурой (нода 46261:4222): лист встаёт на клавиатуру,
+    /// нижние скругления на время ввода уходят — низ вплотную к ней.
+    @State private var keyboardLift: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -44,13 +47,13 @@ struct PriceInfoSheet: View {
 
             explanation
                 .padding(.horizontal, 16)
-                .padding(.bottom, 24)
+                .padding(.bottom, editing ? 12 : 24)
         }
         .padding(.top, 16)
         .frame(height: 420)
         .frame(maxWidth: .infinity)
-        .liquidGlass(in: Self.shape, tint: Figma.sheetBackground) {
-            Self.shape.fill(Figma.sheetBackground)
+        .liquidGlass(in: sheetShape, tint: Figma.sheetBackground) {
+            sheetShape.fill(Figma.sheetBackground)
         }
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
@@ -59,8 +62,28 @@ struct PriceInfoSheet: View {
                 .frame(width: 58, height: 4)
                 .padding(.top, 5)
         }
-        .padding(.horizontal, 6)
-        .padding(.bottom, 6)
+        .padding(.horizontal, editing ? 0 : 6)
+        .padding(.bottom, editing ? 0 : 6)
+        .offset(y: -keyboardLift)
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillShowNotification)) { note in
+            guard let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey]
+                as? CGRect else { return }
+            withAnimation(.easeOut(duration: 0.25)) { keyboardLift = frame.height }
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillHideNotification)) { _ in
+            withAnimation(.easeOut(duration: 0.25)) { keyboardLift = 0 }
+        }
+    }
+
+    /// Форма листа: в покое скругление и снизу (58), при вводе низ прямой —
+    /// он прижат к клавиатуре, как в макете.
+    private var sheetShape: UnevenRoundedRectangle {
+        editing
+            ? UnevenRoundedRectangle(topLeadingRadius: 34, bottomLeadingRadius: 0,
+                                     bottomTrailingRadius: 0, topTrailingRadius: 34)
+            : Self.shape
     }
 
     // MARK: - Тулбар: заголовок и крестик, как у остальных шторок

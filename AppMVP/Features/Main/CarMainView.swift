@@ -1429,24 +1429,22 @@ struct CarMainView: View {
     @ToolbarContentBuilder
     private var carToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            Menu {
-                Button(role: .destructive) { sheet = .deleteConfirm } label: {
-                    Label("Удалить авто", systemImage: "trash")
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
+            // Корзина видимая и деструктивно-красная — требование
+            // пользователя. Menu с destructive-ролью выброшен: SwiftUI
+            // красит иконку пункта tint'ом, а не ролью, и корзина выходила
+            // то синей, то белой. Тап ведёт сразу в модалку подтверждения.
+            Button { sheet = .deleteConfirm } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Figma.accentsRed)
                     .frame(width: 44, height: 44)
                     // Страница под баром теперь чёрная сверху донизу, поэтому
                     // и кнопки тулбара — на тёмном стекле, как карточки.
-                    // Само это состояние в макете не нарисовано.
                     .darkGlassChip(in: Circle())
                     .contentShape(Circle())
             }
-            .menuStyle(.button)
             .buttonStyle(.plain)
-            .accessibilityLabel("Действия с автомобилем")
+            .accessibilityLabel("Удалить авто")
             .modifier(ToolbarFade(toolbar: toolbar))
         }
         // Системная подложка элемента бара гасится: она рисует своё стекло
