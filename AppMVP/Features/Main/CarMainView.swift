@@ -1543,25 +1543,27 @@ struct CarMainView: View {
 
                 Spacer(minLength: 0).frame(height: 8)
 
-                // Меню, а не contextMenu: система поднимала превью карточки
-                // к центру экрана — «улетает вверх», по замечанию
-                // пользователя. Menu открывается у пальца, элемент стоит на
-                // месте; работает и тапом, и удержанием.
-                Menu {
+                // Снова contextMenu — просьба пользователя со ссылкой на HIG:
+                // при зажатии карточка приподнимается и растёт, фон
+                // затемняется, хаптик системный. Прошлое «улетает вверх»
+                // давал кастомный preview — без него система поднимает
+                // элемент на месте. Тап отдельно — сразу в правку.
+                Button { startEditing(record) } label: {
+                    serviceCard(record)
+                }
+                .buttonStyle(.plain)
+                .contentShape(.contextMenuPreview, Self.serviceCardShape)
+                .contextMenu {
                     Button { startEditing(record) } label: {
                         Label("Изменить", systemImage: "pencil")
                     }
 
                     Button(role: .destructive) {
-                        // Работы уходят каскадом — правило в модели
-                        modelContext.delete(record)
+                        deleteService(record)
                     } label: {
                         Label("Удалить", systemImage: "trash")
                     }
-                } label: {
-                    serviceCard(record)
                 }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -1866,6 +1868,16 @@ struct CarMainView: View {
     }
 
     /// Открывает шторку с полями, заполненными из записи.
+    /// Удаление записи ТО. С последней записью список пустеет и вертикальный
+    /// скролл отключается (`scrollDisabled(services.isEmpty)`) — если он в
+    /// этот момент был прокручен, страница застывала со сдвигом и «скролл
+    /// блокировался» (замечание пользователя). Сначала наверх, потом удалять.
+    private func deleteService(_ record: ServiceRecord) {
+        if services.count == 1 { scrollToTop() }
+        // Работы уходят каскадом — правило в модели
+        modelContext.delete(record)
+    }
+
     private func startEditing(_ record: ServiceRecord) {
         serviceDate = record.date
         serviceMileage = NumberFormat.grouped(record.mileage)
