@@ -16,6 +16,10 @@ struct CarFoundSheet: View {
     /// Кадр каталога для найденной модели — грузится один раз при создании
     /// шторки, а не в body: декод HEIC на каждую пересборку ни к чему.
     private let preview: UIImage?
+    /// Средний цвет краёв кадра: им зона превью растекается за рамку мягким
+    /// свечением — карточка «утопает» в шторке (идея пользователя, приём
+    /// подложки обложек в Apple Music).
+    private let previewAmbient: Color
 
     init(car: FoundCar, onClose: @escaping () -> Void,
          onConfirm: @escaping () -> Void, onReject: @escaping () -> Void) {
@@ -34,6 +38,35 @@ struct CarFoundSheet: View {
         } else {
             preview = nil
         }
+        previewAmbient = preview.map(Self.edgeAverageColor) ?? .black
+    }
+
+    /// Средний цвет рамки картинки: уменьшаем до 12×12 и усредняем периметр —
+    /// дёшево и достаточно для подложки.
+    private static func edgeAverageColor(of image: UIImage) -> Color {
+        let side = 12
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let small = UIGraphicsImageRenderer(
+            size: CGSize(width: side, height: side), format: format
+        ).image { _ in
+            image.draw(in: CGRect(x: 0, y: 0, width: side, height: side))
+        }
+        guard let cg = small.cgImage, let data = cg.dataProvider?.data,
+              let bytes = CFDataGetBytePtr(data) else { return .black }
+        let bpr = cg.bytesPerRow, bpp = cg.bitsPerPixel / 8
+        var r = 0, g = 0, b = 0, n = 0
+        for y in 0..<side {
+            for x in 0..<side where x == 0 || y == 0 || x == side - 1 || y == side - 1 {
+                let i = y * bpr + x * bpp
+                r += Int(bytes[i]); g += Int(bytes[i + 1]); b += Int(bytes[i + 2])
+                n += 1
+            }
+        }
+        guard n > 0 else { return .black }
+        return Color(red: Double(r) / Double(n) / 255,
+                     green: Double(g) / Double(n) / 255,
+                     blue: Double(b) / Double(n) / 255)
     }
 
     var body: some View {
@@ -63,8 +96,18 @@ struct CarFoundSheet: View {
                             .scaledToFill()
                             .frame(height: 240)
                             .frame(maxWidth: .infinity)
-                            .background(Color.black)
+                            .background(previewAmbient)
                             .clipShape(RoundedRectangle(cornerRadius: 26))
+                            // Свечение цветом фона кадра за рамкой: карточка
+                            // не «наклейка», а окно вглубь шторки.
+                            .background {
+                                RoundedRectangle(cornerRadius: 26)
+                                    .fill(previewAmbient)
+                                    .blur(radius: 34)
+                                    .padding(.horizontal, -10)
+                                    .padding(.vertical, -16)
+                                    .opacity(0.9)
+                            }
                             // Хит-зона scaledToFill шире рамки — известная
                             // грабля: без этого превью крадёт тапы у кнопок.
                             .allowsHitTesting(false)

@@ -62,7 +62,7 @@ struct AddServiceSheet: View {
                     Text("Работы")
                         .font(.system(size: 22, weight: .bold))
                         .figmaLineHeight(28, fontSize: 22, weight: .bold)
-                        .foregroundStyle(Figma.titleGradient)
+                        .foregroundStyle(Figma.labelsPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     // «добавление то много сущностей»: у каждой группы своя корзина,
