@@ -1176,8 +1176,53 @@ struct CarMainView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .liquidGlass(in: Capsule()) { Capsule().fill(Color.white.opacity(0.07)) }
+        // Скраб по индикатору, как у системного Page Control
+        // (allowsContinuousInteraction): палец едет по капсуле — страницы
+        // листаются под ним. Хаптик даёт существующий sensoryFeedback на
+        // carPage. GeometryReader именно в overlay капсулы: снаружи frame
+        // растягивает область на весь экран, и координаты бы врали.
+        .overlay {
+            GeometryReader { g in
+                Color.clear
+                    .contentShape(Capsule())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                // Во время ведения — короткая жёсткая
+                                // анимация: полная пружина Motion.page на
+                                // каждый пиксель наслаивалась, заголовки
+                                // мешались, а страница застревала между
+                                // машинами.
+                                guard let page = scrubPage(
+                                    x: value.location.x, width: g.size.width),
+                                      page != carPage else { return }
+                                withAnimation(.easeOut(duration: 0.12)) {
+                                    carPage = page
+                                }
+                            }
+                            .onEnded { value in
+                                // Дожим: что бы ни осталось от быстрых шагов,
+                                // конечное положение — ровно одна страница.
+                                let page = scrubPage(
+                                    x: value.location.x, width: g.size.width)
+                                withAnimation(Motion.page) {
+                                    carPage = page ?? carPage
+                                    dragX = 0
+                                }
+                            }
+                    )
+            }
+        }
         .frame(maxWidth: .infinity)
         .frame(height: 44)
+    }
+
+    /// Страница под пальцем при скрабе по индикатору; nil — мимо капсулы.
+    private func scrubPage(x: CGFloat, width: CGFloat) -> Int? {
+        guard width > 0 else { return nil }
+        let pages = cars.count + 1
+        let raw = Int(x / width * CGFloat(pages))
+        return min(pages - 1, max(0, raw))
     }
 
     /// «Increment» из Page Control: тонкий плюс. На странице добавления он активен
