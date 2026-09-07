@@ -95,7 +95,6 @@ struct CarMainView: View {
     @State private var carPrice = ""
     /// Цена, которую правят прямо на плитке. Отдельно от `carPrice`: та про
     /// форму добавления, эта — про уже существующую машину.
-    @State private var priceDraft = ""
     /// Свой пикер у формы авто. Раньше она писала в общий photoItems, который
     /// слушает поток ТО, — выбор фото открывал чужую модалку и терялся.
     @State private var carPhotoItems: [PhotosPickerItem] = []
@@ -105,7 +104,16 @@ struct CarMainView: View {
     /// Раскодированные снимки машин. Держим готовыми: `body` пересобирается
     /// на каждом кадре свайпа, декодировать в нём нельзя.
     @State private var carImages: [PersistentIdentifier: UIImage] = [:]
+    /// Студийные кадры каталога для машин без своего фото — подбор по
+    /// названию через `CarCatalog`, файлы в `Resources/CarCatalog/`.
+    @State private var catalogImages: [PersistentIdentifier: UIImage] = [:]
     @State private var showToast = false
+    /// Вид тоста: успех гаснет сам, процесс висит до смены, ошибка держится
+    /// дольше — её читают, а не узнают по галочке.
+    private enum ToastKind { case success, progress, error }
+    @State private var toastKind: ToastKind = .success
+    /// Найденная по номеру машина — данные для шторки «Это ваш автомобиль?».
+    @State private var foundCar: FoundCar?
     /// Запись, которую сейчас правят. nil — значит шторка создаёт новую.
     @State private var editingRecord: ServiceRecord?
     @State private var toastMessage = "ТО добавлено!"
@@ -345,10 +353,9 @@ struct CarMainView: View {
                 ownPrice: car?.price,
                 marketPrice: car?.marketPrice,
                 marketOffers: car?.marketOffers,
-                onEdit: {
-                    priceDraft = car?.price.map(String.init) ?? ""
-                    sheet = .priceEdit
-                },
+                // Правка теперь в самой шторке (нода 46261:4222) — системный
+                // алерт с полем упразднён макетом. Пустое поле стирает цену.
+                onSave: { car?.price = $0 },
                 onClose: { sheet = .closed }
             )
         }
@@ -369,6 +376,28 @@ struct CarMainView: View {
                 onSave: saveService
             )
             .padding(.top, 62)
+        }
+        // «Это ваш автомобиль?» — тот же шаг и та же шторка (45854:2936),
+        // что на первом входе: находка по номеру требует подтверждения,
+        // а не молча становится машиной.
+        .bottomSheet(isPresented: presenting(.carFound)) {
+            if let foundCar {
+                CarFoundSheet(
+                    car: foundCar,
+                    onClose: {
+                        sheet = .closed
+                        self.foundCar = nil
+                    },
+                    onConfirm: confirmFoundCar,
+                    // Поля формы целы — человек возвращается и правит номер;
+                    // тост не нужен, системная шторка всё равно его накроет.
+                    onReject: {
+                        self.foundCar = nil
+                        sheet = .addCar
+                    }
+                )
+                .padding(.bottom, 5.07)
+            }
         }
         .modifier(CarMainChrome(
             showAddCar: presenting(.addCar),
@@ -418,13 +447,24 @@ struct CarMainView: View {
         // Декодирование вне главного актора, как и у чеков ТО
         .task(id: carPhotoKey) {
             var decoded: [PersistentIdentifier: UIImage] = [:]
+            var catalog: [PersistentIdentifier: UIImage] = [:]
             for car in cars {
-                guard let data = car.photo else { continue }
-                if let image = await ImageLoader.decode([data]).first {
-                    decoded[car.persistentModelID] = image
+                if let data = car.photo {
+                    if let image = await ImageLoader.decode([data]).first {
+                        decoded[car.persistentModelID] = image
+                    }
+                } else if let slug = CarCatalog.slug(name: car.name,
+                                                     generation: car.generation,
+                                                     plate: car.plate),
+                          let url = Bundle.main.url(forResource: slug,
+                                                    withExtension: "heic",
+                                                    subdirectory: "CarCatalog"),
+                          let image = UIImage(contentsOfFile: url.path) {
+                    catalog[car.persistentModelID] = image
                 }
             }
             carImages = decoded
+            catalogImages = catalog
         }
         // Рыночная цена: раз в неделю на машину, только по полному VIN.
         .task(id: marketPriceKey) {
@@ -453,20 +493,18 @@ struct CarMainView: View {
         // защёлкивании страницы, а не по ходу пальца: незасчитанный свайп
         // не меняет carPage и потому молчит.
         .sensoryFeedback(.impact(flexibility: .soft), trigger: carPage)
-        // Правка цены — системный алерт с полем: ради одного числа отдельная
-        // форма была бы тяжелее самого действия.
-        .alert("Цена авто", isPresented: presenting(.priceEdit)) {
-            TextField("Цена в рублях", text: $priceDraft)
-                .keyboardType(.numberPad)
-            Button("Отмена", role: .cancel) { priceDraft = "" }
-            Button("Сохранить") { savePrice() }
+        // Подтверждение удаления машины — по эталону пользователя (флоу
+        // удаления фото в системной «Фото»): центрированная карточка на
+        // материале, объяснение последствий, одно красное действие; тап
+        // мимо — отмена. Системный confirmationDialog заменён.
+        .overlay {
+            if sheet == .deleteConfirm {
+                deleteConfirmModal
+                    .transition(.opacity.combined(with: .scale(scale: 0.94)))
+            }
         }
-        .confirmationDialog("Удалить авто?", isPresented: presenting(.deleteConfirm), titleVisibility: .visible) {
-            Button("Удалить", role: .destructive) { deleteCar() }
-            Button("Отмена", role: .cancel) {}
-        } message: {
-            Text("История обслуживания тоже будет удалена.")
-        }
+        .animation(Motion.toast(reduceMotion: reduceMotion),
+                   value: sheet == .deleteConfirm)
         // «Добавить фото или PDF»: галерея отдаёт только снимки, PDF живёт
         // в «Файлах» — источник выбирается системным диалогом.
         .confirmationDialog("Откуда взять бланк?", isPresented: presenting(.docSource),
@@ -673,7 +711,10 @@ struct CarMainView: View {
     /// смешивание по весам сглаживает переход и от 92, и от 148.
     private func metrics(of page: Int) -> PageMetrics {
         guard page < cars.count else {
-            return PageMetrics(headerGap: 24, cardHeight: 148, statsGap: 24, history: 0)
+            // Тёмная редакция (нода 46225:7674): карточка «Добавить авто» —
+            // 370×92, всегда. Прежние «всегда 148» отменены макетом; на
+            // непостоянную высоту в смеси и жаловался пользователь.
+            return PageMetrics(headerGap: 24, cardHeight: 92, statsGap: 24, history: 0)
         }
         let index = max(0, page)
         guard cars.indices.contains(index) else { return PageMetrics() }
@@ -1047,6 +1088,14 @@ struct CarMainView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: width, height: height)
+            } else if let car, let image = catalogImages[car.persistentModelID] {
+                // Кадр каталога — той же природы, что общий ассет (студийный
+                // на чёрном), и рендерится тем же режимом, а не scaledToFill.
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: assetWidth)
+                    .frame(width: width, height: height, alignment: .bottom)
             } else {
                 // Не `scaledToFill`: тот подгоняет обе стороны, и на нашем
                 // широком ассете срезал машине нос и корму. Ширина явная,
@@ -1124,8 +1173,53 @@ struct CarMainView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .liquidGlass(in: Capsule()) { Capsule().fill(Color.white.opacity(0.07)) }
+        // Скраб по индикатору, как у системного Page Control
+        // (allowsContinuousInteraction): палец едет по капсуле — страницы
+        // листаются под ним. Хаптик даёт существующий sensoryFeedback на
+        // carPage. GeometryReader именно в overlay капсулы: снаружи frame
+        // растягивает область на весь экран, и координаты бы врали.
+        .overlay {
+            GeometryReader { g in
+                Color.clear
+                    .contentShape(Capsule())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                // Во время ведения — короткая жёсткая
+                                // анимация: полная пружина Motion.page на
+                                // каждый пиксель наслаивалась, заголовки
+                                // мешались, а страница застревала между
+                                // машинами.
+                                guard let page = scrubPage(
+                                    x: value.location.x, width: g.size.width),
+                                      page != carPage else { return }
+                                withAnimation(.easeOut(duration: 0.12)) {
+                                    carPage = page
+                                }
+                            }
+                            .onEnded { value in
+                                // Дожим: что бы ни осталось от быстрых шагов,
+                                // конечное положение — ровно одна страница.
+                                let page = scrubPage(
+                                    x: value.location.x, width: g.size.width)
+                                withAnimation(Motion.page) {
+                                    carPage = page ?? carPage
+                                    dragX = 0
+                                }
+                            }
+                    )
+            }
+        }
         .frame(maxWidth: .infinity)
         .frame(height: 44)
+    }
+
+    /// Страница под пальцем при скрабе по индикатору; nil — мимо капсулы.
+    private func scrubPage(x: CGFloat, width: CGFloat) -> Int? {
+        guard width > 0 else { return nil }
+        let pages = cars.count + 1
+        let raw = Int(x / width * CGFloat(pages))
+        return min(pages - 1, max(0, raw))
     }
 
     /// «Increment» из Page Control: тонкий плюс. На странице добавления он активен
@@ -1335,25 +1429,19 @@ struct CarMainView: View {
     @ToolbarContentBuilder
     private var carToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            Menu {
-                Button(role: .destructive) { sheet = .deleteConfirm } label: {
-                    Label("Удалить авто", systemImage: "trash")
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    // Страница под баром теперь чёрная сверху донизу, поэтому
-                    // и кнопки тулбара — на тёмном стекле, как карточки.
-                    // Само это состояние в макете не нарисовано.
-                    .darkGlassChip(in: Circle())
-                    .contentShape(Circle())
+            // «…» с системным UIMenu (UIKit): SwiftUI-Menu красил иконку
+            // деструктивного пункта tint'ом вместо роли — корзина выходила
+            // то синей, то белой. UIMenu рисует пункт как в системе
+            // (эталон пользователя — меню виджета): текст и корзина красные.
+            // Без ToolbarFade: меню доступно и до скролла — иначе машину
+            // без записей ТО было не удалить вовсе.
+            EllipsisMenu {
+                sheet = .deleteConfirm
             }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
+            .frame(width: 44, height: 44)
+            .darkGlassChip(in: Circle())
+            .contentShape(Circle())
             .accessibilityLabel("Действия с автомобилем")
-            .modifier(ToolbarFade(toolbar: toolbar))
         }
         // Системная подложка элемента бара гасится: она рисует своё стекло
         // ПОД нашей капсулой и над чёрной карточкой выходила тёмным кольцом
@@ -1453,25 +1541,27 @@ struct CarMainView: View {
 
                 Spacer(minLength: 0).frame(height: 8)
 
-                // Меню, а не contextMenu: система поднимала превью карточки
-                // к центру экрана — «улетает вверх», по замечанию
-                // пользователя. Menu открывается у пальца, элемент стоит на
-                // месте; работает и тапом, и удержанием.
-                Menu {
+                // Снова contextMenu — просьба пользователя со ссылкой на HIG:
+                // при зажатии карточка приподнимается и растёт, фон
+                // затемняется, хаптик системный. Прошлое «улетает вверх»
+                // давал кастомный preview — без него система поднимает
+                // элемент на месте. Тап отдельно — сразу в правку.
+                Button { startEditing(record) } label: {
+                    serviceCard(record)
+                }
+                .buttonStyle(.plain)
+                .contentShape(.contextMenuPreview, Self.serviceCardShape)
+                .contextMenu {
                     Button { startEditing(record) } label: {
                         Label("Изменить", systemImage: "pencil")
                     }
 
                     Button(role: .destructive) {
-                        // Работы уходят каскадом — правило в модели
-                        modelContext.delete(record)
+                        deleteService(record)
                     } label: {
                         Label("Удалить", systemImage: "trash")
                     }
-                } label: {
-                    serviceCard(record)
                 }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -1541,34 +1631,60 @@ struct CarMainView: View {
 
     /// Показ тоста одним местом: сообщение, отмена прошлого таймера и
     /// объявление для VoiceOver, который иначе не узнал бы о нём вовсе.
-    private func presentToast(_ message: String) {
+    /// Процесс (`.progress`) не гаснет сам — его закрывает следующий тост
+    /// или `hideToast()`; ошибке даётся больше времени, её читают.
+    private func presentToast(_ message: String, kind: ToastKind = .success) {
         toastMessage = message
+        toastKind = kind
         toastTask?.cancel()
         showToast = true
         AccessibilityNotification.Announcement(message).post()
 
+        guard kind != .progress else { return }
+        let dwell: Duration = kind == .error ? .milliseconds(3500) : Motion.toastDwell
         toastTask = Task {
-            try? await Task.sleep(for: Motion.toastDwell)
+            try? await Task.sleep(for: dwell)
             guard !Task.isCancelled else { return }
             showToast = false
         }
     }
 
+    private func hideToast() {
+        toastTask?.cancel()
+        showToast = false
+    }
+
     /// Figma «сакцесс» → «Notification - Collapsed», аннотация «Хаптик позитивное действие».
+    /// Тот же тост несёт процессы (спиннер) и ошибки (красный знак) — по
+    /// просьбе пользователя единый механизм статусов поиска и добавления.
     private var toast: some View {
         HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 17))
-                .foregroundStyle(Figma.accentsGreen)
+            switch toastKind {
+            case .success:
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 17))
+                    .foregroundStyle(Figma.accentsGreen)
+            case .progress:
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.white)
+            case .error:
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: 17))
+                    .foregroundStyle(Figma.accentsRed)
+            }
 
             Text(toastMessage)
                 .font(.system(size: 15, weight: .semibold))
                 .tracking(-0.23)
                 .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .frame(width: 202)
+        // 202 — ширина макетного «сакцесса»; тексты ошибок длиннее и
+        // растягивают капсулу до 320 с переносом, короче не бывает.
+        .frame(minWidth: 202, maxWidth: 320)
         // Тот же системный Liquid Glass, что у карточек: кромку даёт стекло,
         // а не нарисованная обводка. Блик так же следует за наклоном.
         .liquidGlass(in: RoundedRectangle(cornerRadius: 24), tint: Figma.darkCard) {
@@ -1622,9 +1738,9 @@ struct CarMainView: View {
         } else {
             serviceDate = Date()
         }
-        serviceMileage = "\(parsed?.mileage ?? odometer)"
+        serviceMileage = NumberFormat.grouped(parsed?.mileage ?? odometer)
         let parsedWorks = (parsed?.works ?? []).map {
-            ServiceWork(title: $0.title, amount: String($0.amount))
+            ServiceWork(title: $0.title, amount: NumberFormat.grouped($0.amount))
         }
         works = parsedWorks.isEmpty ? [ServiceWork()] : parsedWorks
         sheet = .service
@@ -1668,38 +1784,66 @@ struct CarMainView: View {
         let price = NumberFormat.digits(carPrice)
         let photoData = newCarPhoto.flatMap { ImageLoader.encode([$0]).first }
 
-        Task {
-            let car: Car
-            if tab == 0 {
-                guard PlateFormat.isValid(plate),
-                      let found = try? await lookup.lookup(plate: plate) else { return }
-                car = Car(plate: PlateFormat.format(plate), name: found.name,
-                          vin: found.displayVIN, generation: found.generation,
-                          odometer: found.odometer ?? 0, price: price, photo: photoData)
-            } else {
-                guard !name.isEmpty else { return }
-                car = Car(plate: "", name: name, odometer: mileage,
-                          price: price, photo: photoData)
+        // По номеру: раньше поиск шёл молча и на любой исход просто ничего
+        // не происходило. Теперь процесс виден тостом, находка проходит через
+        // «Это ваш автомобиль?» (как на первом входе), ошибки называются.
+        if tab == 0 {
+            guard PlateFormat.isValid(plate) else {
+                presentToast("Проверьте номер", kind: .error)
+                return
             }
-
-            // Индекс берём до вставки: это и есть номер страницы новой машины
-            let newPage = cars.count
-            modelContext.insert(car)
-            carPage = newPage
-            carPlate = ""
-            carName = ""
-            carMileage = ""
-            carPrice = ""
-            newCarPhoto = nil
-            carPhotoItems = []
+            presentToast("Ищем машину по номеру…", kind: .progress)
+            Task {
+                do {
+                    let vehicle = try await lookup.lookup(plate: plate)
+                    hideToast()
+                    foundCar = FoundCar(plate: plate, vehicle: vehicle)
+                    sheet = .carFound
+                } catch let error as URLError where error.code != .cancelled {
+                    presentToast("Нет соединения — попробуйте ещё раз",
+                                 kind: .error)
+                } catch {
+                    presentToast("Машина по этому номеру не нашлась",
+                                 kind: .error)
+                }
+            }
+            return
         }
+
+        guard !name.isEmpty else { return }
+        insert(Car(plate: "", name: name, odometer: mileage,
+                   price: price, photo: photoData))
     }
 
-    /// Пустое поле стирает цену: у машины её может не быть вовсе, и пустая
-    /// честнее оставленной от прошлого ввода.
-    private func savePrice() {
-        car?.price = NumberFormat.digits(priceDraft)
-        priceDraft = ""
+    /// Подтверждение из шторки «Это ваш автомобиль?»: только здесь найденное
+    /// становится машиной. Тост о добавлении — процесс вставки мгновенный,
+    /// но без него добавление выглядит как «шторка просто закрылась».
+    private func confirmFoundCar() {
+        guard let found = foundCar else { return }
+        let price = NumberFormat.digits(carPrice)
+        let photoData = newCarPhoto.flatMap { ImageLoader.encode([$0]).first }
+        insert(Car(plate: PlateFormat.format(carPlate), name: found.name,
+                   vin: found.vehicle.displayVIN,
+                   generation: found.vehicle.generation,
+                   odometer: found.vehicle.odometer ?? 0,
+                   price: price, photo: photoData))
+        foundCar = nil
+        sheet = .closed
+        presentToast("Машина добавлена!")
+        addedServiceTick += 1
+    }
+
+    private func insert(_ car: Car) {
+        // Индекс берём до вставки: это и есть номер страницы новой машины
+        let newPage = cars.count
+        modelContext.insert(car)
+        carPage = newPage
+        carPlate = ""
+        carName = ""
+        carMileage = ""
+        carPrice = ""
+        newCarPhoto = nil
+        carPhotoItems = []
     }
 
     private func deleteCar() {
@@ -1722,11 +1866,65 @@ struct CarMainView: View {
     }
 
     /// Открывает шторку с полями, заполненными из записи.
+    /// Карточка подтверждения удаления машины. Текст и кнопка — на
+    /// системном материале со скруглением, как модалка удаления в «Фото»
+    /// (эталон пользователя). Кнопка одна и красная; передумать — тап мимо.
+    private var deleteConfirmModal: some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+                .onTapGesture { sheet = .closed }
+
+            VStack(spacing: 20) {
+                Text("Автомобиль будет удалён вместе со всей историей "
+                     + "обслуживания. Отменить это действие нельзя.")
+                    .font(.system(size: 17))
+                    .tracking(-0.43)
+                    .figmaLineHeight(22, fontSize: 17)
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    sheet = .closed
+                    deleteCar()
+                } label: {
+                    Text("Удалить авто")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(Figma.accentsRed)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Figma.fillsTertiary, in: Capsule())
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Удалить авто безвозвратно")
+            }
+            .padding(24)
+            .frame(maxWidth: 320)
+            .background(.regularMaterial,
+                        in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+            .environment(\.colorScheme, .dark)
+            .compositingGroup()
+            .shadow(color: .black.opacity(0.35), radius: 30, y: 10)
+        }
+    }
+
+    /// Удаление записи ТО. С последней записью список пустеет и вертикальный
+    /// скролл отключается (`scrollDisabled(services.isEmpty)`) — если он в
+    /// этот момент был прокручен, страница застывала со сдвигом и «скролл
+    /// блокировался» (замечание пользователя). Сначала наверх, потом удалять.
+    private func deleteService(_ record: ServiceRecord) {
+        if services.count == 1 { scrollToTop() }
+        // Работы уходят каскадом — правило в модели
+        modelContext.delete(record)
+    }
+
     private func startEditing(_ record: ServiceRecord) {
         serviceDate = record.date
-        serviceMileage = "\(record.mileage)"
+        serviceMileage = NumberFormat.grouped(record.mileage)
         // Форма рассчитана минимум на одну группу полей: пустой список её ломает
-        let rows = record.works.map { ServiceWork(title: $0.title, amount: "\($0.amount)") }
+        let rows = record.works.map { ServiceWork(title: $0.title, amount: NumberFormat.grouped($0.amount)) }
         works = rows.isEmpty ? [ServiceWork()] : rows
 
         // Чеки восстанавливаются вне главного актора: их может быть много,
@@ -1787,6 +1985,31 @@ struct CarMainView: View {
 /// Содержимое тулбара появляется прозрачностью. Сам бар существует всегда:
 /// переключение его видимости меняло инсеты прокрутки скачком — позиция
 /// «возвращалась сменой кадра».
+/// Кнопка «…» с настоящим системным меню. UIKit, а не SwiftUI-Menu:
+/// только UIMenu рисует деструктивный пункт по-системному — красными и
+/// текстом, и корзиной. Будущие действия добавляются в массив children.
+private struct EllipsisMenu: UIViewRepresentable {
+    let onDelete: () -> Void
+
+    func makeUIView(context: Context) -> UIButton {
+        let button = UIButton(type: .system)
+        let icon = UIImage(systemName: "ellipsis",
+                           withConfiguration: UIImage.SymbolConfiguration(
+                               pointSize: 18, weight: .semibold))
+        button.setImage(icon, for: .normal)
+        button.tintColor = .white
+        button.showsMenuAsPrimaryAction = true
+        button.menu = UIMenu(children: [
+            UIAction(title: "Удалить авто",
+                     image: UIImage(systemName: "trash"),
+                     attributes: .destructive) { _ in onDelete() },
+        ])
+        return button
+    }
+
+    func updateUIView(_ button: UIButton, context: Context) {}
+}
+
 private struct ToolbarFade: ViewModifier {
     @ObservedObject var toolbar: ToolbarVisibility
 

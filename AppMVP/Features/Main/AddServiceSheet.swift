@@ -21,10 +21,18 @@ struct AddServiceSheet: View {
     let onClose: () -> Void
     let onSave: () -> Void
 
-    var body: some View {
-        VStack(spacing: 16) {
-            toolbar
+    /// Двухтактное удаление: первый тап взводит кнопку (красная, «Удалить»),
+    /// второй удаляет. Взведена одна на всю форму; таймер сбрасывает.
+    @State private var armedTrash: UUID?
+    @State private var disarmTask: Task<Void, Never>?
 
+    var body: some View {
+        ZStack(alignment: .top) {
+            // Прокрутка обязательна: с распарсенным документом работ
+            // становится много, и без неё низ формы недостижим. Контент
+            // уходит ПОД тулбар, тот стоит на размытии — HIG, эталон
+            // пользователя (сплошная заливка верха — прошлый косяк).
+            ScrollView(showsIndicators: false) {
             VStack(spacing: 32) {
                 // Дата + Пробег
                 VStack(spacing: 0) {
@@ -44,7 +52,8 @@ struct AddServiceSheet: View {
 
                     separator
 
-                    fieldRow("Пробег", text: $mileage, keyboard: .numberPad)
+                    fieldRow("Пробег", text: $mileage, keyboard: .numberPad,
+                             format: NumberFormat.groupedInput)
                 }
                 .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 26))
 
@@ -64,13 +73,16 @@ struct AddServiceSheet: View {
                                 VStack(spacing: 0) {
                                     fieldRow("Название ", text: $work.title)
                                     separator
-                                    fieldRow("Сумма", text: $work.amount, keyboard: .numberPad)
+                                    fieldRow("Сумма", text: $work.amount, keyboard: .numberPad,
+                                             format: NumberFormat.groupedInput)
                                 }
                                 .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 26))
 
                                 HStack(spacing: 12) {
                                     if works.count > 1 {
-                                        circleButton("trash", label: "Удалить работу") { works.remove(at: index) }
+                                        trashButton(for: work.id) {
+                                            works.remove(at: index)
+                                        }
                                     }
                                     if index == works.count - 1 {
                                         circleButton("plus", label: "Добавить работу") { works.append(ServiceWork()) }
@@ -127,10 +139,18 @@ struct AddServiceSheet: View {
                 .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 26))
             }
             .padding(.horizontal, 16)
+            .padding(.top, 86)
+            .padding(.bottom, 24)
+            }
 
-            Spacer(minLength: 0)
+            toolbar
+                .padding(.top, 16)
+                .background {
+                    SheetTopBlur(tint: Figma.sheetBackground)
+                        .frame(height: 118)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                }
         }
-        .padding(.top, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background {
             UnevenRoundedRectangle(topLeadingRadius: 38, topTrailingRadius: 38)
@@ -143,6 +163,54 @@ struct AddServiceSheet: View {
                 .frame(width: 58, height: 4)
                 .padding(.top, 5)
         }
+    }
+
+    /// Корзина в два такта — просьба пользователя: случайный тап не должен
+    /// сносить заполненную работу. Первый тап взводит (красная капсула с
+    /// «Удалить», хаптик), второй — удаляет; три секунды без второго тапа
+    /// или тап по другой корзине снимают взвод.
+    private func trashButton(for id: UUID,
+                             delete: @escaping () -> Void) -> some View {
+        let armed = armedTrash == id
+        return Button {
+            if armed {
+                armedTrash = nil
+                disarmTask?.cancel()
+                delete()
+            } else {
+                armedTrash = id
+                disarmTask?.cancel()
+                disarmTask = Task {
+                    try? await Task.sleep(for: .seconds(3))
+                    guard !Task.isCancelled else { return }
+                    armedTrash = nil
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "trash")
+                    .font(.system(size: 15))
+                if armed {
+                    Text("Удалить")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+            }
+            .foregroundStyle(armed ? .white : Figma.accentsRed)
+            .padding(.horizontal, armed ? 14 : 0)
+            .frame(minWidth: 34)
+            .frame(height: 34)
+            .background(armed ? Figma.accentsRed : Figma.fillsTertiary,
+                        in: Capsule())
+            .frame(height: 44)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        // Простой easeOut вместо пружины: спружиненная смена ширины капсулы
+        // внутри перестраиваемого ряда лагала на устройстве.
+        .animation(.easeOut(duration: 0.18), value: armed)
+        .sensoryFeedback(.warning, trigger: armed) { _, isArmed in isArmed }
+        .accessibilityLabel(armed ? "Подтвердить удаление работы"
+                                  : "Удалить работу")
     }
 
     /// Визуально 34pt как в макете, но область нажатия расширена до 44pt по HIG.
@@ -169,7 +237,8 @@ struct AddServiceSheet: View {
     }
 
     private func fieldRow(_ placeholder: String, text: Binding<String>,
-                          keyboard: UIKeyboardType = .default) -> some View {
+                          keyboard: UIKeyboardType = .default,
+                          format: ((String) -> String)? = nil) -> some View {
         ZStack(alignment: .leading) {
             if text.wrappedValue.isEmpty {
                 Text(placeholder)
@@ -181,6 +250,12 @@ struct AddServiceSheet: View {
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Figma.labelsPrimary)
                 .keyboardType(keyboard)
+                .onChange(of: text.wrappedValue) { _, new in
+                    guard let format else { return }
+                    let masked = format(new)
+                    // переписываем только при отличии, иначе будет цикл
+                    if masked != new { text.wrappedValue = masked }
+                }
         }
         .padding(.horizontal, 16)
         .frame(height: 52)

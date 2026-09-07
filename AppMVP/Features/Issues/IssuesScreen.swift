@@ -40,6 +40,12 @@ struct IssuesScreen: View {
     /// секундами позже, и без отмены он открывает шторку поверх другого раздела.
     @State private var analysisTask: Task<Void, Never>?
 
+    /// Палец на кнопке «Слушать» (своя пресс-анимация вместо ButtonStyle).
+    @State private var pressingListen = false
+    /// Запись начата зажатием и держится до отпускания пальца.
+    @State private var holdListening = false
+    @State private var holdTask: Task<Void, Never>?
+
     private var hasHistory: Bool { !history.isEmpty }
 
     private var isRecording: Bool { activity == .recording }
@@ -72,12 +78,23 @@ struct IssuesScreen: View {
                     .ignoresSafeArea()
                     .transition(.opacity)
 
+                // Панель вырастает из места кнопки «Слушать»: scale с якорем
+                // в нижней части (кнопка стоит там). matchedGeometryEffect
+                // лагал — он перекладывал стекло и шар на каждом кадре;
+                // простой scale-переход даёт тот же жест за копейки.
                 recordingPanel
                     .frame(width: 370, height: 549.289, alignment: .top)
                     .offset(x: 16, y: 65.076)
-                    .transition(.scale(scale: 0.96).combined(with: .opacity))
+                    .transition(.scale(scale: 0.12,
+                                       anchor: .init(x: 0.5, y: 0.92))
+                        .combined(with: .opacity))
             }
         }
+        // Хаптик раскрытия — увесистый одиночный удар, как у длинного нажатия
+        // на остров; закрытие отдаёт мягче.
+        .sensoryFeedback(isModalRecording ? .impact(weight: .heavy)
+                                          : .impact(flexibility: .soft),
+                         trigger: isModalRecording)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Figma.graysBlack)
         .animation(Motion.sheet, value: isRecording)
@@ -111,7 +128,7 @@ struct IssuesScreen: View {
                 Spacer(minLength: 0).frame(height: 24)
                 caption(Self.screenCaption)
                 Spacer(minLength: 0).frame(height: buttonGap)
-                listenButton
+                listenButton()
 
                 if hasHistory {
                     Spacer(minLength: 0).frame(height: 48)
@@ -137,7 +154,7 @@ struct IssuesScreen: View {
             Spacer(minLength: 0).frame(height: 24)
             caption(Self.panelCaption)
             Spacer(minLength: 0).frame(height: 48)
-            listenButton
+            listenButton()
         }
         .padding(16)
         .background {
@@ -188,36 +205,81 @@ struct IssuesScreen: View {
     /// Стиль — Glass Prominent в светлом режиме, то есть **чёрная** пилюля со
     /// стеклом. Раньше стояла заливка `darkCard` (#1A1A1A) с обводкой, и она
     /// читалась серой.
-    private var listenButton: some View {
-        Button(action: toggleRecording) {
-            Text(isRecording ? "Стоп" : "Слушать")
-                .font(.system(size: 17))
-                .tracking(-0.43)
-                .foregroundStyle(.white)
-                // Индикатор оверлеем поверх скрытого лейбла — тот же приём,
-                // что у `GlassProminentButton`: геометрия кнопки не должна
-                // меняться, состояния разбора в макете нет.
-                .opacity(isAnalyzing ? 0 : 1)
-                .frame(maxWidth: .infinity)
-                .frame(height: 54)
-                .overlay {
-                    if isAnalyzing {
-                        ProgressView().progressViewStyle(.circular).tint(.white)
-                    }
+    /// Кнопка живёт в двух режимах — просьба пользователя, референс
+    /// «переключение музыки в Dynamic Island»:
+    /// - короткий тап — старт/стоп, как и раньше;
+    /// - зажатие — push-to-listen: через 0.25 с запись начинается (модалка
+    ///   вырастает из кнопки с увесистым хаптиком) и идёт, ПОКА палец на
+    ///   экране; отпустил — стоп и разбор.
+    /// Свой жест вместо Button: системному не различить «тап» и «держу».
+    private func listenButton() -> some View {
+        Text(isRecording ? "Стоп" : "Слушать")
+            .font(.system(size: 17))
+            .tracking(-0.43)
+            .foregroundStyle(.white)
+            // Индикатор оверлеем поверх скрытого лейбла — тот же приём,
+            // что у `GlassProminentButton`: геометрия кнопки не должна
+            // меняться, состояния разбора в макете нет.
+            .opacity(isAnalyzing ? 0 : 1)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .overlay {
+                if isAnalyzing {
+                    ProgressView().progressViewStyle(.circular).tint(.white)
                 }
-                // Тон приглушён: под непрозрачной чёрной заливкой системное
-                // стекло не видно вовсе, и кнопка читается плоской краской.
-                .liquidGlass(in: Capsule(), tint: Figma.graysBlack.opacity(0.86)) {
-                    Capsule()
-                        .fill(Figma.graysBlack)
-                        .overlay(Capsule().stroke(Color.white.opacity(0.14), lineWidth: 0.5))
+            }
+            // Тон ослаблен с 0.86 до 0.55: под почти непрозрачной чёрной
+            // заливкой системное стекло не читалось вовсе — замечание
+            // пользователя «нет стекла». Кромка и блик теперь дышат, как
+            // у кнопок главного экрана.
+            .liquidGlass(in: Capsule(), tint: Figma.graysBlack.opacity(0.55)) {
+                Capsule()
+                    .fill(Figma.graysBlack)
+                    .overlay(Capsule().stroke(Color.white.opacity(0.14), lineWidth: 0.5))
+            }
+            .motionRim(in: Capsule())
+            // Нажатие как у остальных кнопок (масштаб 0.97 + гашение).
+            .opacity(pressingListen ? 0.6 : 1)
+            .scaleEffect(pressingListen ? 0.97 : 1)
+            .animation(Motion.tabPress, value: pressingListen)
+            .contentShape(Capsule())
+            .gesture(listenGesture)
+            .allowsHitTesting(!isAnalyzing)
+            .accessibilityLabel(isAnalyzing ? "Разбираем запись"
+                                : (isRecording ? "Стоп" : "Слушать"))
+            .accessibilityAddTraits(.isButton)
+    }
+
+    private var listenGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { _ in
+                guard !pressingListen else { return }
+                pressingListen = true
+                guard !isRecording else { return }
+                // Планируем вход в push-to-listen: если палец всё ещё на
+                // кнопке через 0.25 с — запись стартует, не дожидаясь
+                // отпускания.
+                holdTask?.cancel()
+                holdTask = Task {
+                    try? await Task.sleep(for: .milliseconds(250))
+                    guard !Task.isCancelled, pressingListen, !isRecording,
+                          !isAnalyzing else { return }
+                    holdListening = true
+                    toggleRecording()
                 }
-                // Без этого нажималась только надпись: фон цель не расширяет.
-                .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .disabled(isAnalyzing)
-        .accessibilityLabel(isAnalyzing ? "Разбираем запись" : (isRecording ? "Стоп" : "Слушать"))
+            }
+            .onEnded { _ in
+                pressingListen = false
+                holdTask?.cancel()
+                if holdListening {
+                    // Отпустил — стоп и разбор, как у рации.
+                    holdListening = false
+                    if isRecording { toggleRecording() }
+                } else {
+                    // Короткое касание — прежний старт/стоп.
+                    toggleRecording()
+                }
+            }
     }
 
     // MARK: - История (нода 46090:2356)
@@ -234,24 +296,40 @@ struct IssuesScreen: View {
 
             statsCard
 
-            ForEach(history) { check in
+            // Прослушивания сгруппированы по календарному дню: раньше каждое
+            // печатало свою дату, и три записи одного дня давали три
+            // одинаковых заголовка подряд.
+            ForEach(historyByDay, id: \.day) { group in
                 Spacer(minLength: 0).frame(height: 24)
 
-                Text(check.date, format: .dateTime.day().month(.twoDigits).year())
+                Text(group.day, format: .dateTime.day().month(.twoDigits).year())
                     .font(.system(size: 17, weight: .semibold))
                     .tracking(-0.43)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                ForEach(check.orderedFindings) { finding in
-                    Spacer(minLength: 0).frame(height: 16)
-                    darkIssueCard(EngineIssue(title: finding.title, detail: finding.detail))
+                ForEach(group.checks) { check in
+                    ForEach(check.orderedFindings) { finding in
+                        Spacer(minLength: 0).frame(height: 16)
+                        darkIssueCard(EngineIssue(title: finding.title, detail: finding.detail))
+                    }
                 }
             }
         }
     }
 
+    /// История по дням, свежие сверху; внутри дня порядок исходной выборки
+    /// (она уже отсортирована по дате вниз).
+    private var historyByDay: [(day: Date, checks: [EngineCheck])] {
+        let calendar = Calendar.current
+        return Dictionary(grouping: history) { calendar.startOfDay(for: $0.date) }
+            .sorted { $0.key > $1.key }
+            .map { (day: $0.key, checks: $0.value) }
+    }
+
     /// Карточка со счётчиками, нода `46093:2410`: 370×96, две половины.
+    /// Поверхность общая с плитками главного (`darkCardSurface`) — их
+    /// «стекло» после оптимизации то же самое.
     private var statsCard: some View {
         HStack(spacing: 0) {
             counter(title: "Прослушиваний", value: history.count)
@@ -262,18 +340,24 @@ struct IssuesScreen: View {
         .background(darkCardSurface)
     }
 
+    /// Типографика — один в один колонка плиток главного экрана
+    /// (`statColumn`): узкий SF 14/−0.4 подписи в боксе 20, значение
+    /// 20 semibold без трекинга в боксе 25, между ними 2. Референс
+    /// пользователя; расходились и кегль подписи (13), и трекинги.
     private func counter(title: String, value: Int) -> some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 2) {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .tracking(-0.08)
+                .font(.system(size: 14, weight: .semibold).width(.condensed))
+                .tracking(-0.4)
                 .foregroundStyle(Figma.vibrantSecondary)
+                .frame(height: 20)
 
             Text("\(value)")
                 .font(.system(size: 20, weight: .semibold))
-                .tracking(-0.45)
                 .foregroundStyle(.white)
+                .frame(height: 25)
         }
+        .frame(height: 47)
         .frame(maxWidth: .infinity)
     }
 
@@ -360,14 +444,26 @@ struct IssuesScreen: View {
     }
 
     private var findingsSheet: some View {
-        VStack(spacing: 0) {
-            sheetToolbar
-            if let heard = nothingHeard {
-                nothingHeardState(heard)
-            } else {
-                findingsList
-                    .padding(.top, Findings.listTop)
+        ZStack(alignment: .top) {
+            // Контент уходит под тулбар, тот стоит на размытии с градиентом
+            // — HIG, эталон пользователя; сплошная заливка верха — косяк,
+            // который уже ловили на главном экране.
+            VStack(spacing: 0) {
+                if let heard = nothingHeard {
+                    nothingHeardState(heard)
+                } else {
+                    findingsList
+                }
             }
+            .padding(.top, Findings.toolbarTop + Findings.toolbarHeight
+                     + Findings.listTop)
+
+            sheetToolbar
+                .background {
+                    SheetTopBlur(tint: Figma.sheetBackground)
+                        .frame(height: 118)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                }
         }
         .frame(height: Findings.height)
         .frame(maxWidth: .infinity)

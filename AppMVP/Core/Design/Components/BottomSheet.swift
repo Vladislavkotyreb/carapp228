@@ -142,3 +142,28 @@ extension View {
                                      sheetContent: content))
     }
 }
+
+/// Верх шторки по HIG (эталон пользователя — iOS 26/27 UI Kit): тулбар стоит
+/// на размытии с градиентным затуханием, контент прокручивается под ним.
+/// Сплошная заливка верхней части — тот самый косяк, который уже ловили на
+/// главном экране.
+struct SheetTopBlur: View {
+    /// Цвет-подмес шторки, чтобы блюр не серел на чёрном контенте.
+    var tint: Color
+
+    var body: some View {
+        ZStack {
+            Rectangle().fill(.ultraThinMaterial)
+            Rectangle().fill(tint.opacity(0.55))
+        }
+        .environment(\.colorScheme, .dark)
+        .mask(
+            LinearGradient(
+                stops: [.init(color: .black, location: 0),
+                        .init(color: .black, location: 0.62),
+                        .init(color: .clear, location: 1)],
+                startPoint: .top, endPoint: .bottom)
+        )
+        .allowsHitTesting(false)
+    }
+}

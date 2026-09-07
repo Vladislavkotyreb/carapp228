@@ -16,29 +16,44 @@ struct PriceInfoSheet: View {
     /// Средняя рыночная по объявлениям и число объявлений под ней.
     let marketPrice: Int?
     let marketOffers: Int?
-    /// Карандаш: закрыть шторку и открыть правку своей цены.
-    let onEdit: () -> Void
+    /// Сохранение своей цены; nil — пользователь стёр значение.
+    let onSave: (Int?) -> Void
     let onClose: () -> Void
+
+    /// Режим ввода (нода 46261:4222): карандаш превращает шторку в поле
+    /// с галочкой, объяснение остаётся внизу, над клавиатурой. Логика из
+    /// макетов: правка живёт в самой шторке, системного алерта больше нет.
+    @State private var editing = false
+    @State private var draft = ""
+    @FocusState private var focused: Bool
+    /// Подъём над клавиатурой (нода 46261:4222): лист встаёт на клавиатуру,
+    /// нижние скругления на время ввода уходят — низ вплотную к ней.
+    @State private var keyboardLift: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
             toolbar
 
-            Spacer(minLength: 0)
-
-            priceBlock
-
-            Spacer(minLength: 0)
+            if editing {
+                editField
+                    .padding(.top, 32)
+                    .padding(.horizontal, 24)
+                Spacer(minLength: 0)
+            } else {
+                Spacer(minLength: 0)
+                priceBlock
+                Spacer(minLength: 0)
+            }
 
             explanation
                 .padding(.horizontal, 16)
-                .padding(.bottom, 24)
+                .padding(.bottom, editing ? 12 : 24)
         }
         .padding(.top, 16)
         .frame(height: 420)
         .frame(maxWidth: .infinity)
-        .liquidGlass(in: Self.shape, tint: Figma.sheetBackground) {
-            Self.shape.fill(Figma.sheetBackground)
+        .liquidGlass(in: sheetShape, tint: Figma.sheetBackground) {
+            sheetShape.fill(Figma.sheetBackground)
         }
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
@@ -47,8 +62,28 @@ struct PriceInfoSheet: View {
                 .frame(width: 58, height: 4)
                 .padding(.top, 5)
         }
-        .padding(.horizontal, 6)
-        .padding(.bottom, 6)
+        .padding(.horizontal, editing ? 0 : 6)
+        .padding(.bottom, editing ? 0 : 6)
+        .offset(y: -keyboardLift)
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillShowNotification)) { note in
+            guard let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey]
+                as? CGRect else { return }
+            withAnimation(.easeOut(duration: 0.25)) { keyboardLift = frame.height }
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillHideNotification)) { _ in
+            withAnimation(.easeOut(duration: 0.25)) { keyboardLift = 0 }
+        }
+    }
+
+    /// Форма листа: в покое скругление и снизу (58), при вводе низ прямой —
+    /// он прижат к клавиатуре, как в макете.
+    private var sheetShape: UnevenRoundedRectangle {
+        editing
+            ? UnevenRoundedRectangle(topLeadingRadius: 34, bottomLeadingRadius: 0,
+                                     bottomTrailingRadius: 0, topTrailingRadius: 34)
+            : Self.shape
     }
 
     // MARK: - Тулбар: заголовок и крестик, как у остальных шторок
@@ -98,7 +133,11 @@ struct PriceInfoSheet: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
 
-                Button(action: onEdit) {
+                Button {
+                    draft = ownPrice.map(NumberFormat.grouped) ?? ""
+                    editing = true
+                    focused = true
+                } label: {
                     Image(systemName: "pencil")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.white)
@@ -117,6 +156,43 @@ struct PriceInfoSheet: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(Figma.fillsQuaternary, in: Capsule())
+        }
+    }
+
+    /// Режим ввода: крупное поле и галочка подтверждения (нода 46261:4260).
+    /// Галочка белая, а не синяя из прототипа — акцент кнопок в приложении
+    /// белый, решение зафиксировано в DECISIONS.
+    private var editField: some View {
+        HStack(spacing: 14) {
+            ZStack(alignment: .leading) {
+                if draft.isEmpty {
+                    Text("0\u{00A0}₽")
+                        .font(.system(size: 40, weight: .bold))
+                        .foregroundStyle(Figma.labelsTertiary)
+                }
+                TextField("", text: Binding(
+                    get: { draft },
+                    set: { draft = NumberFormat.groupedInput($0) }))
+                    .font(.system(size: 40, weight: .bold))
+                    .foregroundStyle(.white)
+                    .keyboardType(.numberPad)
+                    .focused($focused)
+            }
+
+            Button {
+                onSave(NumberFormat.digits(draft))
+                editing = false
+                focused = false
+            } label: {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(.white))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Сохранить цену")
         }
     }
 

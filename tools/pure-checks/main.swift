@@ -163,6 +163,15 @@ group("ServiceDocParse") {
 // --------------------------------------------------------------- NumberFormat
 
 group("NumberFormat") {
+    check("маска ввода группирует на лету",
+          NumberFormat.groupedInput("1200000"), NumberFormat.grouped(1_200_000))
+    check("маска терпит уже отформатированное",
+          NumberFormat.groupedInput(NumberFormat.grouped(92_450)), NumberFormat.grouped(92_450))
+    check("маска отбрасывает нецифры и пустоту",
+          NumberFormat.groupedInput("абв"), "")
+    check("десятая цифра не влезает",
+          NumberFormat.groupedInput("1234567890"), NumberFormat.grouped(123_456_789))
+
     let nbsp = "\u{00A0}"
     check("разряды через неразрывный пробел",
           NumberFormat.grouped(9_000_000), "9\(nbsp)000\(nbsp)000")
@@ -639,6 +648,46 @@ group("UIStateCatalog") {
     // случаев означает, что один из них на экране неотличим от другого.
     let messages = FieldError.allCases.map(\.message)
     check("у каждой ошибки поля свой текст", messages.count, Set(messages).count)
+}
+
+// MARK: - CarCatalog: название машины → слаг кадра каталога
+
+do {
+    // Русские и латинские написания, бренд-гейт, поколения по году.
+    check("Веста по-русски", CarCatalog.slug(name: "Лада Веста"), "lada-vesta")
+    check("Веста SW Cross", CarCatalog.slug(name: "LADA VESTA SW CROSS"), "lada-vesta-sw")
+    check("ВАЗ-21074 — классика", CarCatalog.slug(name: "ВАЗ-21074"), "lada-2107")
+    check("Нива без уточнения — Legend",
+          CarCatalog.slug(name: "Lada Niva"), "lada-niva-legend")
+    check("Нива Шевроле — не Лада",
+          CarCatalog.slug(name: "Chevrolet Niva"), "chevrolet-niva")
+    check("Rio нового поколения по году",
+          CarCatalog.slug(name: "Kia Rio", generation: "IV (2017-2022)"), "kia-rio-4")
+    check("Rio старого поколения по году",
+          CarCatalog.slug(name: "Kia Rio", generation: "III (2011-2016)"), "kia-rio-3")
+    check("Rio без поколения — новейшее", CarCatalog.slug(name: "Киа Рио"), "kia-rio-4")
+    check("Camry по году поколения",
+          CarCatalog.slug(name: "Toyota Camry", generation: "XV50 (2011-2017)"),
+          "toyota-camry-50")
+    check("BMW серии по префиксу", CarCatalog.slug(name: "BMW 320d"), "bmw-3-f30")
+    check("X5 раньше серий", CarCatalog.slug(name: "BMW X5 30d"), "bmw-x5")
+    check("Mazda 3 не ловит CX-5", CarCatalog.slug(name: "Mazda CX-5"), "mazda-cx5")
+    check("бренд без модели — nil", CarCatalog.slug(name: "Kia Mohave"), nil)
+    check("GL-Class — свой кадр, а не «class» → C",
+          CarCatalog.slug(name: "Mercedes-Benz GL-Class"), "mercedes-gl")
+    check("C-класс матчится по индексу",
+          CarCatalog.slug(name: "Mercedes-Benz C180"), "mercedes-c-w205")
+    check("незнакомый бренд — nil", CarCatalog.slug(name: "Zeekr 001"), nil)
+    check("модель чужого бренда не матчится",
+          CarCatalog.slug(name: "Москвич Веста"), nil)
+    check("пасхалка по номеру важнее модели",
+          CarCatalog.slug(name: "Land Rover Discovery 3",
+                          plate: "Н 600 НА 190"), "giraffe-discovery")
+    check("чужой номер пасхалку не трогает",
+          CarCatalog.slug(name: "Лада Веста", plate: "В 777 ОР 777"),
+          "lada-vesta")
+    check("год из строки поколения", CarCatalog.firstYear("X166 (2015-2026)"), 2015)
+    check("год не находится в мусоре", CarCatalog.firstYear("седан 12345"), nil)
 }
 
 print("")

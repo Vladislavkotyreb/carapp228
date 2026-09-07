@@ -13,6 +13,29 @@ struct CarFoundSheet: View {
     let onConfirm: () -> Void
     let onReject: () -> Void
 
+    /// Кадр каталога для найденной модели — грузится один раз при создании
+    /// шторки, а не в body: декод HEIC на каждую пересборку ни к чему.
+    private let preview: UIImage?
+
+    init(car: FoundCar, onClose: @escaping () -> Void,
+         onConfirm: @escaping () -> Void, onReject: @escaping () -> Void) {
+        self.car = car
+        self.onClose = onClose
+        self.onConfirm = onConfirm
+        self.onReject = onReject
+        let plate = car.plateLetter + car.plateDigits + car.plateLetters
+            + car.plateRegion
+        if let slug = CarCatalog.slug(name: car.vehicle.name,
+                                      generation: car.vehicle.generation,
+                                      plate: plate),
+           let url = Bundle.main.url(forResource: slug, withExtension: "heic",
+                                     subdirectory: "CarCatalog") {
+            preview = UIImage(contentsOfFile: url.path)
+        } else {
+            preview = nil
+        }
+    }
+
     var body: some View {
         VStack(spacing: 16) {
             toolbar
@@ -30,11 +53,26 @@ struct CarFoundSheet: View {
                         plate
                     }
 
-                    // Фото авто: в макете слой-заглушка без изображения
-                    // (аннотация: «простая генерация машины или парсинг студийных фото»).
-                    RoundedRectangle(cornerRadius: 26)
-                        .fill(Figma.fillsTertiary)
-                        .frame(height: 240)
+                    // Фото авто. Аннотация макета: «простая генерация машины
+                    // или парсинг студийных фото» — ровно это и показываем:
+                    // кадр каталога, подобранный по найденной модели (и по
+                    // номеру — пасхалки). Не нашёлся — заглушка, как в макете.
+                    if let preview {
+                        Image(uiImage: preview)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(height: 240)
+                            .frame(maxWidth: .infinity)
+                            .background(Color.black)
+                            .clipShape(RoundedRectangle(cornerRadius: 26))
+                            // Хит-зона scaledToFill шире рамки — известная
+                            // грабля: без этого превью крадёт тапы у кнопок.
+                            .allowsHitTesting(false)
+                    } else {
+                        RoundedRectangle(cornerRadius: 26)
+                            .fill(Figma.fillsTertiary)
+                            .frame(height: 240)
+                    }
 
                     // Строки рисуются только при наличии данных: поставщик
                     // может не отдать VIN или прислать его замаскированным.
