@@ -109,6 +109,12 @@ struct CarMainView: View {
     /// названию через `CarCatalog`, файлы в `Resources/CarCatalog/`.
     @State private var catalogImages: [PersistentIdentifier: UIImage] = [:]
     @State private var showToast = false
+    /// Вид тоста: успех гаснет сам, процесс висит до смены, ошибка держится
+    /// дольше — её читают, а не узнают по галочке.
+    private enum ToastKind { case success, progress, error }
+    @State private var toastKind: ToastKind = .success
+    /// Найденная по номеру машина — данные для шторки «Это ваш автомобиль?».
+    @State private var foundCar: FoundCar?
     /// Запись, которую сейчас правят. nil — значит шторка создаёт новую.
     @State private var editingRecord: ServiceRecord?
     @State private var toastMessage = "ТО добавлено!"
@@ -372,6 +378,28 @@ struct CarMainView: View {
                 onSave: saveService
             )
             .padding(.top, 62)
+        }
+        // «Это ваш автомобиль?» — тот же шаг и та же шторка (45854:2936),
+        // что на первом входе: находка по номеру требует подтверждения,
+        // а не молча становится машиной.
+        .bottomSheet(isPresented: presenting(.carFound)) {
+            if let foundCar {
+                CarFoundSheet(
+                    car: foundCar,
+                    onClose: {
+                        sheet = .closed
+                        self.foundCar = nil
+                    },
+                    onConfirm: confirmFoundCar,
+                    // Поля формы целы — человек возвращается и правит номер;
+                    // тост не нужен, системная шторка всё равно его накроет.
+                    onReject: {
+                        self.foundCar = nil
+                        sheet = .addCar
+                    }
+                )
+                .padding(.bottom, 5.07)
+            }
         }
         .modifier(CarMainChrome(
             showAddCar: presenting(.addCar),
@@ -1564,34 +1592,60 @@ struct CarMainView: View {
 
     /// Показ тоста одним местом: сообщение, отмена прошлого таймера и
     /// объявление для VoiceOver, который иначе не узнал бы о нём вовсе.
-    private func presentToast(_ message: String) {
+    /// Процесс (`.progress`) не гаснет сам — его закрывает следующий тост
+    /// или `hideToast()`; ошибке даётся больше времени, её читают.
+    private func presentToast(_ message: String, kind: ToastKind = .success) {
         toastMessage = message
+        toastKind = kind
         toastTask?.cancel()
         showToast = true
         AccessibilityNotification.Announcement(message).post()
 
+        guard kind != .progress else { return }
+        let dwell: Duration = kind == .error ? .milliseconds(3500) : Motion.toastDwell
         toastTask = Task {
-            try? await Task.sleep(for: Motion.toastDwell)
+            try? await Task.sleep(for: dwell)
             guard !Task.isCancelled else { return }
             showToast = false
         }
     }
 
+    private func hideToast() {
+        toastTask?.cancel()
+        showToast = false
+    }
+
     /// Figma «сакцесс» → «Notification - Collapsed», аннотация «Хаптик позитивное действие».
+    /// Тот же тост несёт процессы (спиннер) и ошибки (красный знак) — по
+    /// просьбе пользователя единый механизм статусов поиска и добавления.
     private var toast: some View {
         HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 17))
-                .foregroundStyle(Figma.accentsGreen)
+            switch toastKind {
+            case .success:
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 17))
+                    .foregroundStyle(Figma.accentsGreen)
+            case .progress:
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.white)
+            case .error:
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: 17))
+                    .foregroundStyle(Figma.accentsRed)
+            }
 
             Text(toastMessage)
                 .font(.system(size: 15, weight: .semibold))
                 .tracking(-0.23)
                 .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .frame(width: 202)
+        // 202 — ширина макетного «сакцесса»; тексты ошибок длиннее и
+        // растягивают капсулу до 320 с переносом, короче не бывает.
+        .frame(minWidth: 202, maxWidth: 320)
         // Тот же системный Liquid Glass, что у карточек: кромку даёт стекло,
         // а не нарисованная обводка. Блик так же следует за наклоном.
         .liquidGlass(in: RoundedRectangle(cornerRadius: 24), tint: Figma.darkCard) {
@@ -1691,31 +1745,66 @@ struct CarMainView: View {
         let price = NumberFormat.digits(carPrice)
         let photoData = newCarPhoto.flatMap { ImageLoader.encode([$0]).first }
 
-        Task {
-            let car: Car
-            if tab == 0 {
-                guard PlateFormat.isValid(plate),
-                      let found = try? await lookup.lookup(plate: plate) else { return }
-                car = Car(plate: PlateFormat.format(plate), name: found.name,
-                          vin: found.displayVIN, generation: found.generation,
-                          odometer: found.odometer ?? 0, price: price, photo: photoData)
-            } else {
-                guard !name.isEmpty else { return }
-                car = Car(plate: "", name: name, odometer: mileage,
-                          price: price, photo: photoData)
+        // По номеру: раньше поиск шёл молча и на любой исход просто ничего
+        // не происходило. Теперь процесс виден тостом, находка проходит через
+        // «Это ваш автомобиль?» (как на первом входе), ошибки называются.
+        if tab == 0 {
+            guard PlateFormat.isValid(plate) else {
+                presentToast("Проверьте номер", kind: .error)
+                return
             }
-
-            // Индекс берём до вставки: это и есть номер страницы новой машины
-            let newPage = cars.count
-            modelContext.insert(car)
-            carPage = newPage
-            carPlate = ""
-            carName = ""
-            carMileage = ""
-            carPrice = ""
-            newCarPhoto = nil
-            carPhotoItems = []
+            presentToast("Ищем машину по номеру…", kind: .progress)
+            Task {
+                do {
+                    let vehicle = try await lookup.lookup(plate: plate)
+                    hideToast()
+                    foundCar = FoundCar(plate: plate, vehicle: vehicle)
+                    sheet = .carFound
+                } catch let error as URLError where error.code != .cancelled {
+                    presentToast("Нет соединения — попробуйте ещё раз",
+                                 kind: .error)
+                } catch {
+                    presentToast("Машина по этому номеру не нашлась",
+                                 kind: .error)
+                }
+            }
+            return
         }
+
+        guard !name.isEmpty else { return }
+        insert(Car(plate: "", name: name, odometer: mileage,
+                   price: price, photo: photoData))
+    }
+
+    /// Подтверждение из шторки «Это ваш автомобиль?»: только здесь найденное
+    /// становится машиной. Тост о добавлении — процесс вставки мгновенный,
+    /// но без него добавление выглядит как «шторка просто закрылась».
+    private func confirmFoundCar() {
+        guard let found = foundCar else { return }
+        let price = NumberFormat.digits(carPrice)
+        let photoData = newCarPhoto.flatMap { ImageLoader.encode([$0]).first }
+        insert(Car(plate: PlateFormat.format(carPlate), name: found.name,
+                   vin: found.vehicle.displayVIN,
+                   generation: found.vehicle.generation,
+                   odometer: found.vehicle.odometer ?? 0,
+                   price: price, photo: photoData))
+        foundCar = nil
+        sheet = .closed
+        presentToast("Машина добавлена!")
+        addedServiceTick += 1
+    }
+
+    private func insert(_ car: Car) {
+        // Индекс берём до вставки: это и есть номер страницы новой машины
+        let newPage = cars.count
+        modelContext.insert(car)
+        carPage = newPage
+        carPlate = ""
+        carName = ""
+        carMileage = ""
+        carPrice = ""
+        newCarPhoto = nil
+        carPhotoItems = []
     }
 
     /// Пустое поле стирает цену: у машины её может не быть вовсе, и пустая
