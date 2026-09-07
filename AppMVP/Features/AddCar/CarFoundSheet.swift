@@ -176,27 +176,30 @@ struct CarFoundSheet: View {
 
     // MARK: - Госномер
 
+    /// Компактная плашка, как на главной (нода 45854:2921): узкий SF,
+    /// серый текст на тёмной подложке — а не крупный номер строкой.
     private var plate: some View {
-        HStack(spacing: 4) {
-            HStack(spacing: 4) {
+        HStack(spacing: 3.5) {
+            HStack(spacing: 3.5) {
                 Text(car.plateLetter)
                 Text(car.plateDigits)
                 Text(car.plateLetters)
             }
 
             Rectangle()
-                .fill(Figma.separatorsOnDark)
-                .frame(width: 1, height: 20.117)
+                .fill(Figma.separatorsVibrant)
+                .frame(width: 0.875, height: 17.603)
+                .blendMode(.softLight)
 
             Text(car.plateRegion)
         }
-        .font(.system(size: 17, weight: .semibold))
-        .tracking(-0.43)
-        .foregroundStyle(Figma.labelsPrimary)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
-        .frame(height: 32)
-        .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 12))
+        .font(.system(size: 14, weight: .semibold).width(.condensed))
+        .tracking(-0.4)
+        .foregroundStyle(Figma.graysGray2)
+        .padding(.horizontal, 10.5)
+        .padding(.vertical, 3.5)
+        .frame(height: 28)
+        .background(Figma.fillsPrimary, in: RoundedRectangle(cornerRadius: 10.5))
     }
 
     private func specLine(_ label: String, _ value: String) -> some View {
