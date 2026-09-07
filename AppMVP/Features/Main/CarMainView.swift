@@ -1429,23 +1429,19 @@ struct CarMainView: View {
     @ToolbarContentBuilder
     private var carToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            // Корзина видимая и деструктивно-красная — требование
-            // пользователя. Menu с destructive-ролью выброшен: SwiftUI
-            // красит иконку пункта tint'ом, а не ролью, и корзина выходила
-            // то синей, то белой. Тап ведёт сразу в модалку подтверждения.
-            Button { sheet = .deleteConfirm } label: {
-                Image(systemName: "trash")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Figma.accentsRed)
-                    .frame(width: 44, height: 44)
-                    // Страница под баром теперь чёрная сверху донизу, поэтому
-                    // и кнопки тулбара — на тёмном стекле, как карточки.
-                    .darkGlassChip(in: Circle())
-                    .contentShape(Circle())
+            // «…» с системным UIMenu (UIKit): SwiftUI-Menu красил иконку
+            // деструктивного пункта tint'ом вместо роли — корзина выходила
+            // то синей, то белой. UIMenu рисует пункт как в системе
+            // (эталон пользователя — меню виджета): текст и корзина красные.
+            // Без ToolbarFade: меню доступно и до скролла — иначе машину
+            // без записей ТО было не удалить вовсе.
+            EllipsisMenu {
+                sheet = .deleteConfirm
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Удалить авто")
-            .modifier(ToolbarFade(toolbar: toolbar))
+            .frame(width: 44, height: 44)
+            .darkGlassChip(in: Circle())
+            .contentShape(Circle())
+            .accessibilityLabel("Действия с автомобилем")
         }
         // Системная подложка элемента бара гасится: она рисует своё стекло
         // ПОД нашей капсулой и над чёрной карточкой выходила тёмным кольцом
@@ -1989,6 +1985,31 @@ struct CarMainView: View {
 /// Содержимое тулбара появляется прозрачностью. Сам бар существует всегда:
 /// переключение его видимости меняло инсеты прокрутки скачком — позиция
 /// «возвращалась сменой кадра».
+/// Кнопка «…» с настоящим системным меню. UIKit, а не SwiftUI-Menu:
+/// только UIMenu рисует деструктивный пункт по-системному — красными и
+/// текстом, и корзиной. Будущие действия добавляются в массив children.
+private struct EllipsisMenu: UIViewRepresentable {
+    let onDelete: () -> Void
+
+    func makeUIView(context: Context) -> UIButton {
+        let button = UIButton(type: .system)
+        let icon = UIImage(systemName: "ellipsis",
+                           withConfiguration: UIImage.SymbolConfiguration(
+                               pointSize: 18, weight: .semibold))
+        button.setImage(icon, for: .normal)
+        button.tintColor = .white
+        button.showsMenuAsPrimaryAction = true
+        button.menu = UIMenu(children: [
+            UIAction(title: "Удалить авто",
+                     image: UIImage(systemName: "trash"),
+                     attributes: .destructive) { _ in onDelete() },
+        ])
+        return button
+    }
+
+    func updateUIView(_ button: UIButton, context: Context) {}
+}
+
 private struct ToolbarFade: ViewModifier {
     @ObservedObject var toolbar: ToolbarVisibility
 
