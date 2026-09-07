@@ -1063,12 +1063,9 @@ struct CarMainView: View {
             }
     }
 
-    /// Заливка названия: белый гаснет к краям до 20 % слева и 30 % справа.
-    private static let titleGradient = LinearGradient(
-        stops: [.init(color: .white.opacity(0.2), location: 0),
-                .init(color: .white, location: 0.5),
-                .init(color: .white.opacity(0.3), location: 1)],
-        startPoint: .leading, endPoint: .trailing)
+    /// Заливка названия — общий токен `Figma.titleGradient`: той же
+    /// заливкой набраны крупные заголовки остальных экранов.
+    private static let titleGradient = Figma.titleGradient
 
     /// Кадр одной страницы карусели.
     ///
@@ -1435,12 +1432,16 @@ struct CarMainView: View {
             // (эталон пользователя — меню виджета): текст и корзина красные.
             // Без ToolbarFade: меню доступно и до скролла — иначе машину
             // без записей ТО было не удалить вовсе.
+            // На странице «Добавьте новый авто» меню гаснет: удалять там
+            // нечего, а «Удалить авто» без машины выглядел анекдотом.
             EllipsisMenu {
                 sheet = .deleteConfirm
             }
             .frame(width: 44, height: 44)
             .darkGlassChip(in: Circle())
             .contentShape(Circle())
+            .opacity(1 - weight(of: addPageIndex))
+            .allowsHitTesting(weight(of: addPageIndex) < 0.5)
             .accessibilityLabel("Действия с автомобилем")
         }
         // Системная подложка элемента бара гасится: она рисует своё стекло

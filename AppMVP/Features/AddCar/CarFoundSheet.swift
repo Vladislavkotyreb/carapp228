@@ -46,7 +46,7 @@ struct CarFoundSheet: View {
                         Text(car.name)
                             .font(.system(size: 26, weight: .bold))
                             .figmaLineHeight(31.2, fontSize: 26, weight: .bold)
-                            .foregroundStyle(Figma.labelsPrimary)
+                            .foregroundStyle(Figma.titleGradient)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
 
@@ -69,9 +69,17 @@ struct CarFoundSheet: View {
                             // грабля: без этого превью крадёт тапы у кнопок.
                             .allowsHitTesting(false)
                     } else {
-                        RoundedRectangle(cornerRadius: 26)
-                            .fill(Figma.fillsTertiary)
+                        // Модели нет в каталоге — «машина под покрывалом»,
+                        // как премьера на автосалоне (тот же общий ассет,
+                        // что и заглушка главной). Одобрено пользователем.
+                        Image("CarPhoto")
+                            .resizable()
+                            .scaledToFill()
                             .frame(height: 240)
+                            .frame(maxWidth: .infinity)
+                            .background(Color.black)
+                            .clipShape(RoundedRectangle(cornerRadius: 26))
+                            .allowsHitTesting(false)
                     }
 
                     // Строки рисуются только при наличии данных: поставщик

@@ -172,7 +172,7 @@ struct IssuesScreen: View {
         Text("Поднесите телефон \nк двигателю")
             .font(.system(size: 26, weight: .bold))
             .figmaLineHeight(31.2, fontSize: 26, weight: .bold)
-            .foregroundStyle(.white)
+            .foregroundStyle(Figma.titleGradient)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
     }
@@ -289,7 +289,7 @@ struct IssuesScreen: View {
             Text("История")
                 .font(.system(size: 22, weight: .bold))
                 .figmaLineHeight(28, fontSize: 22, weight: .bold)
-                .foregroundStyle(.white)
+                .foregroundStyle(Figma.titleGradient)
                 .frame(maxWidth: .infinity)
 
             Spacer(minLength: 0).frame(height: 20)
@@ -503,7 +503,7 @@ struct IssuesScreen: View {
             Text("Двигателя не слышно")
                 .font(.system(size: 22, weight: .bold))
                 .figmaLineHeight(28, fontSize: 22, weight: .bold)
-                .foregroundStyle(Figma.labelsPrimary)
+                .foregroundStyle(Figma.titleGradient)
 
             Spacer(minLength: 0).frame(height: 8)
 
