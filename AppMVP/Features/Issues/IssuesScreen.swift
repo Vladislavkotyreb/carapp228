@@ -40,14 +40,11 @@ struct IssuesScreen: View {
     /// секундами позже, и без отмены он открывает шторку поверх другого раздела.
     @State private var analysisTask: Task<Void, Never>?
 
-    /// Морф кнопки «Слушать» в панель записи — герой-переход.
-    @Namespace private var morph
     /// Палец на кнопке «Слушать» (своя пресс-анимация вместо ButtonStyle).
     @State private var pressingListen = false
     /// Запись начата зажатием и держится до отпускания пальца.
     @State private var holdListening = false
     @State private var holdTask: Task<Void, Never>?
-    private static let morphID = "listenMorph"
 
     private var hasHistory: Bool { !history.isEmpty }
 
@@ -81,15 +78,16 @@ struct IssuesScreen: View {
                     .ignoresSafeArea()
                     .transition(.opacity)
 
-                // Панель не «появляется», а вырастает из кнопки «Слушать»:
-                // геометрию ведёт matchedGeometryEffect (референс пользователя
-                // — зажатие Dynamic Island, эллипс распухает на всю ширину).
+                // Панель вырастает из места кнопки «Слушать»: scale с якорем
+                // в нижней части (кнопка стоит там). matchedGeometryEffect
+                // лагал — он перекладывал стекло и шар на каждом кадре;
+                // простой scale-переход даёт тот же жест за копейки.
                 recordingPanel
-                    .matchedGeometryEffect(id: Self.morphID, in: morph,
-                                           isSource: isModalRecording)
                     .frame(width: 370, height: 549.289, alignment: .top)
                     .offset(x: 16, y: 65.076)
-                    .transition(.opacity)
+                    .transition(.scale(scale: 0.12,
+                                       anchor: .init(x: 0.5, y: 0.92))
+                        .combined(with: .opacity))
             }
         }
         // Хаптик раскрытия — увесистый одиночный удар, как у длинного нажатия
@@ -130,7 +128,7 @@ struct IssuesScreen: View {
                 Spacer(minLength: 0).frame(height: 24)
                 caption(Self.screenCaption)
                 Spacer(minLength: 0).frame(height: buttonGap)
-                listenButton(morphs: true)
+                listenButton()
 
                 if hasHistory {
                     Spacer(minLength: 0).frame(height: 48)
@@ -214,7 +212,7 @@ struct IssuesScreen: View {
     ///   вырастает из кнопки с увесистым хаптиком) и идёт, ПОКА палец на
     ///   экране; отпустил — стоп и разбор.
     /// Свой жест вместо Button: системному не различить «тап» и «держу».
-    private func listenButton(morphs: Bool = false) -> some View {
+    private func listenButton() -> some View {
         Text(isRecording ? "Стоп" : "Слушать")
             .font(.system(size: 17))
             .tracking(-0.43)
@@ -245,9 +243,6 @@ struct IssuesScreen: View {
             .scaleEffect(pressingListen ? 0.97 : 1)
             .animation(Motion.tabPress, value: pressingListen)
             .contentShape(Capsule())
-            // Якорь героя: панель записи наследует геометрию капсулы.
-            .matchedGeometryEffect(id: Self.morphID, in: morph,
-                                   isSource: morphs && !isModalRecording)
             .gesture(listenGesture)
             .allowsHitTesting(!isAnalyzing)
             .accessibilityLabel(isAnalyzing ? "Разбираем запись"

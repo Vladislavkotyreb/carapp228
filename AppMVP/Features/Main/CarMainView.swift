@@ -95,7 +95,6 @@ struct CarMainView: View {
     @State private var carPrice = ""
     /// Цена, которую правят прямо на плитке. Отдельно от `carPrice`: та про
     /// форму добавления, эта — про уже существующую машину.
-    @State private var priceDraft = ""
     /// Свой пикер у формы авто. Раньше она писала в общий photoItems, который
     /// слушает поток ТО, — выбор фото открывал чужую модалку и терялся.
     @State private var carPhotoItems: [PhotosPickerItem] = []
@@ -354,10 +353,9 @@ struct CarMainView: View {
                 ownPrice: car?.price,
                 marketPrice: car?.marketPrice,
                 marketOffers: car?.marketOffers,
-                onEdit: {
-                    priceDraft = car?.price.map(NumberFormat.grouped) ?? ""
-                    sheet = .priceEdit
-                },
+                // Правка теперь в самой шторке (нода 46261:4222) — системный
+                // алерт с полем упразднён макетом. Пустое поле стирает цену.
+                onSave: { car?.price = $0 },
                 onClose: { sheet = .closed }
             )
         }
@@ -497,14 +495,6 @@ struct CarMainView: View {
         .sensoryFeedback(.impact(flexibility: .soft), trigger: carPage)
         // Правка цены — системный алерт с полем: ради одного числа отдельная
         // форма была бы тяжелее самого действия.
-        .alert("Цена авто", isPresented: presenting(.priceEdit)) {
-            TextField("Цена в рублях", text: Binding(
-                get: { priceDraft },
-                set: { priceDraft = NumberFormat.groupedInput($0) }))
-                .keyboardType(.numberPad)
-            Button("Отмена", role: .cancel) { priceDraft = "" }
-            Button("Сохранить") { savePrice() }
-        }
         .confirmationDialog("Удалить авто?", isPresented: presenting(.deleteConfirm), titleVisibility: .visible) {
             Button("Удалить", role: .destructive) { deleteCar() }
             Button("Отмена", role: .cancel) {}
@@ -717,7 +707,10 @@ struct CarMainView: View {
     /// смешивание по весам сглаживает переход и от 92, и от 148.
     private func metrics(of page: Int) -> PageMetrics {
         guard page < cars.count else {
-            return PageMetrics(headerGap: 24, cardHeight: 148, statsGap: 24, history: 0)
+            // Тёмная редакция (нода 46225:7674): карточка «Добавить авто» —
+            // 370×92, всегда. Прежние «всегда 148» отменены макетом; на
+            // непостоянную высоту в смеси и жаловался пользователь.
+            return PageMetrics(headerGap: 24, cardHeight: 92, statsGap: 24, history: 0)
         }
         let index = max(0, page)
         guard cars.indices.contains(index) else { return PageMetrics() }
@@ -1851,13 +1844,6 @@ struct CarMainView: View {
         carPrice = ""
         newCarPhoto = nil
         carPhotoItems = []
-    }
-
-    /// Пустое поле стирает цену: у машины её может не быть вовсе, и пустая
-    /// честнее оставленной от прошлого ввода.
-    private func savePrice() {
-        car?.price = NumberFormat.digits(priceDraft)
-        priceDraft = ""
     }
 
     private func deleteCar() {

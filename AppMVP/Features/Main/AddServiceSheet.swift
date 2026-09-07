@@ -198,7 +198,9 @@ struct AddServiceSheet: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .animation(Motion.toast, value: armed)
+        // Простой easeOut вместо пружины: спружиненная смена ширины капсулы
+        // внутри перестраиваемого ряда лагала на устройстве.
+        .animation(.easeOut(duration: 0.18), value: armed)
         .sensoryFeedback(.warning, trigger: armed) { _, isArmed in isArmed }
         .accessibilityLabel(armed ? "Подтвердить удаление работы"
                                   : "Удалить работу")
