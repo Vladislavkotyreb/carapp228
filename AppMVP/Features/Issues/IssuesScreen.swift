@@ -444,14 +444,26 @@ struct IssuesScreen: View {
     }
 
     private var findingsSheet: some View {
-        VStack(spacing: 0) {
-            sheetToolbar
-            if let heard = nothingHeard {
-                nothingHeardState(heard)
-            } else {
-                findingsList
-                    .padding(.top, Findings.listTop)
+        ZStack(alignment: .top) {
+            // Контент уходит под тулбар, тот стоит на размытии с градиентом
+            // — HIG, эталон пользователя; сплошная заливка верха — косяк,
+            // который уже ловили на главном экране.
+            VStack(spacing: 0) {
+                if let heard = nothingHeard {
+                    nothingHeardState(heard)
+                } else {
+                    findingsList
+                }
             }
+            .padding(.top, Findings.toolbarTop + Findings.toolbarHeight
+                     + Findings.listTop)
+
+            sheetToolbar
+                .background {
+                    SheetTopBlur(tint: Figma.sheetBackground)
+                        .frame(height: 118)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                }
         }
         .frame(height: Findings.height)
         .frame(maxWidth: .infinity)

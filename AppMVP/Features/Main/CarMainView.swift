@@ -493,14 +493,18 @@ struct CarMainView: View {
         // защёлкивании страницы, а не по ходу пальца: незасчитанный свайп
         // не меняет carPage и потому молчит.
         .sensoryFeedback(.impact(flexibility: .soft), trigger: carPage)
-        // Правка цены — системный алерт с полем: ради одного числа отдельная
-        // форма была бы тяжелее самого действия.
-        .confirmationDialog("Удалить авто?", isPresented: presenting(.deleteConfirm), titleVisibility: .visible) {
-            Button("Удалить", role: .destructive) { deleteCar() }
-            Button("Отмена", role: .cancel) {}
-        } message: {
-            Text("История обслуживания тоже будет удалена.")
+        // Подтверждение удаления машины — по эталону пользователя (флоу
+        // удаления фото в системной «Фото»): центрированная карточка на
+        // материале, объяснение последствий, одно красное действие; тап
+        // мимо — отмена. Системный confirmationDialog заменён.
+        .overlay {
+            if sheet == .deleteConfirm {
+                deleteConfirmModal
+                    .transition(.opacity.combined(with: .scale(scale: 0.94)))
+            }
         }
+        .animation(Motion.toast(reduceMotion: reduceMotion),
+                   value: sheet == .deleteConfirm)
         // «Добавить фото или PDF»: галерея отдаёт только снимки, PDF живёт
         // в «Файлах» — источник выбирается системным диалогом.
         .confirmationDialog("Откуда взять бланк?", isPresented: presenting(.docSource),
@@ -1868,6 +1872,50 @@ struct CarMainView: View {
     }
 
     /// Открывает шторку с полями, заполненными из записи.
+    /// Карточка подтверждения удаления машины. Текст и кнопка — на
+    /// системном материале со скруглением, как модалка удаления в «Фото»
+    /// (эталон пользователя). Кнопка одна и красная; передумать — тап мимо.
+    private var deleteConfirmModal: some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+                .onTapGesture { sheet = .closed }
+
+            VStack(spacing: 20) {
+                Text("Автомобиль будет удалён вместе со всей историей "
+                     + "обслуживания. Отменить это действие нельзя.")
+                    .font(.system(size: 17))
+                    .tracking(-0.43)
+                    .figmaLineHeight(22, fontSize: 17)
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    sheet = .closed
+                    deleteCar()
+                } label: {
+                    Text("Удалить авто")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(Figma.accentsRed)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Figma.fillsTertiary, in: Capsule())
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Удалить авто безвозвратно")
+            }
+            .padding(24)
+            .frame(maxWidth: 320)
+            .background(.regularMaterial,
+                        in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+            .environment(\.colorScheme, .dark)
+            .compositingGroup()
+            .shadow(color: .black.opacity(0.35), radius: 30, y: 10)
+        }
+    }
+
     /// Удаление записи ТО. С последней записью список пустеет и вертикальный
     /// скролл отключается (`scrollDisabled(services.isEmpty)`) — если он в
     /// этот момент был прокручен, страница застывала со сдвигом и «скролл

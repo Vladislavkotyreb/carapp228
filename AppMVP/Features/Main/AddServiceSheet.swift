@@ -27,12 +27,11 @@ struct AddServiceSheet: View {
     @State private var disarmTask: Task<Void, Never>?
 
     var body: some View {
-        VStack(spacing: 16) {
-            toolbar
-
+        ZStack(alignment: .top) {
             // Прокрутка обязательна: с распарсенным документом работ
-            // становится много, и без неё низ формы недостижим, а верх
-            // наезжает на тулбар (баг с телефона).
+            // становится много, и без неё низ формы недостижим. Контент
+            // уходит ПОД тулбар, тот стоит на размытии — HIG, эталон
+            // пользователя (сплошная заливка верха — прошлый косяк).
             ScrollView(showsIndicators: false) {
             VStack(spacing: 32) {
                 // Дата + Пробег
@@ -140,10 +139,18 @@ struct AddServiceSheet: View {
                 .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 26))
             }
             .padding(.horizontal, 16)
+            .padding(.top, 86)
             .padding(.bottom, 24)
             }
+
+            toolbar
+                .padding(.top, 16)
+                .background {
+                    SheetTopBlur(tint: Figma.sheetBackground)
+                        .frame(height: 118)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                }
         }
-        .padding(.top, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background {
             UnevenRoundedRectangle(topLeadingRadius: 38, topTrailingRadius: 38)
