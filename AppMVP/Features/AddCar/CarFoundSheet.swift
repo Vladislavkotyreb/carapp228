@@ -36,7 +36,9 @@ struct CarFoundSheet: View {
                                      subdirectory: "CarCatalog") {
             preview = UIImage(contentsOfFile: url.path)
         } else {
-            preview = nil
+            // Модели нет в каталоге — «машина под покрывалом» тем же путём,
+            // что каталожный кадр: одна ветка, один амбиент-эффект.
+            preview = UIImage(named: "CarPhoto")
         }
         previewAmbient = preview.map(Self.edgeAverageColor) ?? .black
     }
@@ -91,38 +93,19 @@ struct CarFoundSheet: View {
                     // кадр каталога, подобранный по найденной модели (и по
                     // номеру — пасхалки). Не нашёлся — заглушка, как в макете.
                     if let preview {
+                        // Безрамочно (просьба пользователя): кадр без
+                        // карточки, машина стоит прямо в шторке — швы
+                        // прячет размытая подложка фона тем же кадром.
                         Image(uiImage: preview)
                             .resizable()
-                            .scaledToFill()
-                            .frame(height: 240)
+                            .scaledToFit()
                             .frame(maxWidth: .infinity)
-                            .background(previewAmbient)
-                            .clipShape(RoundedRectangle(cornerRadius: 26))
-                            // Свечение цветом фона кадра за рамкой: карточка
-                            // не «наклейка», а окно вглубь шторки.
-                            .background {
-                                RoundedRectangle(cornerRadius: 26)
-                                    .fill(previewAmbient)
-                                    .blur(radius: 34)
-                                    .padding(.horizontal, -10)
-                                    .padding(.vertical, -16)
-                                    .opacity(0.9)
-                            }
-                            // Хит-зона scaledToFill шире рамки — известная
-                            // грабля: без этого превью крадёт тапы у кнопок.
+                            .frame(height: 240)
                             .allowsHitTesting(false)
                     } else {
-                        // Модели нет в каталоге — «машина под покрывалом»,
-                        // как премьера на автосалоне (тот же общий ассет,
-                        // что и заглушка главной). Одобрено пользователем.
-                        Image("CarPhoto")
-                            .resizable()
-                            .scaledToFill()
+                        RoundedRectangle(cornerRadius: 26)
+                            .fill(Figma.fillsTertiary)
                             .frame(height: 240)
-                            .frame(maxWidth: .infinity)
-                            .background(Color.black)
-                            .clipShape(RoundedRectangle(cornerRadius: 26))
-                            .allowsHitTesting(false)
                     }
 
                     // Строки рисуются только при наличии данных: поставщик
@@ -157,8 +140,11 @@ struct CarFoundSheet: View {
         // Тёмная тема: поверхность шторки — Backgrounds (Grouped)/Secondary,
         // как у тёмных шторок ноды 46225:7443. Тонируем: без тона стекло
         // над чёрным экраном уходило бы в непредсказуемый серый.
-        .liquidGlass(in: Self.shape, tint: Figma.sheetBackground) {
-            Self.shape.fill(Figma.sheetBackground)
+        // Безрамочность по макету 45854:2921: шторка ЗАЛИВАЕТСЯ цветом фона
+        // кадра (средний цвет его рамки) — граница картинки исчезает, машина
+        // стоит прямо в шторке. Никаких блюров: ровная заливка.
+        .liquidGlass(in: Self.shape, tint: previewAmbient) {
+            Self.shape.fill(previewAmbient)
         }
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
