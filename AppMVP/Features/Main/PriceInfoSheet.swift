@@ -178,20 +178,13 @@ struct PriceInfoSheet: View {
     /// белый, решение зафиксировано в DECISIONS.
     private var editField: some View {
         HStack(spacing: 14) {
-            ZStack(alignment: .leading) {
-                if draft.isEmpty {
-                    Text(kind == .price ? "0\u{00A0}₽" : "0\u{00A0}км")
-                        .font(.system(size: 40, weight: .bold))
-                        .foregroundStyle(Figma.labelsTertiary)
-                }
-                TextField("", text: Binding(
-                    get: { draft },
-                    set: { draft = NumberFormat.groupedInput($0) }))
-                    .font(.system(size: 40, weight: .bold))
-                    .foregroundStyle(.white)
-                    .keyboardType(.numberPad)
-                    .focused($focused)
-            }
+            // Цифры въезжают посимвольно и перестраиваются по разрядам —
+            // тот же морф, что в номерной рамке (просьба пользователя).
+            MorphingNumberField(
+                text: Binding(get: { draft },
+                              set: { draft = NumberFormat.groupedInput($0) }),
+                suffix: kind == .price ? "₽" : "км",
+                focused: $focused)
 
             Button {
                 onSave(NumberFormat.digits(draft))
