@@ -103,6 +103,13 @@ struct FigmaGroupedTextField: View {
     var secondKeyboardType: UIKeyboardType = .default
     /// Маска второй строки (пробег: разряды по три на лету).
     var secondFormat: ((String) -> String)?
+    /// Необязательная третья строка. В макете 45854:2880 её нет — цена
+    /// добавлена нами; отдельной капсулой она выглядела чужой в форме
+    /// (замечание пользователя), поэтому живёт в той же группе.
+    var thirdPlaceholder: String?
+    var third: Binding<String>?
+    var thirdKeyboardType: UIKeyboardType = .default
+    var thirdFormat: ((String) -> String)?
     var submitLabel: SubmitLabel = .return
     var onSubmit: (() -> Void)?
 
@@ -120,7 +127,17 @@ struct FigmaGroupedTextField: View {
                 .padding(.leading, 16)
 
             row(secondPlaceholder, text: $second, keyboardType: secondKeyboardType,
-                format: secondFormat, index: 1, isLast: true)
+                format: secondFormat, index: 1, isLast: third == nil)
+
+            if let third, let thirdPlaceholder {
+                Rectangle()
+                    .fill(Figma.separatorsOnDark)
+                    .frame(height: 1)
+                    .padding(.leading, 16)
+
+                row(thirdPlaceholder, text: third, keyboardType: thirdKeyboardType,
+                    format: thirdFormat, index: 2, isLast: true)
+            }
         }
         // Капсула — ровно две строки и разделитель, 105pt. Раньше сюда входили
         // ещё 19pt пустоты снизу, из-за которых вторая строка выглядела
