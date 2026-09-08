@@ -355,7 +355,21 @@ struct CarMainView: View {
                 marketOffers: car?.marketOffers,
                 // Правка теперь в самой шторке (нода 46261:4222) — системный
                 // алерт с полем упразднён макетом. Пустое поле стирает цену.
-                onSave: { car?.price = $0 },
+                // Сохранение закрывает шторку и отчитывается тостом с
+                // хаптиком — просьба пользователя: раньше значение молча
+                // уезжало, а шторка оставалась открытой.
+                onSave: { value in
+                    car?.price = value
+                    sheet = .closed
+                    presentToast(value == nil ? "Цена очищена" : "Цена обновлена!")
+                    addedServiceTick += 1
+                },
+                onResetToMarket: {
+                    car?.price = nil
+                    sheet = .closed
+                    presentToast("Вернули рыночную цену")
+                    addedServiceTick += 1
+                },
                 onClose: { sheet = .closed }
             )
         }
@@ -366,7 +380,12 @@ struct CarMainView: View {
                 ownPrice: car?.price,
                 marketPrice: car?.marketPrice,
                 marketOffers: car?.marketOffers,
-                onSave: { car?.odometer = $0 ?? 0 },
+                onSave: { value in
+                    car?.odometer = value ?? 0
+                    sheet = .closed
+                    presentToast("Пробег обновлён!")
+                    addedServiceTick += 1
+                },
                 onClose: { sheet = .closed }
             )
         }

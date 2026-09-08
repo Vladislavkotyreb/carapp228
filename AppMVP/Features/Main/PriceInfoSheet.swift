@@ -24,8 +24,10 @@ struct PriceInfoSheet: View {
     /// Средняя рыночная по объявлениям и число объявлений под ней.
     let marketPrice: Int?
     let marketOffers: Int?
-    /// Сохранение своей цены; nil — пользователь стёр значение.
+    /// Сохранение значения; nil — пользователь стёр его.
     let onSave: (Int?) -> Void
+    /// Вернуть рыночную оценку вместо своей цены (только для `.price`).
+    var onResetToMarket: (() -> Void)?
     let onClose: () -> Void
 
     /// Режим ввода (нода 46261:4222): карандаш превращает шторку в поле
@@ -164,12 +166,31 @@ struct PriceInfoSheet: View {
             }
             .padding(.horizontal, 32)
 
-            Text(badge)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Figma.graysGray)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Figma.fillsQuaternary, in: Capsule())
+            HStack(spacing: 8) {
+                Text(badge)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Figma.graysGray)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Figma.fillsQuaternary, in: Capsule())
+
+                // Маленькая кнопка рядом с чипсом: вернуть оценку рынка
+                // вместо своей цены. Видна, только когда есть что вернуть.
+                if kind == .price, ownPrice != nil, marketPrice != nil,
+                   let onResetToMarket {
+                    Button(action: onResetToMarket) {
+                        Text("вернуть рыночную")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Figma.labelsTertiary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Figma.fillsQuaternary, in: Capsule())
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Вернуть рыночную цену")
+                }
+            }
         }
     }
 

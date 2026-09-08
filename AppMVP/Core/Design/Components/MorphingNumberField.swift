@@ -17,8 +17,9 @@ struct MorphingNumberField: View {
     /// Мигающая палочка курсора: без неё пустое поле выглядит неживым.
     @State private var caretVisible = true
 
-    /// Строка целиком, с единицей: так «₽» не отрывается переносом.
-    private var display: String { (text.isEmpty ? "0" : text) + "\u{00A0}" + suffix }
+    /// Само число. Единица идёт отдельной вью справа от каретки: печатают
+    /// цифры, а «₽»/«км» — неизменяемый суффикс (выбор пользователя).
+    private var display: String { text.isEmpty ? "0" : text }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -34,16 +35,24 @@ struct MorphingNumberField: View {
                 .contentTransition(.numericText())
                 .animation(.snappy(duration: 0.28), value: text)
 
+            // Каретка между числом и единицей: она показывает, куда идёт
+            // ввод, а «₽»/«км» стоят за ней и стереться не могут.
             if focused.wrappedValue {
                 Capsule()
                     .fill(Color.white)
                     .frame(width: 3, height: 38)
-                    .padding(.leading, 6)
+                    .padding(.horizontal, 5)
                     .opacity(caretVisible ? 1 : 0)
                     .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true),
                                value: caretVisible)
                     .onAppear { caretVisible = false }
             }
+
+            Text(suffix)
+                .font(.system(size: 40, weight: .bold))
+                .foregroundStyle(text.isEmpty ? Figma.labelsTertiary : .white)
+                .padding(.leading, focused.wrappedValue ? 0 : 8)
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay {
