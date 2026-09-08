@@ -29,14 +29,10 @@ struct AddCarSheet: View {
                     FigmaSegmentedControl(titles: ["По номеру", "По названию"], selection: $tab)
 
                     if tab == 0 {
-                        FigmaTextField(
-                            placeholder: "В 777 ОР 777",
-                            text: $plate,
-                            format: PlateFormat.format,
-                            autocapitalization: .characters,
-                            submitLabel: .go,
-                            onSubmit: onSubmit
-                        )
+                        // Номерная рамка вместо обычного поля (просьба
+                        // пользователя). Откат — вернуть FigmaTextField:
+                        // `git revert` коммита с PlateInputField.
+                        PlateInputField(text: $plate, onSubmit: onSubmit)
                     } else {
                         VStack(spacing: 24) {
                             FigmaGroupedTextField(

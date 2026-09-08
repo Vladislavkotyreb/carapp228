@@ -359,6 +359,17 @@ struct CarMainView: View {
                 onClose: { sheet = .closed }
             )
         }
+        .bottomSheet(isPresented: presenting(.odometerInfo)) {
+            PriceInfoSheet(
+                kind: .odometer,
+                odometer: car?.odometer ?? 0,
+                ownPrice: car?.price,
+                marketPrice: car?.marketPrice,
+                marketOffers: car?.marketOffers,
+                onSave: { car?.odometer = $0 ?? 0 },
+                onClose: { sheet = .closed }
+            )
+        }
         .bottomSheet(isPresented: presenting(.service)) {
             AddServiceSheet(
                 title: editingRecord == nil ? "Добавление ТО" : "Изменение ТО",
@@ -795,7 +806,17 @@ struct CarMainView: View {
                     .accessibilityLabel("Цена авто")
                     .accessibilityHint("Подробнее и изменить")
 
-                    statCard(title: "Пробег") { "\(NumberFormat.grouped($0.odometer))\u{00A0}км" }
+                    // Пробег правится той же шторкой, что и цена
+                    // (просьба пользователя): подача и ввод одинаковые.
+                    Button {
+                        sheet = .odometerInfo
+                    } label: {
+                        statCard(title: "Пробег") { "\(NumberFormat.grouped($0.odometer))\u{00A0}км" }
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Self.statCardShape)
+                    .accessibilityLabel("Пробег")
+                    .accessibilityHint("Изменить")
                 }
                 .opacity(visible)
                 // Погашенная плитка продолжала бы принимать касания, а на
@@ -1368,6 +1389,8 @@ struct CarMainView: View {
 
             value()
                 .font(.system(size: 20, weight: .semibold))
+                // Цифры перетекают при смене цены и пробега.
+                .contentTransition(.numericText())
                 // Без трекинга: объявленный в ноде −0.45 до рендера не доходит,
                 // и с ним значение выходило уже макетного. Проверено замером.
                 .foregroundStyle(.white)
