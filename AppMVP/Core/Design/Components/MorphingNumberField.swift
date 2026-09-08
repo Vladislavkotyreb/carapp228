@@ -17,36 +17,34 @@ struct MorphingNumberField: View {
     /// Мигающая палочка курсора: без неё пустое поле выглядит неживым.
     @State private var caretVisible = true
 
-    private var symbols: [Character] { Array(text.isEmpty ? "0" : text) }
+    /// Строка целиком, с единицей: так «₽» не отрывается переносом.
+    private var display: String { (text.isEmpty ? "0" : text) + "\u{00A0}" + suffix }
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(Array(symbols.enumerated()), id: \.offset) { index, symbol in
-                Text(String(symbol))
-                    .font(.system(size: 40, weight: .bold).monospacedDigit())
-                    .foregroundStyle(text.isEmpty ? Figma.labelsTertiary : .white)
-                    // id по значению: иначе SwiftUI подменит строку молча,
-                    // без перехода.
-                    .id("\(index)-\(symbol)")
-                    .transition(.scale(scale: 0.5).combined(with: .opacity))
-            }
-
-            Text("\u{00A0}" + suffix)
-                .font(.system(size: 40, weight: .bold))
+            // Одна строка с системным морфом цифр вместо стопки отдельных
+            // символов: посимвольная сборка не умела ужиматься (длинная
+            // цена выпихивала «₽» на вторую строку — баг с телефона) и
+            // анимировала десяток вью на каждое нажатие, отсюда лаги.
+            Text(display)
+                .font(.system(size: 40, weight: .bold).monospacedDigit())
                 .foregroundStyle(text.isEmpty ? Figma.labelsTertiary : .white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.45)
+                .contentTransition(.numericText())
+                .animation(.snappy(duration: 0.28), value: text)
 
             if focused.wrappedValue {
                 Capsule()
                     .fill(Color.white)
-                    .frame(width: 3, height: 40)
-                    .padding(.leading, 4)
+                    .frame(width: 3, height: 38)
+                    .padding(.leading, 6)
                     .opacity(caretVisible ? 1 : 0)
                     .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true),
                                value: caretVisible)
-                    .onAppear { caretVisible.toggle() }
+                    .onAppear { caretVisible = false }
             }
         }
-        .animation(.spring(response: 0.26, dampingFraction: 0.74), value: text)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay {
             TextField("", text: $text)

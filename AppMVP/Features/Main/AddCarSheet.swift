@@ -74,7 +74,13 @@ struct AddCarSheet: View {
                                     .allowsHitTesting(false)
                             }
 
-                            PhotosPicker(selection: $photoItems, matching: .images) {
+                            // Одно фото на машину: без ограничения галерея
+                            // предлагала мультивыбор, а брали мы первый
+                            // снимок (замечание пользователя).
+                            PhotosPicker(selection: $photoItems,
+                                         maxSelectionCount: 1,
+                                         selectionBehavior: .default,
+                                         matching: .images) {
                                 FigmaRowLabel(systemImage: "photo",
                                               title: photo == nil ? "Выбрать фото" : "Заменить фото")
                             }
