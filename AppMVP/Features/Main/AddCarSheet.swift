@@ -88,9 +88,14 @@ struct AddCarSheet: View {
                     }
                 }
 
-                Spacer(minLength: 0)
+                // Кнопка стоит сразу под полями с отступом 32 (просьба
+                // пользователя), а не прижата к низу шторки: рядом с
+                // формой она читается частью формы.
+                Spacer(minLength: 0).frame(height: 32)
 
                 GlassProminentButton(title: "Добавить", action: submit)
+
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 16)

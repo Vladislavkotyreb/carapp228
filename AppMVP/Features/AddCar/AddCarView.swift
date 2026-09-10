@@ -63,9 +63,14 @@ struct AddCarView: View {
                     }
                 }
 
-                Spacer(minLength: 0)
+                // Кнопка сразу под полями с отступом 32 (просьба
+                // пользователя), а не прижата к низу экрана — как и в
+                // шторке добавления из карусели.
+                Spacer(minLength: 0).frame(height: 32)
 
                 GlassProminentButton(title: "Добавить", isBusy: isSearching, action: submit)
+
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
