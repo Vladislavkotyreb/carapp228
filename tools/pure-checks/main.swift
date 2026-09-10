@@ -650,6 +650,24 @@ group("UIStateCatalog") {
     check("у каждой ошибки поля свой текст", messages.count, Set(messages).count)
 }
 
+// MARK: - ServiceMath: светофор срочности и текст напоминания
+
+do {
+    check("зелёный, пока далеко", ServiceMath.urgency(kmLeft: 9_000), .normal)
+    check("жёлтый ровно на пороге", ServiceMath.urgency(kmLeft: 5_000), .soon)
+    check("жёлтый ближе к порогу", ServiceMath.urgency(kmLeft: 1_000), .soon)
+    check("красный за 1000", ServiceMath.urgency(kmLeft: 999), .urgent)
+    check("просроченное — красное", ServiceMath.urgency(kmLeft: 0), .urgent)
+
+    check("напоминание с номером",
+          ServiceMath.reminderText(name: "Лада Веста", plate: "В 777 ОР 777",
+                                   kmLeft: 1_000),
+          "Лада Веста В 777 ОР 777 — через 1\u{00A0}000\u{00A0}км необходимо провести ТО")
+    check("напоминание без номера",
+          ServiceMath.reminderText(name: "Моя машина", plate: "", kmLeft: 800),
+          "Моя машина — через 800\u{00A0}км необходимо провести ТО")
+}
+
 // MARK: - CarCatalog: название машины → слаг кадра каталога
 
 do {

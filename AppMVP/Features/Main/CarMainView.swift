@@ -496,6 +496,17 @@ struct CarMainView: View {
             carImages = decoded
             catalogImages = catalog
         }
+        // Напоминание о ТО: пересчитывается при смене пробега и истории.
+        // Ключ включает и то, и другое — иначе после сохранения ТО
+        // уведомление осталось бы от прошлого расчёта.
+        .task(id: serviceReminderKey) {
+            for car in cars {
+                await ServiceReminder.update(
+                    id: String(car.persistentModelID.hashValue),
+                    name: car.name, plate: car.plate,
+                    kmLeft: kmUntilService(for: car))
+            }
+        }
         // Рыночная цена: раз в неделю на машину, только по полному VIN.
         .task(id: marketPriceKey) {
             guard AvtoVinCodValuation.isConfigured else { return }
@@ -1156,6 +1167,12 @@ struct CarMainView: View {
             .joined(separator: "|")
     }
 
+    /// Ключ пересчёта напоминаний: пробеги машин и число записей ТО.
+    private var serviceReminderKey: String {
+        cars.map { "\($0.persistentModelID.hashValue)-\($0.odometer)-\($0.services.count)" }
+            .joined(separator: "|")
+    }
+
     /// Ключ обновления рыночных цен: состав машин и их VIN. Даты последнего
     /// обновления в ключе нет намеренно: запись свежей даты из самой задачи
     /// не должна перезапускать задачу.
@@ -1340,19 +1357,28 @@ struct CarMainView: View {
                 Text("\(NumberFormat.grouped(kmUntilService(for: car)))\u{00A0}км")
                     .font(.system(size: 28, weight: .bold))
                     .tracking(0.38)
-                    .foregroundStyle(.white)
+                    // Светофор: число красное, когда ехать пора прямо
+                    // сейчас, — иначе цвет полосы легко пропустить.
+                    .foregroundStyle(ServiceMath.urgency(kmLeft: kmUntilService(for: car))
+                                     == .urgent ? Figma.accentsRed : .white)
+                    .contentTransition(.numericText())
                     .frame(height: 34)
             }
             .frame(maxWidth: .infinity)
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 24)
-                        .fill(Figma.trackBackground)
+                    Capsule().fill(Figma.trackBackground)
 
-                    RoundedRectangle(cornerRadius: 24)
-                        .fill(Figma.accentsGreen)
-                        .frame(width: geo.size.width * serviceProgress(for: car))
+                    // Ширина не опускается ниже высоты полосы: с
+                    // `RoundedRectangle(24)` малый прогресс вырождался в
+                    // кривой огрызок, а сразу после ТО полоса пропадала
+                    // вовсе. И меняется она анимацией, а не скачком.
+                    Capsule()
+                        .fill(urgencyColor(for: car))
+                        .frame(width: max(30, geo.size.width * serviceProgress(for: car)))
+                        .animation(.snappy(duration: 0.35),
+                                   value: serviceProgress(for: car))
                 }
             }
             .frame(height: 30)
@@ -1763,6 +1789,16 @@ struct CarMainView: View {
     private func kmUntilService(for car: Car) -> Int {
         ServiceMath.kmUntilService(odometer: car.odometer,
                                    serviceMileages: car.services.map(\.mileage))
+    }
+
+    /// Цвет светофора: зелёный — далеко, жёлтый — за 5 000 км, красный —
+    /// за 1 000 (пороги в `ServiceMath`).
+    private func urgencyColor(for car: Car) -> Color {
+        switch ServiceMath.urgency(kmLeft: kmUntilService(for: car)) {
+        case .normal: Figma.accentsGreen
+        case .soon: Figma.accentsYellow
+        case .urgent: Figma.accentsRed
+        }
     }
 
     /// Прогресс интервала: сколько из 10 000 км уже проехали.
