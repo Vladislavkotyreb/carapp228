@@ -1,6 +1,8 @@
 # Установка Xcode и первый запуск
 
-На вашем Mac сейчас установлены только **Command Line Tools**, полный Xcode отсутствует.
+**Xcode уже стоит** (26.6, `xcode-select -p` → `/Applications/Xcode.app`), сборка
+и симулятор работают. Этот документ нужен на новой машине или после переустановки
+системы: когда в терминале есть только **Command Line Tools**, а полного Xcode нет.
 
 ## Установка
 
@@ -16,13 +18,15 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
 ```bash
 xcodebuild -version
-# Xcode 16.x ...
+# Xcode 26.6 ...
 ```
 
 ## Открыть проект
 
+Проект называется `Wheelly.xcodeproj`, схема — `AppMVP`. Из папки проекта:
+
 ```bash
-open /Users/vladislavkotyrev/Desktop/ios-app/AppMVP.xcodeproj
+open Wheelly.xcodeproj
 ```
 
 ## Первый запуск

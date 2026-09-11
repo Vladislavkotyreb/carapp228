@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.beepy.inbox-sync</string>
+
+  <!-- Путь к скрипту подставить свой, если репозиторий лежит не здесь. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>$HOME/Desktop/ios-app/tools/inbox-sync.sh</string>
+  </array>
+
+  <!-- 08:45, за четверть часа до утреннего разбора в облаке (09:00 МСК).
+       Мак спал — launchd запустит сразу после пробуждения. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>8</integer>
+    <key>Minute</key><integer>45</integer>
+  </dict>
+
+  <!-- И один прогон при входе в систему: мак включают позже 8:45 чаще, чем
+       кажется, а заметка, написанная ночью с телефона, нужна утром. -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/beepy-inbox-sync.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/beepy-inbox-sync.log</string>
+</dict>
+</plist>
