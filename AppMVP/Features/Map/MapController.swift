@@ -19,6 +19,10 @@ struct MapPin: Identifiable, Equatable {
     let latitude: Double
     let longitude: Double
     let source: Source
+    /// Телефон организации, если поиск его отдал. `var` с умолчанием, а не
+    /// `let`: так почленный инициализатор остаётся прежним для тех, у кого
+    /// телефона нет вовсе, — своя точка на карте телефона не имеет.
+    var phone: String?
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
@@ -46,7 +50,8 @@ extension MapPin {
                   kind: place.kind,
                   latitude: place.latitude,
                   longitude: place.longitude,
-                  source: .saved(place.persistentModelID))
+                  source: .saved(place.persistentModelID),
+                  phone: place.phone)
     }
 }
 
@@ -289,8 +294,22 @@ final class MapController: NSObject, ObservableObject {
                           kind: kind,
                           latitude: point.latitude,
                           longitude: point.longitude,
-                          source: .found)
+                          source: .found,
+                          phone: phone(of: object))
         }
+    }
+
+    /// Телефон организации из ответа поиска.
+    ///
+    /// Лежит не в самом объекте, а в его контейнере метаданных: гео-объект у
+    /// Яндекса общий для адреса, остановки и организации, и «часы работы,
+    /// рубрики, телефоны» есть только у последней. Нет метаданных или нет
+    /// номера — честный `nil`, и кнопки «Позвонить» на карточке не будет.
+    private static func phone(of object: YMKGeoObject) -> String? {
+        let business = object.metadataContainer
+            .getItemOf(YMKSearchBusinessObjectMetadata.self) as? YMKSearchBusinessObjectMetadata
+        guard let business else { return nil }
+        return PhoneFormat.first(of: business.phones.map(\.formattedValue))
     }
 
     // MARK: - Отрисовка

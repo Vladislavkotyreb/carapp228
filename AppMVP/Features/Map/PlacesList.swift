@@ -49,6 +49,10 @@ struct PlacesList: View {
     let onDelete: (MapPin) -> Void
     let onRefresh: () async -> Void
 
+    /// Звонок уходит системе через окружение — в списке по той же причине,
+    /// что и на карточке карты: вью не знает про UIKit.
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         List {
             ForEach(sections) { section in
@@ -78,6 +82,17 @@ struct PlacesList: View {
 
             star(row)
         }
+        // Звонок вынесен на левый край: правый занят удалением, и класть
+        // звонок рядом с разрушающим действием значит однажды удалить место
+        // вместо вызова.
+        .swipeActions(edge: .leading) {
+            if let url = callURL(row.pin) {
+                Button { openURL(url) } label: {
+                    Label("Позвонить", systemImage: "phone.fill")
+                }
+                .tint(Figma.accentsGreen)
+            }
+        }
         .swipeActions(edge: .trailing) {
             switch row.star {
             case .hidden:
@@ -98,6 +113,13 @@ struct PlacesList: View {
                 .tint(Figma.accentsYellow)
             }
         }
+    }
+
+    /// Ссылка для звонка или `nil`: у своих точек телефона нет вовсе,
+    /// а у найденных он приходит не всегда.
+    private func callURL(_ pin: MapPin) -> URL? {
+        guard let phone = pin.phone, let dial = PhoneFormat.dial(phone) else { return nil }
+        return URL(string: dial)
     }
 
     private func content(_ row: PlaceRow) -> some View {

@@ -311,7 +311,9 @@ struct IssuesScreen: View {
                 ForEach(group.checks) { check in
                     ForEach(check.orderedFindings) { finding in
                         Spacer(minLength: 0).frame(height: 16)
-                        darkIssueCard(EngineIssue(title: finding.title, detail: finding.detail))
+                        darkIssueCard(EngineIssue(title: finding.title,
+                                                  detail: finding.detail,
+                                                  advice: finding.advice))
                     }
                 }
             }
@@ -408,14 +410,29 @@ struct IssuesScreen: View {
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
 
+            // Совет по расходникам — только там, где включён `showAdvice`,
+            // то есть в шторке находок. На тёмной карточке экрана его нет:
+            // она прибита к ноде макета 46093:2421, 370×102, третья строка
+            // выносит её за высоту. Решение пользователя от 2026-09-11.
             if showAdvice, let advice = issue.advice {
-                Text(advice)
-                    .font(.system(size: 13))
-                    .tracking(-0.08)
-                    .figmaLineHeight(18, fontSize: 13)
-                    .foregroundStyle(detail.opacity(0.75))
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "cart")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Figma.accentsYellow)
+                        // Значок держит базовую линию первой строки текста:
+                        // без этого он висит по центру всего блока.
+                        .frame(height: 18)
+
+                    Text(advice)
+                        .font(.system(size: 13))
+                        .tracking(-0.08)
+                        .figmaLineHeight(18, fontSize: 13)
+                        .lineLimit(3)
+                        .foregroundStyle(detail)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 2)
             }
         }
         .padding(20)
@@ -831,7 +848,8 @@ struct IssuesScreen: View {
         let check = EngineCheck()
         modelContext.insert(check)
         for (index, issue) in findings.enumerated() {
-            let finding = EngineFinding(title: issue.title, detail: issue.detail, order: index)
+            let finding = EngineFinding(title: issue.title, detail: issue.detail,
+                                        advice: issue.advice, order: index)
             finding.check = check
             modelContext.insert(finding)
         }

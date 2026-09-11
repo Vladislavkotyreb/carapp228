@@ -262,3 +262,77 @@ extension FoundCar {
         )
     }
 }
+
+/// Кадр каталога по набранному названию — превью в формах добавления машины.
+///
+/// Вью общее на два экрана: онбординг (`AddCarView`) и шторку с главной
+/// (`AddCarSheet`). До сих пор превью показывал только поиск по номеру, через
+/// «Это ваш автомобиль?»; по названию человек добавлял машину вслепую и видел
+/// её кадр уже на главной.
+///
+/// **Показывать его или нет, решает вызывающий** — `CarCatalog.slug(name:)`
+/// не `nil`. Это чистая проверка без диска, и она нужна снаружи: пустое вью
+/// внутри `VStack` всё равно получает отступы соседей, и незнакомая машина
+/// оставляла бы в форме дыру в высоту `spacing`.
+struct CarCatalogPreview: View {
+    /// Что напечатано в поле «Название».
+    let name: String
+    /// Высота блока: в онбординге под превью отведено 200, в шторке — 160.
+    var height: CGFloat = 200
+
+    @State private var image: UIImage?
+
+    /// Слаг считается из названия прямо здесь: функция чистая, диска и сети
+    /// не трогает. На диск ходит только `load()` и только на смену слага —
+    /// «Лада Веста» и «лада веста 2019» дают один и тот же кадр.
+    private var slug: String? { CarCatalog.slug(name: name) }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                // Подложка держит высоту, пока кадр декодируется: без неё
+                // блок возникал бы из ничего и толкал форму вниз.
+                RoundedRectangle(cornerRadius: 26)
+                    .fill(Figma.fillsQuaternary.opacity(0.12))
+
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .transition(.opacity)
+                }
+            }
+            .frame(height: height)
+            .frame(maxWidth: .infinity)
+            .clipShape(RoundedRectangle(cornerRadius: 26))
+            // Обязательно: `scaledToFill` вылезает за рамку не только
+            // отрисовкой, но и хит-зоной — `clipShape` режет пиксели, а тапы
+            // нет, и широкий кадр накрыл бы поля ввода выше.
+            .allowsHitTesting(false)
+
+            // Подпись не украшение: кадр студийный и белый, и без оговорки
+            // его принимают за фотографию своей машины.
+            Text("Кадр из каталога — ваше фото его заменит")
+                .font(.system(size: 12))
+                .figmaLineHeight(16, fontSize: 12)
+                .foregroundStyle(Figma.labelsTertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .animation(Motion.selection, value: image == nil)
+        .task(id: slug) { await load() }
+    }
+
+    private func load() async {
+        guard let slug,
+              let url = Bundle.main.url(forResource: slug, withExtension: "heic",
+                                        subdirectory: "CarCatalog"),
+              let data = try? Data(contentsOf: url) else {
+            image = nil
+            return
+        }
+        // Через `ImageLoader`, а не `UIImage(contentsOfFile:)`: тот отдаёт кадр
+        // с отложенным декодированием, и разворачивается он потом на главном
+        // акторе — ровно в тот момент, когда человек печатает.
+        image = await ImageLoader.decode([data]).first
+    }
+}

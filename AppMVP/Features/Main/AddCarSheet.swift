@@ -60,6 +60,15 @@ struct AddCarSheet: View {
                                 onSubmit: submit
                             )
                             .shake(shake)
+
+                            // Превью каталога, пока своё фото не выбрано:
+                            // до сих пор оно показывалось только при поиске
+                            // по номеру, через «Это ваш автомобиль?».
+                            // Проверка слага снаружи — пустое вью получило бы
+                            // отступы соседей (см. CarCatalogPreview).
+                            if photo == nil, CarCatalog.slug(name: name) != nil {
+                                CarCatalogPreview(name: name, height: 160)
+                            }
                         }
 
                         // Фото — под обеими вкладками, а не только под

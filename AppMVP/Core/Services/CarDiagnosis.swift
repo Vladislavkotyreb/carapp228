@@ -316,4 +316,5 @@ enum DiagnosisVocabulary {
         default: key
         }
     }
+
 }

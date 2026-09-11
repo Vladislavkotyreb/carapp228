@@ -14,6 +14,10 @@ import SwiftUI
 /// единого вида значит потерять половину его поведения.
 struct MapScreen: View {
     @Environment(\.modelContext) private var modelContext
+    /// Звонок уходит системе через окружение, а не через `UIApplication`:
+    /// вью не должна знать про UIKit, и телефон на симуляторе просто ничего
+    /// не сделает вместо падения.
+    @Environment(\.openURL) private var openURL
     @Query(sort: \Place.createdAt) private var places: [Place]
 
     @StateObject private var controller = MapController()
@@ -315,6 +319,7 @@ struct MapScreen: View {
                                       latitude: pin.latitude,
                                       longitude: pin.longitude,
                                       note: pin.subtitle,
+                                      phone: pin.phone,
                                       origin: .favorite))
         }
     }
@@ -386,6 +391,15 @@ struct MapScreen: View {
                     .accessibilityLabel("Закрыть")
                 }
 
+                // Запись на сервис: приложение её не делает и делать не
+                // может — своего расписания у сервисов нет. Зато номер у
+                // организации есть, и один тап по нему заменяет весь сценарий
+                // записи, ради которого пришлось бы договариваться с каждым
+                // СТО отдельно.
+                if let phone = pin.phone, let call = callURL(for: pin) {
+                    callButton(number: phone, url: call)
+                }
+
                 if let route = controller.route {
                     // Маршрут построен: показываем, во что он обходится, и
                     // только потом предлагаем уйти в Яндекс Карты.
@@ -429,6 +443,30 @@ struct MapScreen: View {
             .padding(.bottom, 12)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
+    }
+
+    /// Ссылка для звонка или `nil`: телефона нет либо он не разобрался.
+    private func callURL(for pin: MapPin) -> URL? {
+        guard let phone = pin.phone, let dial = PhoneFormat.dial(phone) else { return nil }
+        return URL(string: dial)
+    }
+
+    /// «Позвонить» — номером, а не словом: человек видит, куда звонит, ещё
+    /// до нажатия, и может переписать его себе, если звонить сейчас неудобно.
+    private func callButton(number: String, url: URL) -> some View {
+        Button { openURL(url) } label: {
+            Label(PhoneFormat.display(number), systemImage: "phone.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Figma.accentsBlue)
+                .lineLimit(1)
+                // Высота 44: у текстовой кнопки цель касания иначе равна
+                // высоте строки.
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Позвонить")
+        .accessibilityValue(number)
     }
 
     private func star(_ pin: MapPin) -> some View {

@@ -37,12 +37,20 @@ extension EngineCheck {
 final class EngineFinding {
     var title: String
     var detail: String
+    /// Что купить и что проверить по этой находке.
+    ///
+    /// Необязательное поле, и это не небрежность: у находок, сохранённых до
+    /// появления советов, его в базе нет вовсе, а облегчённая миграция
+    /// SwiftData добавляет молча только то, что может оставить пустым. Пусто
+    /// читается как «совета нет» — именно так и было.
+    var advice: String?
     var order: Int
     var check: EngineCheck?
 
-    init(title: String, detail: String, order: Int) {
+    init(title: String, detail: String, advice: String? = nil, order: Int) {
         self.title = title
         self.detail = detail
+        self.advice = advice
         self.order = order
     }
 }

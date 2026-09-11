@@ -188,12 +188,23 @@ struct AddCarView: View {
                     }
                 }
             } else {
-                VStack(spacing: 8) {
-                    PhotosPicker(selection: $photoItem, matching: .images) {
-                        FigmaRowLabel(systemImage: "photo", title: "Выбрать фото")
+                VStack(spacing: 0) {
+                    // Превью каталога до того, как выбрано своё фото: машина
+                    // видна уже в форме, а не только на главной. Условие
+                    // снаружи, а не внутри вью: незнакомая машина иначе
+                    // оставила бы дыру в высоту `spacing` (см. CarCatalogPreview).
+                    if CarCatalog.slug(name: name) != nil {
+                        CarCatalogPreview(name: name)
+                            .padding(.bottom, 20)
                     }
 
-                    caption("Сфотографируйте машину спереди для лучшего вида", color: Figma.labelsTertiary)
+                    VStack(spacing: 8) {
+                        PhotosPicker(selection: $photoItem, matching: .images) {
+                            FigmaRowLabel(systemImage: "photo", title: "Выбрать фото")
+                        }
+
+                        caption("Сфотографируйте машину спереди для лучшего вида", color: Figma.labelsTertiary)
+                    }
                 }
             }
         }
