@@ -75,10 +75,24 @@ printf '%s\n' "$VAULT" > "$CONFIG"
 cd "$REPO"
 
 # Незакоммиченные правки в коде — не наше дело, но и коммитить их скопом нельзя:
-# ниже добавляется только inbox/, явным путём.
+# ниже добавляется только inbox/, явным путём. Отсюда --autostash: без него
+# любая недописанная правка в рабочей копии останавливает синхронизацию заметок,
+# хотя к заметкам отношения не имеет. autostash прячет её на время перебазирования
+# и возвращает обратно — рабочая копия остаётся как была.
 git fetch origin "$BRANCH" --quiet
-git checkout "$BRANCH" --quiet
-git pull --rebase origin "$BRANCH" --quiet || { log "pull не прошёл, чиню руками"; exit 1; }
+
+if ! git checkout "$BRANCH" --quiet 2>/dev/null; then
+  log "не удалось перейти на $BRANCH — мешают правки в рабочей копии:"
+  git status --short | head -20
+  exit 1
+fi
+
+if ! git pull --rebase --autostash origin "$BRANCH" --quiet; then
+  log "pull не прошёл. Состояние рабочей копии:"
+  git status --short | head -20
+  log "Разобрать вручную: git rebase --abort, затем git stash list."
+  exit 1
+fi
 
 mkdir -p inbox/tasks inbox/bugs inbox/done inbox/reports inbox/attachments
 
