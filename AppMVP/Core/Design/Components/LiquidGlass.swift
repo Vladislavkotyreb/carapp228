@@ -27,6 +27,10 @@ enum Motion {
     /// баннеры Apple живут примерно столько же.
     static let toastDwell: Duration = .milliseconds(2500)
 
+    /// Пробег блика по скелетону. Линейная и бесконечная: у ожидания нет ни
+    /// начала, ни конца, и пружина здесь читалась бы как событие.
+    static let skeleton = Animation.linear(duration: 1.1).repeatForever(autoreverses: false)
+
     /// При включённом Reduce Motion системные рекомендации требуют заменять
     /// перемещение на простое проявление.
     static func sheet(reduceMotion: Bool) -> Animation {

@@ -227,16 +227,27 @@ enum MapPhase: String, CaseIterable {
     case list
     /// Список, в котором нечего показать: ничего не нашлось и не сохранено.
     case listEmpty
+    /// Список, пока идёт первый поиск: показывать нечего, но и сказать
+    /// «ничего не нашлось» нельзя — ещё не искали до конца.
+    case listLoading
 
-    /// Фаза выводится из подачи, наличия ключа и наличия мест.
+    /// Фаза выводится из подачи, наличия ключа, наличия мест и того, идёт ли
+    /// поиск.
     ///
     /// Ключ старше подачи: без него не работает ни карта, ни поиск, и список
     /// был бы пустым не потому, что мест нет, а потому, что их неоткуда взять.
-    static func of(mode: MapMode, hasKey: Bool, hasPlaces: Bool) -> MapPhase {
+    ///
+    /// Поиск младше мест: пока список не пуст, идущий поиск ничего не меняет —
+    /// человек уже смотрит на места, и подменять их скелетонами значит отнять
+    /// у него то, что он читает.
+    static func of(mode: MapMode, hasKey: Bool, hasPlaces: Bool,
+                   isSearching: Bool = false) -> MapPhase {
         guard hasKey else { return .noKey }
         switch mode {
         case .map: return .live
-        case .list: return hasPlaces ? .list : .listEmpty
+        case .list:
+            if hasPlaces { return .list }
+            return isSearching ? .listLoading : .listEmpty
         }
     }
 }

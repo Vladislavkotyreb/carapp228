@@ -148,6 +148,8 @@ enum UIStateCatalog {
               what: "Список: избранное, свои точки и найденное рядом", node: nil),
         .init(id: "map-listEmpty", screen: "Карта",
               what: "Список, в котором нечего показать", node: nil),
+        .init(id: "map-listLoading", screen: "Карта",
+              what: "Список во время первого поиска — скелетоны строк", node: nil),
     ]
 
     static let tabBar: [UIStateEntry] = [
