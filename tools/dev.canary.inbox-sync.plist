@@ -4,7 +4,7 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>dev.beepy.inbox-sync</string>
+  <string>dev.canary.inbox-sync</string>
 
   <!-- Путь к скрипту подставить свой, если репозиторий лежит не здесь. -->
   <key>ProgramArguments</key>
@@ -28,8 +28,8 @@
   <true/>
 
   <key>StandardOutPath</key>
-  <string>/tmp/beepy-inbox-sync.log</string>
+  <string>/tmp/canary-inbox-sync.log</string>
   <key>StandardErrorPath</key>
-  <string>/tmp/beepy-inbox-sync.log</string>
+  <string>/tmp/canary-inbox-sync.log</string>
 </dict>
 </plist>

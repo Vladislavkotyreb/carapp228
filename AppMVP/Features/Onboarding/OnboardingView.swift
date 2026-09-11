@@ -1,7 +1,7 @@
 import AuthenticationServices
 import SwiftUI
 
-/// Онбординг Beepy — Figma «1 флоу: онбординг + добавление машины» (node 45822:3994).
+/// Онбординг Canary — Figma «1 флоу: онбординг + добавление машины» (node 45822:3994).
 /// Верхние блоки стоят в координатах макета (frame 402×874) от верха экрана,
 /// а кнопки прижаты к нижней safe area: в макете home indicator не нарисован,
 /// и «Пропустить» заезжала на него даже на макетном устройстве.
@@ -84,7 +84,7 @@ struct OnboardingView: View {
             title("Привет!")
                 .figmaBlock(x: 32, width: 338, y: 528.75)
 
-            description("Beepy — сервис, который поможет тебе держать всё самое важное \nдля автомобиля под контролем")
+            description("Canary — сервис, который поможет тебе держать всё самое важное \nдля автомобиля под контролем")
                 .figmaBlock(x: 32, width: 338, y: 586.75)
 
             AppleSignInButton(onCompletion: handleAppleSignIn)

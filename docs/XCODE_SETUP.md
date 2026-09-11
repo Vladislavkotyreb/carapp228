@@ -23,10 +23,10 @@ xcodebuild -version
 
 ## Открыть проект
 
-Проект называется `Wheelly.xcodeproj`, схема — `AppMVP`. Из папки проекта:
+Проект называется `Canary.xcodeproj`, схема — `AppMVP`. Из папки проекта:
 
 ```bash
-open Wheelly.xcodeproj
+open Canary.xcodeproj
 ```
 
 ## Первый запуск

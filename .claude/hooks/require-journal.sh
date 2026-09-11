@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PreToolUse-заслонка на Bash, только для этого проекта (Beepy / carapp228).
+# PreToolUse-заслонка на Bash, только для этого проекта (Canary / carapp228).
 # Проверяет `git commit` по трём пунктам и блокирует его (exit 2), если хоть
 # один не сошёлся. stderr возвращается агенту как причина отказа.
 #
@@ -23,7 +23,7 @@
 set -uo pipefail
 
 journal="docs/JOURNAL.md"
-pbx="Wheelly.xcodeproj/project.pbxproj"
+pbx="Canary.xcodeproj/project.pbxproj"
 src_root="AppMVP"
 
 # plutil есть только в macOS. В облачной сессии на Linux его нет, и «не нашёл

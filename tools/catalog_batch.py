@@ -1,6 +1,6 @@
 """Ночная генерация каталога машин Кандинским 5.0 на MPS.
 
-Читает tools/catalog_cars.json, пишет ~/beepy-catalog/raw/{slug}.png.
+Читает tools/catalog_cars.json, пишет ~/canary-catalog/raw/{slug}.png.
 Отличие от kandinsky5_local.py — модель грузится один раз на весь батч:
 сначала энкодеры кодируют все промпты (эмбеддинги маленькие, живут на CPU),
 затем DiT+VAE генерят подряд. Кадр с нечёрными краями ретраится другими
@@ -10,7 +10,7 @@
 
 Запуск (переживает закрытие терминала, не даёт маку уснуть):
     nohup caffeinate -is ~/Library/Caches/kandinsky5-venv/bin/python \
-        tools/catalog_batch.py > ~/beepy-catalog/gen.log 2>&1 & disown
+        tools/catalog_batch.py > ~/canary-catalog/gen.log 2>&1 & disown
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from car_image_gen import NEGATIVE_PROMPT, build_prompt, edges_are_black, finali
 
 MODEL = "kandinskylab/Kandinsky-5.0-T2I-Lite-sft-Diffusers"
 CATALOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "catalog_cars.json")
-OUT_DIR = os.path.expanduser("~/beepy-catalog/raw")
+OUT_DIR = os.path.expanduser("~/canary-catalog/raw")
 SEEDS = (7, 11, 23)
 STEPS = 30
 

@@ -1,4 +1,4 @@
-"""Сервер разбора звука двигателя для приложения Beepy.
+"""Сервер разбора звука двигателя для приложения Canary.
 
 Зачем свой, а не `cardiag serve`. У модели cardiag открытая проблема множества:
 её головы обучены отличать неисправный двигатель от исправного и **не знают
@@ -42,7 +42,7 @@ from fastapi.responses import JSONResponse
 from cardiag import Classifier, config
 from cardiag.audio.clap import Clap
 
-app = FastAPI(title="beepy-diagnosis")
+app = FastAPI(title="canary-diagnosis")
 
 # Порядок промптов важен: индекс 1 — это и есть искомый «мотор». Формулировки
 # взяты из `audio/clean.py`, чтобы не разойтись с тем, на чём гейт замерялся.

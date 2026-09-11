@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "FF0000010000000000000001"
-               BuildableName = "Wheelly.app"
-               BlueprintName = "Wheelly"
-               ReferencedContainer = "container:Wheelly.xcodeproj">
+               BuildableName = "Canary.app"
+               BlueprintName = "Canary"
+               ReferencedContainer = "container:Canary.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,9 +45,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "FF0000010000000000000001"
-            BuildableName = "Wheelly.app"
-            BlueprintName = "Wheelly"
-            ReferencedContainer = "container:Wheelly.xcodeproj">
+            BuildableName = "Canary.app"
+            BlueprintName = "Canary"
+            ReferencedContainer = "container:Canary.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "FF0000010000000000000001"
-            BuildableName = "Wheelly.app"
-            BlueprintName = "Wheelly"
-            ReferencedContainer = "container:Wheelly.xcodeproj">
+            BuildableName = "Canary.app"
+            BlueprintName = "Canary"
+            ReferencedContainer = "container:Canary.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
