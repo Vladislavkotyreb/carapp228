@@ -18,13 +18,18 @@
 #      а Xcode на битом проекте падает сообщениями, которые не намекают
 #      на причину.
 #
-# Падает открытым по устройству: нет jq, не репозиторий, нет pbxproj, ошибка
-# git — exit 0. Сломанный сторож не должен заклинить все вызовы Bash.
+# Падает открытым по устройству: нет jq, нет plutil (не macOS), не репозиторий,
+# нет pbxproj, ошибка git — exit 0. Сломанный сторож не должен заклинить все вызовы Bash.
 set -uo pipefail
 
 journal="docs/JOURNAL.md"
 pbx="Wheelly.xcodeproj/project.pbxproj"
 src_root="AppMVP"
+
+# plutil есть только в macOS. В облачной сессии на Linux его нет, и «не нашёл
+# команду» — это не «битый plist»: заслонка здесь падает открытой, как и на
+# отсутствующем jq. Иначе ни один коммит из Linux-сессии не проходит вовсе.
+have_plutil() { command -v plutil >/dev/null 2>&1; }
 
 # Файл прописан в фазе компиляции? В pbxproj это комментарий вида
 # `/* Theme.swift in Sources */` — он есть и у PBXBuildFile, и в самой фазе.
@@ -51,7 +56,11 @@ if [[ "${1:-}" == "--audit" ]]; then
     find "$src_root" -name "$base" -print -quit | grep -q . \
       || { echo "НЕТ ФАЙЛА, а в проекте есть: $base"; bad=1; }
   done < <(sources_list)
-  plutil -lint "$pbx" >/dev/null 2>&1 || { echo "БИТЫЙ plist: $pbx"; bad=1; }
+  if have_plutil; then
+    plutil -lint "$pbx" >/dev/null 2>&1 || { echo "БИТЫЙ plist: $pbx"; bad=1; }
+  else
+    echo "plutil недоступен — проверка plist пропущена (не macOS?)."
+  fi
   [[ $bad -eq 0 ]] && echo "Ревизия чистая: $(find "$src_root" -name '*.swift' | wc -l | tr -d ' ') файлов, все в проекте, plist цел."
   exit $bad
 fi
@@ -163,7 +172,7 @@ if [[ -f "$pbx" ]]; then
   Снять её из тех же четырёх мест, иначе сборка упадёт на отсутствующем файле."
   fi
 
-  if ! plutil -lint "$pbx" >/dev/null 2>&1; then
+  if have_plutil && ! plutil -lint "$pbx" >/dev/null 2>&1; then
     problems="$problems
 • $pbx не проходит plutil -lint — ручная правка сломала plist.
   Точная причина: plutil -lint $pbx"
