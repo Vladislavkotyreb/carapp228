@@ -708,6 +708,38 @@ do {
     check("год не находится в мусоре", CarCatalog.firstYear("седан 12345"), nil)
 }
 
+// ---------------------------------------------------------------- PhoneFormat
+
+group("PhoneFormat") {
+    check("номер Яндекса разбирается в tel:",
+          PhoneFormat.dial("+7 (495) 123-45-67"), "tel:+74951234567")
+    check("восьмёрка без плюса остаётся без плюса",
+          PhoneFormat.dial("8 800 555-35-35"), "tel:88005553535")
+    check("плюс внутри номера не доезжает до ссылки",
+          PhoneFormat.dial("8 (800) 555+35+35"), "tel:88005553535")
+    check("короткий номер сервиса проходит", PhoneFormat.dial("0890"), "tel:0890")
+    check("текст вместо номера — nil", PhoneFormat.dial("звоните в приёмку"), nil)
+    check("трёх цифр мало", PhoneFormat.dial("123"), nil)
+    check("шестнадцати цифр много",
+          PhoneFormat.dial("+1234567890123456"), nil)
+    check("пустая строка — nil", PhoneFormat.dial("   "), nil)
+
+    check("первым берётся первый разобранный номер",
+          PhoneFormat.first(of: ["добавочный 12", "+7 495 123-45-67"]),
+          "+7 495 123-45-67")
+    check("порядок Яндекса сохраняется",
+          PhoneFormat.first(of: ["+7 495 111-11-11", "+7 495 222-22-22"]),
+          "+7 495 111-11-11")
+    check("списка нет — номера нет", PhoneFormat.first(of: []), nil)
+
+    check("подпись склеивается неразрывными пробелами",
+          PhoneFormat.display("+7 (495) 123-45-67"),
+          "+7\u{00A0}(495)\u{00A0}123-45-67")
+    check("лишние пробелы по краям уходят",
+          PhoneFormat.display("  8 800 555-35-35 "),
+          "8\u{00A0}800\u{00A0}555-35-35")
+}
+
 print("")
 print("Состояний в каталоге: \(UIStateCatalog.all.count), "
       + "из них без ноды макета: \(UIStateCatalog.withoutNode.count).")
