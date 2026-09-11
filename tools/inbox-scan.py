@@ -6,8 +6,9 @@
 Заодно называет заметки, которые взяты не будут, и почему — иначе «не взяли»
 и «взяли и молча ничего не сделали» выглядят одинаково.
 
-Отдельная колонка `zone`: `auto` — правку можно проверить прогонами без Xcode,
-`review` — нельзя, туда автоматика не лезет (см. inbox/README.md).
+Колонка `zone` говорит, что с задачей делать: `auto` — писать код, `find` —
+сперва выяснить, где это живёт в проекте, и тоже писать, `review` — работа
+не в коде (сервер, деньги, договориться с человеком) или в ручном pbxproj.
 
 Запуск:
     python3 tools/inbox-scan.py            # человекочитаемо
@@ -19,8 +20,15 @@ INBOX = "inbox"
 FOLDERS = ("tasks", "bugs")
 TAKEN = "todo"
 
-# Куда можно править автоматически: прогоны без Xcode накрывают эти пути.
-AUTO_PREFIXES = ("AppMVP/Core/Pure/", "docs/", "tools/", "inbox/")
+# Код проекта. Здесь разбор пишет правку — включая вью. Собрать её в облаке
+# нечем, поэтому каждая такая правка едет в ветку с честной пометкой «сборкой
+# не проверено», а не выдаётся за готовую. План вместо кода полезен там, где
+# работа вообще не в коде, — а не везде, где нет Xcode.
+AUTO_PREFIXES = ("AppMVP/", "docs/", "tools/", "inbox/")
+
+# Сюда разбор не лезет: ручной pbxproj ломается молча, а Xcode на битом
+# проекте падает сообщениями, которые не намекают на причину.
+NEVER = ("Canary.xcodeproj/",)
 
 
 def frontmatter(text):
@@ -40,8 +48,11 @@ def frontmatter(text):
 
 
 def zone(scope):
+    """auto — писать код; find — сперва выяснить, где это живёт; review — не код."""
     if not scope:
-        return "review"          # без scope считаем, что трогать опасно
+        return "find"
+    if scope.startswith(NEVER):
+        return "review"
     return "auto" if scope.startswith(AUTO_PREFIXES) else "review"
 
 
@@ -88,7 +99,7 @@ def main():
     if not queue:
         print("Очередь пуста: заметок со `status: todo` нет.")
     for it in queue:
-        mark = "auto  " if it["zone"] == "auto" else "review"
+        mark = {"auto": "auto  ", "find": "find  "}.get(it["zone"], "review")
         prio = " [high]" if it["priority"] == "high" else ""
         print(f"{mark}  {it['path']}{prio}")
         if it["scope"]:
