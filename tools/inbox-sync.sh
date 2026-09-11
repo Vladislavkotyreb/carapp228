@@ -22,9 +22,18 @@ set -euo pipefail
 # --- Заполнить под себя ------------------------------------------------------
 # Папка репозитория.
 REPO="$HOME/Desktop/ios-app"
-# Папка внутри хранилища Obsidian, куда пишутся заметки. Для хранилища в iCloud
-# путь обычно такой; имя хранилища подставить своё.
-VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/тестовая мобила/beepy"
+
+# Папка Whelly внутри хранилища Obsidian. Узнать точный путь проще всего так:
+# перетащить папку из Finder в Терминал — он подставит её сам.
+#
+# Двоеточие в имени хранилища не опечатка: Finder показывает «тестовая
+# мобила/мак», а на диске это «тестовая мобила:мак» — слэш в имени файла
+# macOS не разрешает и подменяет его двоеточием при показе. Путь обязан
+# начинаться со слэша: rsync считает удалённым адресом то, где двоеточие
+# встретилось раньше первого слэша, и «хранилище:мак/Whelly» он попытался бы
+# открыть по ssh.
+VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/тестовая мобила:мак/Whelly"
+
 # Ветка, в которую уезжают заметки.
 BRANCH="claude/epic-darwin-axs48i"
 # -----------------------------------------------------------------------------
@@ -46,7 +55,13 @@ mkdir -p inbox/tasks inbox/bugs inbox/done inbox/reports inbox/attachments
 # 1. Хранилище → репозиторий. Без --delete: удалять заметки может только
 #    разбор, переносом в done/. Пропавший в хранилище файл — чаще промах
 #    пальцем по экрану, чем решение.
-rsync -a --exclude '.obsidian' --exclude '.DS_Store' "$VAULT/" inbox/
+rsync -a --exclude '.obsidian' --exclude '.DS_Store' --exclude '.trash' \
+      "$VAULT/" inbox/
+
+# 2. Строки с галочкой из заметок — в отдельные задачи. Без этого шага разбор
+#    видит только заметки формата «одна задача — один файл», а с телефона
+#    пишутся обычные списки.
+python3 tools/inbox-extract.py
 
 if ! git diff --quiet -- inbox || [[ -n "$(git status --porcelain inbox)" ]]; then
   git add inbox
@@ -58,8 +73,9 @@ else
   log "новых заметок нет"
 fi
 
-# 2. Репозиторий → хранилище, зеркалом. Здесь --delete нужен: разобранная
+# 3. Репозиторий → хранилище, зеркалом. Здесь --delete нужен: разобранная
 #    заметка уехала в done/, и её копия в tasks/ обязана исчезнуть, иначе
 #    завтрашний разбор возьмёт её снова.
-rsync -a --delete --exclude '.obsidian' --exclude '.DS_Store' inbox/ "$VAULT/"
+rsync -a --delete --exclude '.obsidian' --exclude '.DS_Store' --exclude '.trash' \
+      inbox/ "$VAULT/"
 log "хранилище обновлено"
