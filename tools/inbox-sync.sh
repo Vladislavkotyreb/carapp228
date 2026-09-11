@@ -75,10 +75,24 @@ printf '%s\n' "$VAULT" > "$CONFIG"
 cd "$REPO"
 
 # Незакоммиченные правки в коде — не наше дело, но и коммитить их скопом нельзя:
-# ниже добавляется только inbox/, явным путём.
+# ниже добавляется только inbox/, явным путём. Отсюда --autostash: без него
+# любая недописанная правка в рабочей копии останавливает синхронизацию заметок,
+# хотя к заметкам отношения не имеет. autostash прячет её на время перебазирования
+# и возвращает обратно — рабочая копия остаётся как была.
 git fetch origin "$BRANCH" --quiet
-git checkout "$BRANCH" --quiet
-git pull --rebase origin "$BRANCH" --quiet || { log "pull не прошёл, чиню руками"; exit 1; }
+
+if ! git checkout "$BRANCH" --quiet 2>/dev/null; then
+  log "не удалось перейти на $BRANCH — мешают правки в рабочей копии:"
+  git status --short | head -20
+  exit 1
+fi
+
+if ! git pull --rebase --autostash origin "$BRANCH" --quiet; then
+  log "pull не прошёл. Состояние рабочей копии:"
+  git status --short | head -20
+  log "Разобрать вручную: git rebase --abort, затем git stash list."
+  exit 1
+fi
 
 mkdir -p inbox/tasks inbox/bugs inbox/done inbox/reports inbox/attachments
 
@@ -96,6 +110,25 @@ mirror_managed() {
   done
 }
 
+# Папка для того, что должно остаться на маке. Из хранилища не копируется
+# вовсе, поэтому в репозиторий не попадает ни при каком раскладе, а репозиторий
+# публичный. В .gitignore она тоже есть — на случай ручного `git add -A`.
+LOCAL_DIR="Личное"
+
+if [[ ! -d "$VAULT/$LOCAL_DIR" ]]; then
+  mkdir -p "$VAULT/$LOCAL_DIR"
+  cat > "$VAULT/$LOCAL_DIR/Черновик.md" <<'NOTE'
+# Черновик
+
+Всё в папке «Личное» остаётся на маке: синхронизация её не копирует,
+в репозиторий она не уезжает, разбор её не видит.
+
+Сюда — мысли, пароли от стендов, недодуманное, ругань. Задачи для приложения —
+в «Таски.md».
+NOTE
+  log "заведена папка $LOCAL_DIR — она остаётся на маке"
+fi
+
 # 1. Сначала — состояние разбора в хранилище.
 mirror_managed
 
@@ -105,6 +138,7 @@ mirror_managed
 #    пальцем по экрану, чем решение.
 rsync -a --exclude '.obsidian' --exclude '.DS_Store' --exclude '.trash' \
       --exclude 'tasks/' --exclude 'bugs/' --exclude 'done/' --exclude 'reports/' \
+      --exclude "$LOCAL_DIR/" \
       "$VAULT/" inbox/
 
 # 3. Строки с галочкой из заметок — в отдельные задачи. Без этого шага разбор
@@ -124,4 +158,14 @@ fi
 
 # 4. Заведённые задачи и отчёты — обратно в хранилище, чтобы были на телефоне.
 mirror_managed
+
+# 5. Заметки, заведённые не с телефона (README, «Мои задачи»), — туда же.
+#    --update: если та же заметка в хранилище новее, она остаётся. Иначе правка,
+#    сделанная с телефона между синхронизациями, затиралась бы копией из
+#    репозитория. --delete здесь нет вовсе: чужие заметки не наше дело.
+for f in inbox/*.md; do
+  [[ -e "$f" ]] || continue
+  rsync -a --update "$f" "$VAULT/"
+done
+
 log "хранилище обновлено"

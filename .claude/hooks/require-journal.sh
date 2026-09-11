@@ -95,7 +95,16 @@ cd "$root" || exit 0
 staged="$(git diff --cached --name-only 2>/dev/null)" || exit 0
 deleted="$(git diff --cached --name-only --diff-filter=D 2>/dev/null)"
 # `commit -a` / `-am` подметает изменения отслеживаемых файлов мимо стейджа.
-if [[ "$cmd" =~ (^|[[:space:]])(--all([[:space:]]|=|$)|-[a-zA-Z]*a[a-zA-Z]*([[:space:]]|$)) ]]; then
+#
+# Ищем флаг только в хвосте самого коммита — от слова `commit` до ближайшего
+# разделителя, — а не по всей команде. Раньше искали везде, и любой `-a`
+# в соседнем звене цепочки (`rsync -a`, `ls -a`) читался как `commit -a`:
+# заслонка подтягивала незакоммиченные правки в список файлов и требовала
+# запись в журнале там, где коммитом и не пахло. Ловилось это дважды за день.
+commit_tail="${cmd#*commit}"
+commit_tail="${commit_tail%%[;&|]*}"
+commit_tail="${commit_tail%%$'\n'*}"
+if [[ "$commit_tail" =~ (^|[[:space:]])(--all([[:space:]]|=|$)|-[a-zA-Z]*a[a-zA-Z]*([[:space:]]|$)) ]]; then
   staged="$staged
 $(git diff --name-only 2>/dev/null)"
   deleted="$deleted
@@ -120,7 +129,13 @@ if [[ -n "$code_changed" ]]; then
     # дня не блокируются. Ключ — дата записи, а не «прошлый коммит трогал файл»:
     # иначе первый коммит новой работы получал бы пропуск даром.
     today="$(date +%F)"
-    if ! git show "HEAD:$journal" 2>/dev/null | grep -q "^###[[:space:]]*${today}"; then
+    # Без трубы намеренно. `git show … | grep -q` при `set -o pipefail` падает
+    # на ровном месте: grep находит запись в первых строках и закрывается,
+    # git получает SIGPIPE, статус трубы — 141, и заслонка решает, что записи
+    # нет. Журнал вырос до 80 КБ, git перестал успевать дописать до закрытия —
+    # и коммиты начали останавливаться при существующей записи за сегодня.
+    journal_head="$(git show "HEAD:$journal" 2>/dev/null || true)"
+    if [[ ! "$journal_head" =~ (^|$'\n')###[[:space:]]*${today} ]]; then
       problems="$problems
 • Коммит меняет код, но записи в $journal нет, и записи с датой $today
   в HEAD тоже нет. Нужна одна запись на кусок работы: что изменилось и в
@@ -142,7 +157,9 @@ if [[ -f "$pbx" ]]; then
   while IFS= read -r file; do
     [[ -z "$file" ]] && continue
     [[ -f "$file" ]] || continue
-    printf '%s\n' "$deleted" | grep -qxF "$file" && continue
+    # Тоже без трубы: `| grep -q` под pipefail отдаёт 141 вместо 0, когда
+    # совпадение нашлось рано, и удалённый файл переставал считаться удалённым.
+    [[ $'\n'"$deleted"$'\n' == *$'\n'"$file"$'\n'* ]] && continue
     base="${file##*/}"
     in_sources "$base" || missing="$missing
   – $file"
