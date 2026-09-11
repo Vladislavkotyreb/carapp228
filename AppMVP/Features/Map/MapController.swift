@@ -137,6 +137,11 @@ final class MapController: NSObject, ObservableObject {
         let map = mapView.mapWindow.map
         self.map = map
 
+        // Тёмная карта — лейтмотив приложения. У Яндекса это встроенный
+        // ночной режим самой карты, а не наш оверлей: подписи и дороги
+        // остаются читаемыми, чего фильтром поверх не добиться.
+        map.isNightModeEnabled = true
+
         placemarks = map.mapObjects.add()
         routeLine = map.mapObjects.add()
 

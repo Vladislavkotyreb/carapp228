@@ -16,6 +16,10 @@ struct CarFoundSheet: View {
     /// Кадр каталога для найденной модели — грузится один раз при создании
     /// шторки, а не в body: декод HEIC на каждую пересборку ни к чему.
     private let preview: UIImage?
+    /// Средний цвет краёв кадра: им зона превью растекается за рамку мягким
+    /// свечением — карточка «утопает» в шторке (идея пользователя, приём
+    /// подложки обложек в Apple Music).
+    private let previewAmbient: Color
 
     init(car: FoundCar, onClose: @escaping () -> Void,
          onConfirm: @escaping () -> Void, onReject: @escaping () -> Void) {
@@ -32,8 +36,39 @@ struct CarFoundSheet: View {
                                      subdirectory: "CarCatalog") {
             preview = UIImage(contentsOfFile: url.path)
         } else {
-            preview = nil
+            // Модели нет в каталоге — «машина под покрывалом» тем же путём,
+            // что каталожный кадр: одна ветка, один амбиент-эффект.
+            preview = UIImage(named: "CarPhoto")
         }
+        previewAmbient = preview.map(Self.edgeAverageColor) ?? .black
+    }
+
+    /// Средний цвет рамки картинки: уменьшаем до 12×12 и усредняем периметр —
+    /// дёшево и достаточно для подложки.
+    private static func edgeAverageColor(of image: UIImage) -> Color {
+        let side = 12
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let small = UIGraphicsImageRenderer(
+            size: CGSize(width: side, height: side), format: format
+        ).image { _ in
+            image.draw(in: CGRect(x: 0, y: 0, width: side, height: side))
+        }
+        guard let cg = small.cgImage, let data = cg.dataProvider?.data,
+              let bytes = CFDataGetBytePtr(data) else { return .black }
+        let bpr = cg.bytesPerRow, bpp = cg.bitsPerPixel / 8
+        var r = 0, g = 0, b = 0, n = 0
+        for y in 0..<side {
+            for x in 0..<side where x == 0 || y == 0 || x == side - 1 || y == side - 1 {
+                let i = y * bpr + x * bpp
+                r += Int(bytes[i]); g += Int(bytes[i + 1]); b += Int(bytes[i + 2])
+                n += 1
+            }
+        }
+        guard n > 0 else { return .black }
+        return Color(red: Double(r) / Double(n) / 255,
+                     green: Double(g) / Double(n) / 255,
+                     blue: Double(b) / Double(n) / 255)
     }
 
     var body: some View {
@@ -46,7 +81,7 @@ struct CarFoundSheet: View {
                         Text(car.name)
                             .font(.system(size: 26, weight: .bold))
                             .figmaLineHeight(31.2, fontSize: 26, weight: .bold)
-                            .foregroundStyle(Figma.labelsPrimary)
+                            .foregroundStyle(Figma.titleGradient)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
 
@@ -58,15 +93,14 @@ struct CarFoundSheet: View {
                     // кадр каталога, подобранный по найденной модели (и по
                     // номеру — пасхалки). Не нашёлся — заглушка, как в макете.
                     if let preview {
+                        // Безрамочно (просьба пользователя): кадр без
+                        // карточки, машина стоит прямо в шторке — швы
+                        // прячет размытая подложка фона тем же кадром.
                         Image(uiImage: preview)
                             .resizable()
-                            .scaledToFill()
-                            .frame(height: 240)
+                            .scaledToFit()
                             .frame(maxWidth: .infinity)
-                            .background(Color.black)
-                            .clipShape(RoundedRectangle(cornerRadius: 26))
-                            // Хит-зона scaledToFill шире рамки — известная
-                            // грабля: без этого превью крадёт тапы у кнопок.
+                            .frame(height: 240)
                             .allowsHitTesting(false)
                     } else {
                         RoundedRectangle(cornerRadius: 26)
@@ -106,8 +140,11 @@ struct CarFoundSheet: View {
         // Тёмная тема: поверхность шторки — Backgrounds (Grouped)/Secondary,
         // как у тёмных шторок ноды 46225:7443. Тонируем: без тона стекло
         // над чёрным экраном уходило бы в непредсказуемый серый.
-        .liquidGlass(in: Self.shape, tint: Figma.sheetBackground) {
-            Self.shape.fill(Figma.sheetBackground)
+        // Безрамочность по макету 45854:2921: шторка ЗАЛИВАЕТСЯ цветом фона
+        // кадра (средний цвет его рамки) — граница картинки исчезает, машина
+        // стоит прямо в шторке. Никаких блюров: ровная заливка.
+        .liquidGlass(in: Self.shape, tint: previewAmbient) {
+            Self.shape.fill(previewAmbient)
         }
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
@@ -168,27 +205,30 @@ struct CarFoundSheet: View {
 
     // MARK: - Госномер
 
+    /// Компактная плашка, как на главной (нода 45854:2921): узкий SF,
+    /// серый текст на тёмной подложке — а не крупный номер строкой.
     private var plate: some View {
-        HStack(spacing: 4) {
-            HStack(spacing: 4) {
+        HStack(spacing: 3.5) {
+            HStack(spacing: 3.5) {
                 Text(car.plateLetter)
                 Text(car.plateDigits)
                 Text(car.plateLetters)
             }
 
             Rectangle()
-                .fill(Figma.separatorsOnDark)
-                .frame(width: 1, height: 20.117)
+                .fill(Figma.separatorsVibrant)
+                .frame(width: 0.875, height: 17.603)
+                .blendMode(.softLight)
 
             Text(car.plateRegion)
         }
-        .font(.system(size: 17, weight: .semibold))
-        .tracking(-0.43)
-        .foregroundStyle(Figma.labelsPrimary)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
-        .frame(height: 32)
-        .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 12))
+        .font(.system(size: 14, weight: .semibold).width(.condensed))
+        .tracking(-0.4)
+        .foregroundStyle(Figma.graysGray2)
+        .padding(.horizontal, 10.5)
+        .padding(.vertical, 3.5)
+        .frame(height: 28)
+        .background(Figma.fillsPrimary, in: RoundedRectangle(cornerRadius: 10.5))
     }
 
     private func specLine(_ label: String, _ value: String) -> some View {

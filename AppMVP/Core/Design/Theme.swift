@@ -49,6 +49,14 @@ enum Figma {
         .opacity(0.24)                                                              // Fills/Tertiary (Dark)
     static let labelsQuaternary = Color(red: 235 / 255, green: 235 / 255, blue: 245 / 255)
         .opacity(0.18)                                                              // Labels/Quaternary (Dark)
+    /// Заливка крупных заголовков (как у названий машин на главной):
+    /// белый гаснет к краям до 20 % слева и 30 % справа.
+    static let titleGradient = LinearGradient(
+        stops: [.init(color: .white.opacity(0.2), location: 0),
+                .init(color: .white, location: 0.5),
+                .init(color: .white.opacity(0.3), location: 1)],
+        startPoint: .leading, endPoint: .trailing)
+
     static let accentsRed = Color(red: 1, green: 56 / 255, blue: 60 / 255)           // Accents/Red #FF383C
     static let accentsBlue = Color(red: 0, green: 136 / 255, blue: 1)                // Accents/Blue #0088FF
     /// Разделитель госномера на чёрной главной — остался светлым: экран

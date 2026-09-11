@@ -20,6 +20,11 @@ struct AddCarSheet: View {
     let onClose: () -> Void
     let onSubmit: () -> Void
 
+    /// Тряска полей на пустую отправку: кнопки не гасим (пользователь просил
+    /// не дизейбл, а отклик), но вслепую форму не отправляем — поле трясётся
+    /// и телефон отдаёт ошибку.
+    @State private var shake: CGFloat = 0
+
     var body: some View {
         VStack(spacing: 16) {
             toolbar
@@ -29,16 +34,17 @@ struct AddCarSheet: View {
                     FigmaSegmentedControl(titles: ["По номеру", "По названию"], selection: $tab)
 
                     if tab == 0 {
-                        FigmaTextField(
-                            placeholder: "В 777 ОР 777",
-                            text: $plate,
-                            format: PlateFormat.format,
-                            autocapitalization: .characters,
-                            submitLabel: .go,
-                            onSubmit: onSubmit
-                        )
+                        // Номерная рамка вместо обычного поля (просьба
+                        // пользователя). Откат — вернуть FigmaTextField:
+                        // `git revert` коммита с PlateInputField.
+                        PlateInputField(text: $plate, onSubmit: submit)
+                            .shake(shake)
                     } else {
                         VStack(spacing: 24) {
+                            // Три строки одной капсулой: цена отдельным
+                            // полем читалась чужой и красилась иначе
+                            // (замечание пользователя). В макете 45854:2880
+                            // цены нет вовсе — она наша добавка.
                             FigmaGroupedTextField(
                                 firstPlaceholder: "Название",
                                 first: $name,
@@ -46,16 +52,14 @@ struct AddCarSheet: View {
                                 second: $mileage,
                                 secondKeyboardType: .numberPad,
                                 secondFormat: NumberFormat.groupedInput,
+                                thirdPlaceholder: "Цена авто, ₽",
+                                third: $price,
+                                thirdKeyboardType: .numberPad,
+                                thirdFormat: NumberFormat.groupedInput,
                                 submitLabel: .go,
-                                onSubmit: onSubmit
+                                onSubmit: submit
                             )
-
-                            // Отдельным полем, а не третьей строкой капсулы:
-                            // та объявлена ровно на две строки и 105pt.
-                            FigmaTextField(placeholder: "Цена авто, ₽",
-                                           text: $price,
-                                           keyboardType: .numberPad,
-                                           format: NumberFormat.groupedInput)
+                            .shake(shake)
 
                             if let photo {
                                 Image(uiImage: photo)
@@ -70,7 +74,13 @@ struct AddCarSheet: View {
                                     .allowsHitTesting(false)
                             }
 
-                            PhotosPicker(selection: $photoItems, matching: .images) {
+                            // Одно фото на машину: без ограничения галерея
+                            // предлагала мультивыбор, а брали мы первый
+                            // снимок (замечание пользователя).
+                            PhotosPicker(selection: $photoItems,
+                                         maxSelectionCount: 1,
+                                         selectionBehavior: .default,
+                                         matching: .images) {
                                 FigmaRowLabel(systemImage: "photo",
                                               title: photo == nil ? "Выбрать фото" : "Заменить фото")
                             }
@@ -78,9 +88,14 @@ struct AddCarSheet: View {
                     }
                 }
 
-                Spacer(minLength: 0)
+                // Кнопка стоит сразу под полями с отступом 32 (просьба
+                // пользователя), а не прижата к низу шторки: рядом с
+                // формой она читается частью формы.
+                Spacer(minLength: 0).frame(height: 32)
 
-                GlassProminentButton(title: "Добавить", action: onSubmit)
+                GlassProminentButton(title: "Добавить", action: submit)
+
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
@@ -104,10 +119,24 @@ struct AddCarSheet: View {
         }
         // Шторка живёт в системном .sheet — панель клавиатуры с экрана под
         // ней сюда не доезжает, нужна своя.
+        .sensoryFeedback(.error, trigger: shake)
         .keyboardDismissBar()
         // Кнопка «Добавить» остаётся на месте, а не прыгает на клавиатуру:
         // просьба пользователя. Клавиатура её просто накрывает.
         .ignoresSafeArea(.keyboard)
+    }
+
+    /// Отправка с проверкой: по номеру нужен валидный номер, по названию —
+    /// непустое имя. Иначе тряска и ошибка-хаптик вместо тихого «ничего».
+    private func submit() {
+        let filled = tab == 0
+            ? PlateFormat.isValid(plate)
+            : !name.trimmingCharacters(in: .whitespaces).isEmpty
+        guard filled else {
+            withAnimation(.linear(duration: 0.4)) { shake += 1 }
+            return
+        }
+        onSubmit()
     }
 
     private var toolbar: some View {
@@ -138,7 +167,7 @@ struct AddCarSheet: View {
                 Spacer()
 
                 // Белая галочка вместо синей из прототипа: акцент кнопок белый.
-                Button(action: onSubmit) {
+                Button(action: submit) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(.black)

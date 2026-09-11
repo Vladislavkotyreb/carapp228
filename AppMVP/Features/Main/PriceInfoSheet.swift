@@ -6,18 +6,28 @@ import SwiftUI
 /// два: тёмная тема приложения и карандаш рядом с ценой — правка своей цены
 /// живёт прямо здесь, а не спрятана в тап по плитке.
 struct PriceInfoSheet: View {
+    /// Что правим. Шторка одна на цену и пробег: подача, ввод и объяснение
+    /// у них одинаковые, различаются числа и подписи (просьба пользователя
+    /// «менять пробег тем же боттом щитом»).
+    enum Kind { case price, odometer }
+
     private static let shape = UnevenRoundedRectangle(
         topLeadingRadius: 34, bottomLeadingRadius: 58,
         bottomTrailingRadius: 58, topTrailingRadius: 34
     )
 
+    var kind: Kind = .price
+    /// Текущий пробег — для режима `.odometer`.
+    var odometer: Int = 0
     /// Своя цена пользователя, если вводил, — она главнее рыночной.
     let ownPrice: Int?
     /// Средняя рыночная по объявлениям и число объявлений под ней.
     let marketPrice: Int?
     let marketOffers: Int?
-    /// Сохранение своей цены; nil — пользователь стёр значение.
+    /// Сохранение значения; nil — пользователь стёр его.
     let onSave: (Int?) -> Void
+    /// Вернуть рыночную оценку вместо своей цены (только для `.price`).
+    var onResetToMarket: (() -> Void)?
     let onClose: () -> Void
 
     /// Режим ввода (нода 46261:4222): карандаш превращает шторку в поле
@@ -90,7 +100,7 @@ struct PriceInfoSheet: View {
 
     private var toolbar: some View {
         ZStack {
-            Text("Цена авто")
+            Text(kind == .price ? "Цена авто" : "Пробег")
                 .font(.system(size: 17, weight: .semibold))
                 .tracking(-0.43)
                 .foregroundStyle(Figma.vibrantControlsPrimary)
@@ -132,9 +142,15 @@ struct PriceInfoSheet: View {
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
+                    // Цифры перетекают, а не подменяются — нативный аналог
+                    // текстового морфа (просьба про Torph-эффект на цене).
+                    .contentTransition(.numericText())
+                    .animation(.snappy(duration: 0.35), value: headline)
 
                 Button {
-                    draft = ownPrice.map(NumberFormat.grouped) ?? ""
+                    draft = kind == .odometer
+                        ? NumberFormat.grouped(odometer)
+                        : ownPrice.map(NumberFormat.grouped) ?? ""
                     editing = true
                     focused = true
                 } label: {
@@ -150,12 +166,31 @@ struct PriceInfoSheet: View {
             }
             .padding(.horizontal, 32)
 
-            Text(badge)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Figma.graysGray)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Figma.fillsQuaternary, in: Capsule())
+            HStack(spacing: 8) {
+                Text(badge)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Figma.graysGray)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Figma.fillsQuaternary, in: Capsule())
+
+                // Маленькая кнопка рядом с чипсом: вернуть оценку рынка
+                // вместо своей цены. Видна, только когда есть что вернуть.
+                if kind == .price, ownPrice != nil, marketPrice != nil,
+                   let onResetToMarket {
+                    Button(action: onResetToMarket) {
+                        Text("вернуть рыночную")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Figma.labelsTertiary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Figma.fillsQuaternary, in: Capsule())
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Вернуть рыночную цену")
+                }
+            }
         }
     }
 
@@ -164,20 +199,13 @@ struct PriceInfoSheet: View {
     /// белый, решение зафиксировано в DECISIONS.
     private var editField: some View {
         HStack(spacing: 14) {
-            ZStack(alignment: .leading) {
-                if draft.isEmpty {
-                    Text("0\u{00A0}₽")
-                        .font(.system(size: 40, weight: .bold))
-                        .foregroundStyle(Figma.labelsTertiary)
-                }
-                TextField("", text: Binding(
-                    get: { draft },
-                    set: { draft = NumberFormat.groupedInput($0) }))
-                    .font(.system(size: 40, weight: .bold))
-                    .foregroundStyle(.white)
-                    .keyboardType(.numberPad)
-                    .focused($focused)
-            }
+            // Цифры въезжают посимвольно и перестраиваются по разрядам —
+            // тот же морф, что в номерной рамке (просьба пользователя).
+            MorphingNumberField(
+                text: Binding(get: { draft },
+                              set: { draft = NumberFormat.groupedInput($0) }),
+                suffix: kind == .price ? "₽" : "км",
+                focused: $focused)
 
             Button {
                 onSave(NumberFormat.digits(draft))
@@ -197,17 +225,21 @@ struct PriceInfoSheet: View {
     }
 
     private var headline: String {
+        if kind == .odometer {
+            return "\(NumberFormat.grouped(odometer))\u{00A0}км"
+        }
         if let ownPrice {
-            "\(NumberFormat.grouped(ownPrice))\u{00A0}₽"
+            return "\(NumberFormat.grouped(ownPrice))\u{00A0}₽"
         } else if let marketPrice {
-            "≈\u{00A0}\(NumberFormat.grouped(marketPrice))\u{00A0}₽"
+            return "≈\u{00A0}\(NumberFormat.grouped(marketPrice))\u{00A0}₽"
         } else {
-            "—"
+            return "—"
         }
     }
 
     private var badge: String {
-        if ownPrice != nil { "ваша цена" }
+        if kind == .odometer { "текущий пробег" }
+        else if ownPrice != nil { "ваша цена" }
         else if marketPrice != nil { "средняя по рынку" }
         else { "цены пока нет" }
     }
@@ -236,12 +268,17 @@ struct PriceInfoSheet: View {
     }
 
     private var explanationTitle: String {
+        if kind == .odometer { return "Пробег вводите сами" }
         if ownPrice == nil, marketPrice != nil { return "Это средняя цена" }
         if ownPrice != nil { return "Это ваша цена" }
         return "Откуда берётся цена"
     }
 
     private var explanationDetail: String {
+        if kind == .odometer {
+            return "От пробега считается, когда пора на следующее ТО. "
+                 + "Обновляйте его карандашом после поездок."
+        }
         let offers = marketOffers.map { " \(NumberFormat.grouped($0))" } ?? ""
         if ownPrice == nil, marketPrice != nil {
             return "На основе\(offers) объявлений о продаже похожих авто. "

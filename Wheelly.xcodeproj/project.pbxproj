@@ -12,6 +12,9 @@
 		CA0000010000000000000001 /* ServiceMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000001 /* ServiceMath.swift */; };
 		CA0000010000000000000002 /* NumberFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000002 /* NumberFormat.swift */; };
 		CA0000010000000000000005 /* MapGeo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000005 /* MapGeo.swift */; };
+		CA000001000000000000000C /* ServiceReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000C /* ServiceReminder.swift */; };
+		CA000001000000000000000B /* MorphingNumberField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000B /* MorphingNumberField.swift */; };
+		CA000001000000000000000A /* PlateInputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000A /* PlateInputField.swift */; };
 		CA0000010000000000000008 /* CarCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000008 /* CarCatalog.swift */; };
 		CA0000010000000000000006 /* MarketPrice.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000006 /* MarketPrice.swift */; };
 		CA0000010000000000000007 /* ServiceDocParse.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000007 /* ServiceDocParse.swift */; };
@@ -68,6 +71,9 @@
 		CB0000010000000000000001 /* ServiceMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceMath.swift; sourceTree = "<group>"; };
 		CB0000010000000000000002 /* NumberFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberFormat.swift; sourceTree = "<group>"; };
 		CB0000010000000000000005 /* MapGeo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapGeo.swift; sourceTree = "<group>"; };
+		CB000001000000000000000C /* ServiceReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceReminder.swift; sourceTree = "<group>"; };
+		CB000001000000000000000B /* MorphingNumberField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorphingNumberField.swift; sourceTree = "<group>"; };
+		CB000001000000000000000A /* PlateInputField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateInputField.swift; sourceTree = "<group>"; };
 		CB0000010000000000000008 /* CarCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarCatalog.swift; sourceTree = "<group>"; };
 		CB0000010000000000000006 /* MarketPrice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketPrice.swift; sourceTree = "<group>"; };
 		CB0000010000000000000007 /* ServiceDocParse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDocParse.swift; sourceTree = "<group>"; };
@@ -267,6 +273,8 @@
 				BB000001000000000000001F /* FloatingTabBar.swift */,
 				BB0000010000000000000024 /* LiquidGlass.swift */,
 				BB0000010000000000000025 /* BottomSheet.swift */,
+				CB000001000000000000000A /* PlateInputField.swift */,
+				CB000001000000000000000B /* MorphingNumberField.swift */,
 				BB00000100000000000000B3 /* MotionRim.swift */,
 			);
 			path = Components;
@@ -315,6 +323,7 @@
 				BB00000100000000000000B1 /* VehicleLookup.swift */,
 				9C0000010000000000000077 /* VehicleLookupKey.swift */,
 				9C0000010000000000000078 /* LocalCarDiagnosis.swift */,
+				CB000001000000000000000C /* ServiceReminder.swift */,
 				9C000001000000000000007D /* ServiceDocScanner.swift */,
 				9C0000010000000000000001 /* MapKitKey.swift */,
 				9C0000000000000000000001 /* CarDiagnosis.swift */,
@@ -414,6 +423,9 @@
 				CA0000010000000000000005 /* MapGeo.swift in Sources */,
 				CA0000010000000000000006 /* MarketPrice.swift in Sources */,
 				CA0000010000000000000008 /* CarCatalog.swift in Sources */,
+				CA000001000000000000000A /* PlateInputField.swift in Sources */,
+				CA000001000000000000000B /* MorphingNumberField.swift in Sources */,
+				CA000001000000000000000C /* ServiceReminder.swift in Sources */,
 				CA0000010000000000000007 /* ServiceDocParse.swift in Sources */,
 				CA0000010000000000000003 /* UIState.swift in Sources */,
 				CA0000010000000000000004 /* UIStateCatalog.swift in Sources */,

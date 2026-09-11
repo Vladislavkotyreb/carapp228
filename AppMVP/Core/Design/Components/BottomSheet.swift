@@ -97,6 +97,19 @@ private struct BottomSheetModifier<SheetContent: View>: ViewModifier {
                         .onChange(of: geo.size.height) { _, new in sheetHeight = new }
                 }
             }
+            // Граббер — настоящая ручка (замечание пользователя: часть
+            // грабберов была декором). Невидимая хит-зона 140×30 по центру
+            // верха ловит жест ПОВЕРХ содержимого — работает и в шторках со
+            // ScrollView, где скролл перехватывал общий жест ниже. Узкая,
+            // чтобы не накрывать кнопки тулбаров по краям.
+            .overlay(alignment: .top) {
+                if allowsDragToDismiss {
+                    Color.clear
+                        .frame(width: 140, height: 30)
+                        .contentShape(Rectangle())
+                        .gesture(dragGesture)
+                }
+            }
             .offset(y: dragY)
             .gesture(allowsDragToDismiss ? dragGesture : nil)
             // при Reduce Motion — проявление вместо выезда

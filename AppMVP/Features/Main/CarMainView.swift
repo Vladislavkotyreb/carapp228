@@ -355,7 +355,37 @@ struct CarMainView: View {
                 marketOffers: car?.marketOffers,
                 // Правка теперь в самой шторке (нода 46261:4222) — системный
                 // алерт с полем упразднён макетом. Пустое поле стирает цену.
-                onSave: { car?.price = $0 },
+                // Сохранение закрывает шторку и отчитывается тостом с
+                // хаптиком — просьба пользователя: раньше значение молча
+                // уезжало, а шторка оставалась открытой.
+                onSave: { value in
+                    car?.price = value
+                    sheet = .closed
+                    presentToast(value == nil ? "Цена очищена" : "Цена обновлена!")
+                    addedServiceTick += 1
+                },
+                onResetToMarket: {
+                    car?.price = nil
+                    sheet = .closed
+                    presentToast("Вернули рыночную цену")
+                    addedServiceTick += 1
+                },
+                onClose: { sheet = .closed }
+            )
+        }
+        .bottomSheet(isPresented: presenting(.odometerInfo)) {
+            PriceInfoSheet(
+                kind: .odometer,
+                odometer: car?.odometer ?? 0,
+                ownPrice: car?.price,
+                marketPrice: car?.marketPrice,
+                marketOffers: car?.marketOffers,
+                onSave: { value in
+                    car?.odometer = value ?? 0
+                    sheet = .closed
+                    presentToast("Пробег обновлён!")
+                    addedServiceTick += 1
+                },
                 onClose: { sheet = .closed }
             )
         }
@@ -465,6 +495,17 @@ struct CarMainView: View {
             }
             carImages = decoded
             catalogImages = catalog
+        }
+        // Напоминание о ТО: пересчитывается при смене пробега и истории.
+        // Ключ включает и то, и другое — иначе после сохранения ТО
+        // уведомление осталось бы от прошлого расчёта.
+        .task(id: serviceReminderKey) {
+            for car in cars {
+                await ServiceReminder.update(
+                    id: String(car.persistentModelID.hashValue),
+                    name: car.name, plate: car.plate,
+                    kmLeft: kmUntilService(for: car))
+            }
         }
         // Рыночная цена: раз в неделю на машину, только по полному VIN.
         .task(id: marketPriceKey) {
@@ -795,7 +836,17 @@ struct CarMainView: View {
                     .accessibilityLabel("Цена авто")
                     .accessibilityHint("Подробнее и изменить")
 
-                    statCard(title: "Пробег") { "\(NumberFormat.grouped($0.odometer))\u{00A0}км" }
+                    // Пробег правится той же шторкой, что и цена
+                    // (просьба пользователя): подача и ввод одинаковые.
+                    Button {
+                        sheet = .odometerInfo
+                    } label: {
+                        statCard(title: "Пробег") { "\(NumberFormat.grouped($0.odometer))\u{00A0}км" }
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Self.statCardShape)
+                    .accessibilityLabel("Пробег")
+                    .accessibilityHint("Изменить")
                 }
                 .opacity(visible)
                 // Погашенная плитка продолжала бы принимать касания, а на
@@ -1063,12 +1114,9 @@ struct CarMainView: View {
             }
     }
 
-    /// Заливка названия: белый гаснет к краям до 20 % слева и 30 % справа.
-    private static let titleGradient = LinearGradient(
-        stops: [.init(color: .white.opacity(0.2), location: 0),
-                .init(color: .white, location: 0.5),
-                .init(color: .white.opacity(0.3), location: 1)],
-        startPoint: .leading, endPoint: .trailing)
+    /// Заливка названия — общий токен `Figma.titleGradient`: той же
+    /// заливкой набраны крупные заголовки остальных экранов.
+    private static let titleGradient = Figma.titleGradient
 
     /// Кадр одной страницы карусели.
     ///
@@ -1116,6 +1164,12 @@ struct CarMainView: View {
     /// обновлении вью бессмысленно дорого.
     private var carPhotoKey: String {
         cars.map { "\($0.persistentModelID.hashValue)-\($0.photo?.count ?? 0)" }
+            .joined(separator: "|")
+    }
+
+    /// Ключ пересчёта напоминаний: пробеги машин и число записей ТО.
+    private var serviceReminderKey: String {
+        cars.map { "\($0.persistentModelID.hashValue)-\($0.odometer)-\($0.services.count)" }
             .joined(separator: "|")
     }
 
@@ -1303,19 +1357,28 @@ struct CarMainView: View {
                 Text("\(NumberFormat.grouped(kmUntilService(for: car)))\u{00A0}км")
                     .font(.system(size: 28, weight: .bold))
                     .tracking(0.38)
-                    .foregroundStyle(.white)
+                    // Светофор: число красное, когда ехать пора прямо
+                    // сейчас, — иначе цвет полосы легко пропустить.
+                    .foregroundStyle(ServiceMath.urgency(kmLeft: kmUntilService(for: car))
+                                     == .urgent ? Figma.accentsRed : .white)
+                    .contentTransition(.numericText())
                     .frame(height: 34)
             }
             .frame(maxWidth: .infinity)
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 24)
-                        .fill(Figma.trackBackground)
+                    Capsule().fill(Figma.trackBackground)
 
-                    RoundedRectangle(cornerRadius: 24)
-                        .fill(Figma.accentsGreen)
-                        .frame(width: geo.size.width * serviceProgress(for: car))
+                    // Ширина не опускается ниже высоты полосы: с
+                    // `RoundedRectangle(24)` малый прогресс вырождался в
+                    // кривой огрызок, а сразу после ТО полоса пропадала
+                    // вовсе. И меняется она анимацией, а не скачком.
+                    Capsule()
+                        .fill(urgencyColor(for: car))
+                        .frame(width: max(30, geo.size.width * serviceProgress(for: car)))
+                        .animation(.snappy(duration: 0.35),
+                                   value: serviceProgress(for: car))
                 }
             }
             .frame(height: 30)
@@ -1371,6 +1434,8 @@ struct CarMainView: View {
 
             value()
                 .font(.system(size: 20, weight: .semibold))
+                // Цифры перетекают при смене цены и пробега.
+                .contentTransition(.numericText())
                 // Без трекинга: объявленный в ноде −0.45 до рендера не доходит,
                 // и с ним значение выходило уже макетного. Проверено замером.
                 .foregroundStyle(.white)
@@ -1435,12 +1500,16 @@ struct CarMainView: View {
             // (эталон пользователя — меню виджета): текст и корзина красные.
             // Без ToolbarFade: меню доступно и до скролла — иначе машину
             // без записей ТО было не удалить вовсе.
+            // На странице «Добавьте новый авто» меню гаснет: удалять там
+            // нечего, а «Удалить авто» без машины выглядел анекдотом.
             EllipsisMenu {
                 sheet = .deleteConfirm
             }
             .frame(width: 44, height: 44)
             .darkGlassChip(in: Circle())
             .contentShape(Circle())
+            .opacity(1 - weight(of: addPageIndex))
+            .allowsHitTesting(weight(of: addPageIndex) < 0.5)
             .accessibilityLabel("Действия с автомобилем")
         }
         // Системная подложка элемента бара гасится: она рисует своё стекло
@@ -1682,9 +1751,12 @@ struct CarMainView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        // 202 — ширина макетного «сакцесса»; тексты ошибок длиннее и
-        // растягивают капсулу до 320 с переносом, короче не бывает.
-        .frame(minWidth: 202, maxWidth: 320)
+        // По ширине надписи (нода 45887:3742). Одного maxWidth мало:
+        // frame(maxWidth:) не обнимает контент, а растягивается до потолка
+        // предложением родителя — потому «узкий» тост оставался широким.
+        // Успех и процесс — строго по тексту; ошибка переносится в 320.
+        .fixedSize(horizontal: toastKind != .error, vertical: true)
+        .frame(maxWidth: 320)
         // Тот же системный Liquid Glass, что у карточек: кромку даёт стекло,
         // а не нарисованная обводка. Блик так же следует за наклоном.
         .liquidGlass(in: RoundedRectangle(cornerRadius: 24), tint: Figma.darkCard) {
@@ -1717,6 +1789,16 @@ struct CarMainView: View {
     private func kmUntilService(for car: Car) -> Int {
         ServiceMath.kmUntilService(odometer: car.odometer,
                                    serviceMileages: car.services.map(\.mileage))
+    }
+
+    /// Цвет светофора: зелёный — далеко, жёлтый — за 5 000 км, красный —
+    /// за 1 000 (пороги в `ServiceMath`).
+    private func urgencyColor(for car: Car) -> Color {
+        switch ServiceMath.urgency(kmLeft: kmUntilService(for: car)) {
+        case .normal: Figma.accentsGreen
+        case .soon: Figma.accentsYellow
+        case .urgent: Figma.accentsRed
+        }
     }
 
     /// Прогресс интервала: сколько из 10 000 км уже проехали.
