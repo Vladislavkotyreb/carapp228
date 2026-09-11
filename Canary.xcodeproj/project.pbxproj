@@ -115,7 +115,7 @@
 		BB0000010000000000000024 /* LiquidGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlass.swift; sourceTree = "<group>"; };
 		BB0000010000000000000025 /* BottomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000026 /* PlateFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateFormat.swift; sourceTree = "<group>"; };
-		BB0000010000000000000099 /* Wheelly.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wheelly.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB0000010000000000000099 /* Canary.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Canary.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB00000100000000000000A1 /* ServiceRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceRecord.swift; sourceTree = "<group>"; };
 		BB00000100000000000000B1 /* VehicleLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleLookup.swift; sourceTree = "<group>"; };
 		BB00000100000000000000B2 /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
@@ -312,7 +312,7 @@
 		EE0000010000000000000099 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				BB0000010000000000000099 /* Wheelly.app */,
+				BB0000010000000000000099 /* Canary.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -345,9 +345,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		FF0000010000000000000001 /* Wheelly */ = {
+		FF0000010000000000000001 /* Canary */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = FF0000010000000000000002 /* Build configuration list for PBXNativeTarget "Wheelly" */;
+			buildConfigurationList = FF0000010000000000000002 /* Build configuration list for PBXNativeTarget "Canary" */;
 			buildPhases = (
 				DD0000010000000000000001 /* Sources */,
 				DD0000010000000000000003 /* Frameworks */,
@@ -355,12 +355,12 @@
 			);
 			buildRules = (
 			);
-			name = Wheelly;
+			name = Canary;
 			packageProductDependencies = (
 				9A0000010000000000000002 /* YandexMapsMobileFull */,
 			);
 			productName = AppMVP;
-			productReference = BB0000010000000000000099 /* Wheelly.app */;
+			productReference = BB0000010000000000000099 /* Canary.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -378,7 +378,7 @@
 					};
 				};
 			};
-			buildConfigurationList = GG0000010000000000000002 /* Build configuration list for PBXProject "Wheelly" */;
+			buildConfigurationList = GG0000010000000000000002 /* Build configuration list for PBXProject "Canary" */;
 			developmentRegion = ru;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -395,7 +395,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				FF0000010000000000000001 /* Wheelly */,
+				FF0000010000000000000001 /* Canary */,
 			);
 		};
 /* End PBXProject section */
@@ -472,7 +472,7 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		II0000010000000000000001 /* Debug configuration for PBXProject "Wheelly" */ = {
+		II0000010000000000000001 /* Debug configuration for PBXProject "Canary" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -526,7 +526,7 @@
 			};
 			name = Debug;
 		};
-		II0000010000000000000002 /* Release configuration for PBXProject "Wheelly" */ = {
+		II0000010000000000000002 /* Release configuration for PBXProject "Canary" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -573,7 +573,7 @@
 			};
 			name = Release;
 		};
-		II0000010000000000000003 /* Debug configuration for PBXNativeTarget "Wheelly" */ = {
+		II0000010000000000000003 /* Debug configuration for PBXNativeTarget "Canary" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -583,7 +583,7 @@
 				DEVELOPMENT_TEAM = 5BK4R35RB8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
+				INFOPLIST_KEY_CFBundleDisplayName = Canary;
 				INFOPLIST_FILE = AppMVP/Resources/Info.plist;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Чтобы отправить запись двигателя на сервер разбора в вашей сети";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вашу позицию на карте";
@@ -605,7 +605,7 @@
 			};
 			name = Debug;
 		};
-		II0000010000000000000004 /* Release configuration for PBXNativeTarget "Wheelly" */ = {
+		II0000010000000000000004 /* Release configuration for PBXNativeTarget "Canary" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -614,7 +614,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
+				INFOPLIST_KEY_CFBundleDisplayName = Canary;
 				INFOPLIST_FILE = AppMVP/Resources/Info.plist;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Чтобы отправить запись двигателя на сервер разбора в вашей сети";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вашу позицию на карте";
@@ -639,19 +639,19 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		FF0000010000000000000002 /* Build configuration list for PBXNativeTarget "Wheelly" */ = {
+		FF0000010000000000000002 /* Build configuration list for PBXNativeTarget "Canary" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				II0000010000000000000003 /* Debug configuration for PBXNativeTarget "Wheelly" */,
-				II0000010000000000000004 /* Release configuration for PBXNativeTarget "Wheelly" */,
+				II0000010000000000000003 /* Debug configuration for PBXNativeTarget "Canary" */,
+				II0000010000000000000004 /* Release configuration for PBXNativeTarget "Canary" */,
 			);
 			defaultConfigurationName = Release;
 		};
-		GG0000010000000000000002 /* Build configuration list for PBXProject "Wheelly" */ = {
+		GG0000010000000000000002 /* Build configuration list for PBXProject "Canary" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				II0000010000000000000001 /* Debug configuration for PBXProject "Wheelly" */,
-				II0000010000000000000002 /* Release configuration for PBXProject "Wheelly" */,
+				II0000010000000000000001 /* Debug configuration for PBXProject "Canary" */,
+				II0000010000000000000002 /* Release configuration for PBXProject "Canary" */,
 			);
 			defaultConfigurationName = Release;
 		};
