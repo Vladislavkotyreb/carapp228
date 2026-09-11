@@ -30,6 +30,22 @@ SKIP_DIRS = {"tasks", "bugs", "done", "reports", "attachments", "_templates"}
 
 ITEM = re.compile(r"^\s*[-*]\s*\[ \]\s*(.+?)\s*$")
 HEADING = re.compile(r"^\s*(#{1,6})\s*(.+?)\s*$")
+# Заметка «не для разбора»: шапка с `beepy: ignore`. Признак, а не список имён —
+# пометить можно любую, и переименование её не расколдует.
+IGNORED = re.compile(r"\A---\r?\n(.*?)\r?\n---", re.S)
+
+
+def ignored(path):
+    with open(path, encoding="utf-8") as f:
+        head = f.read(2048)
+    m = IGNORED.match(head)
+    if not m:
+        return False
+    for line in m.group(1).splitlines():
+        k, sep, v = line.partition(":")
+        if sep and k.strip() == "beepy" and v.strip().strip("\"'") in ("ignore", "игнор"):
+            return True
+    return False
 
 
 def slug(text, limit=60):
@@ -72,7 +88,11 @@ def items(path):
                 continue
             m = ITEM.match(line)
             if m:
-                yield n, m.group(1), section
+                text = m.group(1).strip()
+                # Пустая галочка — заготовка в шаблоне, а не задача.
+                if len(text) < 2:
+                    continue
+                yield n, text, section
 
 
 def main():
@@ -87,6 +107,8 @@ def main():
     made = []
 
     for path in sources():
+        if ignored(path):
+            continue
         for line_no, text, section in items(path):
             k = key(text)
             if k in seen:
