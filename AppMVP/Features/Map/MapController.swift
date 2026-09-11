@@ -309,7 +309,7 @@ final class MapController: NSObject, ObservableObject {
         let business = object.metadataContainer
             .getItemOf(YMKSearchBusinessObjectMetadata.self) as? YMKSearchBusinessObjectMetadata
         guard let business else { return nil }
-        return PhoneFormat.first(of: business.phones.map(\.formattedValue))
+        return PhoneFormat.first(of: business.phones.map(\.formattedNumber))
     }
 
     // MARK: - Отрисовка
