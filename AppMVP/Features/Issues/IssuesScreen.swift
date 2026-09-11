@@ -311,7 +311,9 @@ struct IssuesScreen: View {
                 ForEach(group.checks) { check in
                     ForEach(check.orderedFindings) { finding in
                         Spacer(minLength: 0).frame(height: 16)
-                        darkIssueCard(EngineIssue(title: finding.title, detail: finding.detail))
+                        darkIssueCard(EngineIssue(title: finding.title,
+                                                  detail: finding.detail,
+                                                  advice: finding.advice))
                     }
                 }
             }
@@ -401,6 +403,31 @@ struct IssuesScreen: View {
                 .foregroundStyle(detail)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
+
+            // Совет по расходникам. Карточка от него растёт вниз — 102 в
+            // макете остаются нижней границей, а не высотой: дизайна на эту
+            // строку в Figma нет вовсе, и подрезать по ней текст значило бы
+            // показать «Купить: тормозные ко…».
+            if let advice = issue.advice {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "cart")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Figma.accentsYellow)
+                        // Значок держит базовую линию первой строки текста:
+                        // без этого он висит по центру всего блока.
+                        .frame(height: 18)
+
+                    Text(advice)
+                        .font(.system(size: 13))
+                        .tracking(-0.08)
+                        .figmaLineHeight(18, fontSize: 13)
+                        .lineLimit(3)
+                        .foregroundStyle(detail)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 2)
+            }
         }
         .padding(20)
         // Высота карточки объявлена в макете: 102. Сложением строк она не
@@ -764,7 +791,8 @@ struct IssuesScreen: View {
             // и подпись выходила повтором.
             let where_ = zone == part ? "" : zone + " · "
             return EngineIssue(title: part,
-                               detail: where_ + "модель ставит сюда " + percent(cause.p))
+                               detail: where_ + "модель ставит сюда " + percent(cause.p),
+                               advice: DiagnosisVocabulary.advice(forPart: cause.part))
         }
 
         if ranked.isEmpty {
@@ -813,7 +841,8 @@ struct IssuesScreen: View {
         let check = EngineCheck()
         modelContext.insert(check)
         for (index, issue) in findings.enumerated() {
-            let finding = EngineFinding(title: issue.title, detail: issue.detail, order: index)
+            let finding = EngineFinding(title: issue.title, detail: issue.detail,
+                                        advice: issue.advice, order: index)
             finding.check = check
             modelContext.insert(finding)
         }
@@ -827,6 +856,11 @@ struct EngineIssue: Identifiable {
     let id = UUID()
     let title: String
     let detail: String
+    /// Что купить и что проверить по этой версии — строка из
+    /// `DiagnosisVocabulary.advice(forPart:)`. Есть только у карточек-версий:
+    /// у вердикта и у отказов советовать нечего, и пустая строка там честнее
+    /// выдуманной.
+    var advice: String?
 }
 
 /// Заглушка. Настоящего разбора звука двигателя нет: он требует модели на
