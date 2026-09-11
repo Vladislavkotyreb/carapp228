@@ -396,8 +396,8 @@ struct MapScreen: View {
                 // организации есть, и один тап по нему заменяет весь сценарий
                 // записи, ради которого пришлось бы договариваться с каждым
                 // СТО отдельно.
-                if let call = callURL(for: pin) {
-                    callButton(number: pin.phone ?? "", url: call)
+                if let phone = pin.phone, let call = callURL(for: pin) {
+                    callButton(number: phone, url: call)
                 }
 
                 if let route = controller.route {
