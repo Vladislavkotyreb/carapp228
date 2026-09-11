@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		CA0000010000000000000003 /* UIState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000003 /* UIState.swift */; };
 		CA0000010000000000000004 /* UIStateCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000004 /* UIStateCatalog.swift */; };
+		1A0000010000000000000001 /* PartAdvice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000010000000000000001 /* PartAdvice.swift */; };
 		CA0000010000000000000001 /* ServiceMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000001 /* ServiceMath.swift */; };
 		CA0000010000000000000002 /* NumberFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000002 /* NumberFormat.swift */; };
 		CA0000010000000000000005 /* MapGeo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000005 /* MapGeo.swift */; };
@@ -68,6 +69,7 @@
 /* Begin PBXFileReference section */
 		CB0000010000000000000003 /* UIState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIState.swift; sourceTree = "<group>"; };
 		CB0000010000000000000004 /* UIStateCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIStateCatalog.swift; sourceTree = "<group>"; };
+		1B0000010000000000000001 /* PartAdvice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartAdvice.swift; sourceTree = "<group>"; };
 		CB0000010000000000000001 /* ServiceMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceMath.swift; sourceTree = "<group>"; };
 		CB0000010000000000000002 /* NumberFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberFormat.swift; sourceTree = "<group>"; };
 		CB0000010000000000000005 /* MapGeo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapGeo.swift; sourceTree = "<group>"; };
@@ -139,6 +141,7 @@
 			isa = PBXGroup;
 			children = (
 				BB0000010000000000000026 /* PlateFormat.swift */,
+				1B0000010000000000000001 /* PartAdvice.swift */,
 				CB0000010000000000000001 /* ServiceMath.swift */,
 				CB0000010000000000000002 /* NumberFormat.swift */,
 				CB0000010000000000000003 /* UIState.swift */,
@@ -418,6 +421,7 @@
 			isa = PBXSourcesBuildPhase;
 			files = (
 				AA0000010000000000000001 /* AppMVPApp.swift in Sources */,
+				1A0000010000000000000001 /* PartAdvice.swift in Sources */,
 				CA0000010000000000000001 /* ServiceMath.swift in Sources */,
 				CA0000010000000000000002 /* NumberFormat.swift in Sources */,
 				CA0000010000000000000005 /* MapGeo.swift in Sources */,

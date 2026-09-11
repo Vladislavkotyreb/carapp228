@@ -384,8 +384,14 @@ struct IssuesScreen: View {
     /// Заголовок здесь Subheadline/Emphasized (15pt), а не Body: с 17pt
     /// карточка вырастала до 104 вместо заявленных в макете 102. Описание
     /// ровно в две строки — в макете под него отведено 36pt, то есть 2 × 18.
+    /// `showAdvice` выключен по умолчанию намеренно. Тёмная карточка на экране
+    /// прибита к ноде макета `46093:2421` — 370×102, и третья строка выносит её
+    /// за эту высоту: заголовок в 17pt уже давал 104 вместо 102 и это ловилось
+    /// сверкой. В шторке находок высота считается по содержимому, там совет
+    /// и живёт — заодно это то место, где человек решает, добавлять ли находку.
     private func issueBody(_ issue: EngineIssue,
-                           title: Color, detail: Color) -> some View {
+                           title: Color, detail: Color,
+                           showAdvice: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(issue.title)
                 .font(.system(size: 15, weight: .semibold))
@@ -401,6 +407,16 @@ struct IssuesScreen: View {
                 .foregroundStyle(detail)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
+
+            if showAdvice, let advice = issue.advice {
+                Text(advice)
+                    .font(.system(size: 13))
+                    .tracking(-0.08)
+                    .figmaLineHeight(18, fontSize: 13)
+                    .foregroundStyle(detail.opacity(0.75))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(20)
         // Высота карточки объявлена в макете: 102. Сложением строк она не
@@ -572,7 +588,8 @@ struct IssuesScreen: View {
             VStack(spacing: 16) {
                 ForEach(findings) { issue in
                     issueBody(issue, title: Figma.labelsPrimary,
-                              detail: Figma.graysGray)
+                              detail: Figma.graysGray,
+                              showAdvice: true)
                         .background(cardSurface)
                 }
             }
@@ -764,7 +781,8 @@ struct IssuesScreen: View {
             // и подпись выходила повтором.
             let where_ = zone == part ? "" : zone + " · "
             return EngineIssue(title: part,
-                               detail: where_ + "модель ставит сюда " + percent(cause.p))
+                               detail: where_ + "модель ставит сюда " + percent(cause.p),
+                               advice: PartAdvice.line(cause.part))
         }
 
         if ranked.isEmpty {
@@ -827,6 +845,9 @@ struct EngineIssue: Identifiable {
     let id = UUID()
     let title: String
     let detail: String
+    /// Что проверить и что обычно меняют — `PartAdvice`. Есть только у карточек
+    /// с названной деталью: у вердикта и у сообщений об ошибке советовать нечего.
+    var advice: String? = nil
 }
 
 /// Заглушка. Настоящего разбора звука двигателя нет: он требует модели на
