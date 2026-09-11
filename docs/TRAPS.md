@@ -212,6 +212,22 @@
   учитывать офсет; поймано попиксельным сравнением кадров до и после правки.
 
 ---
+- **`git mv` переносит только отслеживаемое, и папка `.xcodeproj` теряет SPM.**
+  Переименование проекта через `git mv` оставило состояние Swift Package Manager
+  в старой папке: `Package.resolved` и `.swiftpm/` стояли в `.gitignore`, git
+  о них не знал и не двигал. Xcode на новой папке сказал
+  `Missing package product 'YandexMapsMobileFull'` — и это не про пакет,
+  а про **отсутствующую** папку `project.xcworkspace/xcshareddata/swiftpm`:
+  вторым заходом Xcode сказал прямо — `The file "swiftpm" doesn't exist`,
+  `Resolving Package Graph Failed`. Пустую папку он не создаёт сам.
+  Лечение, проверено сборкой 2026-09-11: `mkdir -p` этой папки, скопировать
+  в неё содержимое старой, если она ещё есть (тогда версии сохраняются),
+  снести `DerivedData` старого имени, затем File → Packages → Reset Package
+  Caches и Resolve Package Versions. Без `Package.resolved` разрешение идёт
+  заново и при `upToNextMajorVersion` может подтянуть другую минорную —
+  поэтому `Package.resolved` с тех пор в git.
+  Переименовывая что угодно через `git mv`, сперва смотреть `git status
+  --ignored` в старой папке: что не отслеживается, то останется на месте.
 
 ## Часть II — Вынутые из разборов (14)
 

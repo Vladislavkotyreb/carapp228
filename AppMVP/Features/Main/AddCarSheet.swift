@@ -33,14 +33,14 @@ struct AddCarSheet: View {
                 VStack(spacing: 32) {
                     FigmaSegmentedControl(titles: ["По номеру", "По названию"], selection: $tab)
 
-                    if tab == 0 {
-                        // Номерная рамка вместо обычного поля (просьба
-                        // пользователя). Откат — вернуть FigmaTextField:
-                        // `git revert` коммита с PlateInputField.
-                        PlateInputField(text: $plate, onSubmit: submit)
-                            .shake(shake)
-                    } else {
-                        VStack(spacing: 24) {
+                    VStack(spacing: 24) {
+                        if tab == 0 {
+                            // Номерная рамка вместо обычного поля (просьба
+                            // пользователя). Откат — вернуть FigmaTextField:
+                            // `git revert` коммита с PlateInputField.
+                            PlateInputField(text: $plate, onSubmit: submit)
+                                .shake(shake)
+                        } else {
                             // Три строки одной капсулой: цена отдельным
                             // полем читалась чужой и красилась иначе
                             // (замечание пользователя). В макете 45854:2880
@@ -61,30 +61,23 @@ struct AddCarSheet: View {
                             )
                             .shake(shake)
 
-                            if let photo {
-                                Image(uiImage: photo)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(height: 160)
-                                    .frame(maxWidth: .infinity)
-                                    .clipShape(RoundedRectangle(cornerRadius: 26))
-                                    // scaledToFill вылезает за рамку и
-                                    // хит-зоной: портретный снимок накрывал
-                                    // поля выше и съедал их тапы.
-                                    .allowsHitTesting(false)
-                            }
-
-                            // Одно фото на машину: без ограничения галерея
-                            // предлагала мультивыбор, а брали мы первый
-                            // снимок (замечание пользователя).
-                            PhotosPicker(selection: $photoItems,
-                                         maxSelectionCount: 1,
-                                         selectionBehavior: .default,
-                                         matching: .images) {
-                                FigmaRowLabel(systemImage: "photo",
-                                              title: photo == nil ? "Выбрать фото" : "Заменить фото")
+                            // Превью каталога, пока своё фото не выбрано:
+                            // до сих пор оно показывалось только при поиске
+                            // по номеру, через «Это ваш автомобиль?».
+                            // Проверка слага снаружи — пустое вью получило бы
+                            // отступы соседей (см. CarCatalogPreview).
+                            if photo == nil, CarCatalog.slug(name: name) != nil {
+                                CarCatalogPreview(name: name, height: 160)
                             }
                         }
+
+                        // Фото — под обеими вкладками, а не только под
+                        // «По названию». По номеру выбрать снимок было нечем,
+                        // хотя `confirmFoundCar` его читает: ветка кода жила,
+                        // а дойти до неё с главной было невозможно. Плюс сам
+                        // смысл превью — увидеть машину до того, как нажал
+                        // «Добавить», и это одинаково нужно обеим вкладкам.
+                        photoBlock
                     }
                 }
 
@@ -124,6 +117,44 @@ struct AddCarSheet: View {
         // Кнопка «Добавить» остаётся на месте, а не прыгает на клавиатуру:
         // просьба пользователя. Клавиатура её просто накрывает.
         .ignoresSafeArea(.keyboard)
+    }
+
+    /// Превью снимка и выбор фото. Тот же блок, что на экране добавления при
+    /// онбординге (`AddCarView`), — включая подсказку про съёмку спереди:
+    /// со второй машины человек попадал в форму без неё и без превью,
+    /// хотя задача та же самая.
+    private var photoBlock: some View {
+        VStack(spacing: photo == nil ? 8 : 20) {
+            if let photo {
+                Image(uiImage: photo)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 160)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 26))
+                    // scaledToFill вылезает за рамку и хит-зоной: портретный
+                    // снимок накрывал поля выше и съедал их тапы.
+                    .allowsHitTesting(false)
+            }
+
+            // Одно фото на машину: без ограничения галерея предлагала
+            // мультивыбор, а брали мы первый снимок (замечание пользователя).
+            PhotosPicker(selection: $photoItems,
+                         maxSelectionCount: 1,
+                         selectionBehavior: .default,
+                         matching: .images) {
+                FigmaRowLabel(systemImage: "photo",
+                              title: photo == nil ? "Выбрать фото" : "Заменить фото")
+            }
+
+            if photo == nil {
+                Text("Сфотографируйте машину спереди для лучшего вида")
+                    .font(.system(size: 12))
+                    .figmaLineHeight(16, fontSize: 12)
+                    .foregroundStyle(Figma.labelsTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
     }
 
     /// Отправка с проверкой: по номеру нужен валидный номер, по названию —

@@ -104,12 +104,19 @@ final class Place {
     /// облегчённая миграция SwiftData добавляет молча только то, что может
     /// оставить пустым. `nil` читается как `.mine` — именно ими те места и были.
     var originRaw: String?
+    /// Телефон организации, каким его отдал поиск. Сохраняется вместе с
+    /// избранным: место ищут заново при каждом открытии раздела, а звонить
+    /// в свой сервис хочется и без поиска — в подземном паркинге его не будет.
+    /// Необязательное поле по той же причине, что и `originRaw`: у мест,
+    /// сохранённых раньше, его в базе нет вовсе.
+    var phone: String?
 
     init(title: String,
          kind: PlaceKind,
          latitude: Double,
          longitude: Double,
          note: String? = nil,
+         phone: String? = nil,
          origin: PlaceOrigin = .mine,
          createdAt: Date = .now) {
         self.title = title
@@ -117,6 +124,7 @@ final class Place {
         self.latitude = latitude
         self.longitude = longitude
         self.note = note
+        self.phone = phone
         self.originRaw = origin.rawValue
         self.createdAt = createdAt
     }
