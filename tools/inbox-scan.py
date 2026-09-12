@@ -10,9 +10,14 @@
 сперва выяснить, где это живёт в проекте, и тоже писать, `review` — работа
 не в коде (сервер, деньги, договориться с человеком) или в ручном pbxproj.
 
+Перед выдачей очереди сам снимает дубли (`inbox-dedup.py --mark`): то, что
+уже сделано в любой ветке на GitHub, в очередь не попадает, и отдельную
+команду для этого помнить не нужно.
+
 Запуск:
     python3 tools/inbox-scan.py            # человекочитаемо
     python3 tools/inbox-scan.py --json     # для навыка /inbox
+    python3 tools/inbox-scan.py --no-dedup # без проверки дублей, для отладки
 """
 import json, os, re, sys
 
@@ -90,6 +95,21 @@ def scan():
 
 
 def main():
+    # Дубли снимаются здесь, а не отдельной командой в промпте: очередь,
+    # в которой лежит уже сделанное, — не очередь. Любой, кто спросил
+    # «что делать сегодня», получает ответ уже без дублей, и помнить про
+    # отдельный шаг никому не нужно. --no-dedup — только для отладки.
+    if "--no-dedup" not in sys.argv:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "inbox_dedup", os.path.join(os.path.dirname(os.path.abspath(__file__)), "inbox-dedup.py"))
+        dedup = importlib.util.module_from_spec(spec); spec.loader.exec_module(dedup)
+        marked = [d for d in dedup.find() if dedup.mark(d)]
+        if marked and "--json" not in sys.argv:
+            print(f"Дублей снято: {len(marked)} — уже сделано в другой ветке, в очередь не идут.")
+            for d in marked:
+                print(f"  {d['path']} → {d['where']} [{d['ref']}]")
+            print()
     queue, skipped = scan()
     if "--json" in sys.argv:
         json.dump({"queue": queue, "skipped": skipped},
