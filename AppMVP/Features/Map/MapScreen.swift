@@ -32,7 +32,7 @@ struct MapScreen: View {
             switch phase {
             case .noKey:
                 missingKey
-            case .live, .list, .listEmpty:
+            case .live, .list, .listEmpty, .listLoading:
                 content(phase: phase)
             }
         }
@@ -43,7 +43,8 @@ struct MapScreen: View {
     private var phase: MapPhase {
         MapPhase.of(mode: mode,
                     hasKey: MapKitKey.isConfigured,
-                    hasPlaces: !sections.isEmpty)
+                    hasPlaces: !sections.isEmpty,
+                    isSearching: controller.isSearching)
     }
 
     private func content(phase: MapPhase) -> some View {
@@ -219,7 +220,13 @@ struct MapScreen: View {
 
     @ViewBuilder
     private func list(phase: MapPhase) -> some View {
-        if phase == .listEmpty {
+        if phase == .listLoading {
+            // Пока поиск идёт, пустоту объявлять нельзя: «ничего не нашлось»
+            // на экране, который ещё ищет, — прямая неправда, и человек уходит
+            // с раздела за секунду до того, как места доедут.
+            PlacesListSkeleton()
+                .safeAreaPadding(.bottom, legacyTabBarInset)
+        } else if phase == .listEmpty {
             emptyList
         } else {
             PlacesList(sections: sections,

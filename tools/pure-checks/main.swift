@@ -581,6 +581,18 @@ group("MapPhase.of") {
           MapPhase.of(mode: .list, hasKey: true, hasPlaces: true), .list)
     check("список без мест — пустое состояние",
           MapPhase.of(mode: .list, hasKey: true, hasPlaces: false), .listEmpty)
+    check("пока идёт первый поиск, пустота не объявляется",
+          MapPhase.of(mode: .list, hasKey: true, hasPlaces: false, isSearching: true),
+          .listLoading)
+    check("места есть — поиск на подачу не влияет",
+          MapPhase.of(mode: .list, hasKey: true, hasPlaces: true, isSearching: true),
+          .list)
+    check("без ключа поиска не бывает вовсе",
+          MapPhase.of(mode: .list, hasKey: false, hasPlaces: false, isSearching: true),
+          .noKey)
+    check("на карте скелетонов нет: там есть сама карта",
+          MapPhase.of(mode: .map, hasKey: true, hasPlaces: false, isSearching: true),
+          .live)
 
     // Пустота карты — не состояние: на ней всё равно есть сама карта. Пустой
     // бывает только подача списком, и проверка держит это различие.
@@ -591,7 +603,11 @@ group("MapPhase.of") {
     for mode in MapMode.allCases {
         for hasKey in [true, false] {
             for hasPlaces in [true, false] {
-                reachable.insert(MapPhase.of(mode: mode, hasKey: hasKey, hasPlaces: hasPlaces))
+                for isSearching in [true, false] {
+                    reachable.insert(MapPhase.of(mode: mode, hasKey: hasKey,
+                                                 hasPlaces: hasPlaces,
+                                                 isSearching: isSearching))
+                }
             }
         }
     }

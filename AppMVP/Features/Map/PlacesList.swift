@@ -190,3 +190,47 @@ struct PlacesList: View {
         }
     }
 }
+
+/// Список мест, пока идёт первый поиск.
+///
+/// Не крутилка посреди экрана и не «ничего не нашлось»: первое ничего не
+/// говорит о том, чего ждать, второе — прямая неправда, поиск ещё идёт.
+/// Строки-скелетоны повторяют раскладку настоящих: значок, две строки текста
+/// и расстояние справа, — поэтому, когда места доезжают, список не прыгает.
+struct PlacesListSkeleton: View {
+    /// Сколько строк рисовать. Пять: столько влезает в экран до сгиба, и
+    /// длиннее список ожидание не делает понятнее.
+    private static let rowCount = 5
+
+    var body: some View {
+        List {
+            Section("Ищем рядом") {
+                ForEach(0..<Self.rowCount, id: \.self) { index in
+                    row(index)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        // Прокручивать нечего: под пальцем пусто, а резинка у пустого списка
+        // читается как поломка.
+        .scrollDisabled(true)
+    }
+
+    private func row(_ index: Int) -> some View {
+        HStack(spacing: 12) {
+            SkeletonBlock(width: 34, height: 34, cornerRadius: 17)
+
+            VStack(alignment: .leading, spacing: 6) {
+                // Разная ширина названий: одинаковые полосы читаются таблицей,
+                // а не списком мест.
+                SkeletonBlock(width: index.isMultiple(of: 2) ? 160 : 120, height: 15)
+                SkeletonBlock(width: index.isMultiple(of: 2) ? 96 : 124, height: 12)
+            }
+
+            Spacer(minLength: 8)
+
+            SkeletonBlock(width: 44, height: 12)
+        }
+        .padding(.vertical, 4)
+    }
+}

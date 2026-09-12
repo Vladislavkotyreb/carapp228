@@ -235,3 +235,56 @@ extension View {
         modifier(ShakeEffect(animatableData: trigger))
     }
 }
+
+/// Скелетон: прямоугольник на месте того, что ещё грузится.
+///
+/// Зачем он вместо индикатора: крутилка говорит «идёт работа», а скелетон
+/// говорит **что именно** придёт и сколько места займёт — экран не прыгает,
+/// когда данные доезжают, и ожидание читается коротким.
+///
+/// Блик двигает одно состояние, поставленное один раз в `onAppear`: писать
+/// в `@State` на каждом кадре нельзя — `body` начинает зависеть от анимации,
+/// а прокрутка списка от этого ломается (см. `docs/TRAPS.md`). При включённом
+/// Reduce Motion блика нет вовсе, остаётся спокойная подложка.
+struct SkeletonBlock: View {
+    var width: CGFloat?
+    var height: CGFloat = 16
+    var cornerRadius: CGFloat = 8
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shining = false
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    }
+
+    var body: some View {
+        shape
+            .fill(Figma.fillsQuaternary.opacity(0.18))
+            .frame(width: width, height: height)
+            .overlay {
+                if !reduceMotion { shine }
+            }
+            .clipShape(shape)
+            // Скелетон — это сообщение «ещё не пришло», а не элемент:
+            // нажимать в нём нечего, и голосовому доступу он отдаёт один
+            // ярлык на весь блок, а не пустой прямоугольник.
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(Motion.skeleton) { shining = true }
+            }
+    }
+
+    /// Полоса света шириной в половину блока, проходящая слева направо.
+    private var shine: some View {
+        GeometryReader { geometry in
+            let span = geometry.size.width
+            LinearGradient(colors: [.clear, .white.opacity(0.12), .clear],
+                           startPoint: .leading, endPoint: .trailing)
+                .frame(width: span / 2)
+                .offset(x: shining ? span : -span / 2)
+        }
+    }
+}

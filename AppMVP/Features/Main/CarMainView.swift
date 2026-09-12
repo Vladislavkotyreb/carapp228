@@ -107,6 +107,10 @@ struct CarMainView: View {
     /// Студийные кадры каталога для машин без своего фото — подбор по
     /// названию через `CarCatalog`, файлы в `Resources/CarCatalog/`.
     @State private var catalogImages: [PersistentIdentifier: UIImage] = [:]
+    /// Машины, которым прямо сейчас считают рыночную цену. Множество, а не
+    /// булево: цены считаются по очереди для всех машин сразу, и один флаг
+    /// показывал бы ожидание на карточке, где считать уже нечего.
+    @State private var pricingCars: Set<PersistentIdentifier> = []
     @State private var showToast = false
     /// Вид тоста: успех гаснет сам, процесс висит до смены, ошибка держится
     /// дольше — её читают, а не узнают по галочке.
@@ -514,6 +518,11 @@ struct CarMainView: View {
                 guard MarketPrice.canEstimate(vin: car.vin),
                       MarketPrice.needsRefresh(updatedAt: car.marketPriceDate, now: .now),
                       let vin = car.vin else { continue }
+                // Ожидание видно на плитке цены скелетоном. Снимается флаг
+                // в `defer`: из цикла выходят и по ошибке, и по отмене задачи
+                // (уход с экрана), и залипший скелетон пережил бы оба случая.
+                pricingCars.insert(car.persistentModelID)
+                defer { pricingCars.remove(car.persistentModelID) }
                 do {
                     let estimate = try await AvtoVinCodValuation.estimate(vin: vin)
                     car.marketPrice = estimate.average
@@ -818,18 +827,7 @@ struct CarMainView: View {
                     Button {
                         sheet = .priceInfo
                     } label: {
-                        // Своя цена главнее рыночной: пользователь вводил её
-                        // сознательно. Рыночная — с «≈»: это средняя по
-                        // объявлениям, а не цена этой машины.
-                        statCard(title: "Цена авто") { car in
-                            if let price = car.price {
-                                "\(NumberFormat.grouped(price))\u{00A0}₽"
-                            } else if let market = car.marketPrice {
-                                "≈\u{00A0}\(NumberFormat.grouped(market))\u{00A0}₽"
-                            } else {
-                                "—"
-                            }
-                        }
+                        priceCard
                     }
                     .buttonStyle(.plain)
                     .contentShape(Self.statCardShape)
@@ -1395,6 +1393,37 @@ struct CarMainView: View {
                     Text(value(car)).opacity(weight(of: index(of: car)))
                 }
             }
+        }
+    }
+
+    /// Плитка цены. Своя, а не общий `statCard`: у неё единственной есть
+    /// состояние ожидания — рыночную цену считает сеть, и прочерк на это время
+    /// читается как «цены нет», хотя она вот-вот появится.
+    private var priceCard: some View {
+        statCardShell(title: "Цена авто") {
+            ZStack {
+                ForEach(cars) { car in
+                    priceValue(for: car).opacity(weight(of: index(of: car)))
+                }
+            }
+        }
+    }
+
+    /// Значение на плитке цены. Своя цена главнее рыночной: пользователь
+    /// вводил её сознательно. Рыночная — с «≈»: это средняя по объявлениям,
+    /// а не цена этой машины.
+    @ViewBuilder
+    private func priceValue(for car: Car) -> some View {
+        if let price = car.price {
+            Text("\(NumberFormat.grouped(price))\u{00A0}₽")
+        } else if let market = car.marketPrice {
+            Text("≈\u{00A0}\(NumberFormat.grouped(market))\u{00A0}₽")
+        } else if pricingCars.contains(car.persistentModelID) {
+            // Ширина под «≈ 1 200 000 ₽», высота — бокса значения из макета:
+            // когда цена доедет, плитка не дрогнет.
+            SkeletonBlock(width: 132, height: 20, cornerRadius: 6)
+        } else {
+            Text("—")
         }
     }
 
