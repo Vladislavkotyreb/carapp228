@@ -4,10 +4,15 @@
 В папке из хранилища лежат обычные заметки: списки с галочками, мысли,
 скриншоты. Разбор же работает с отдельной заметкой на задачу — со `status`
 и `scope`. Этот скрипт переводит одно в другое: находит в заметках строки
-`- [ ] …` и заводит под каждую новую файл в `inbox/tasks/`.
+`- [ ] …` и заводит под каждую новую файл в `inbox/tasks/` — или в `inbox/bugs/`,
+если строка стоит в заметке про баги.
+
+Баг от задачи отличается словом «баг» в имени заметки («Багфиксы.md»,
+«Баги.md») или в заголовке раздела над строкой («## Баги»). Разница важна:
+баг разбор чинит кодом, а под задачу пишет только краткие пути реализации.
 
 Уже заведённые помнит `inbox/.extracted.json`, иначе одна и та же строка
-превращалась бы в задачу каждое утро. Ключ — текст строки: переписал строку
+превращалась бы в задачу каждый прогон. Ключ — текст строки: переписал строку
 в заметке, она заведётся заново, и это правильнее молчания.
 
 `- [x]` не берутся: галочка и значит «не надо».
@@ -21,7 +26,12 @@ from datetime import date
 
 INBOX = "inbox"
 TASKS = os.path.join(INBOX, "tasks")
+BUGS = os.path.join(INBOX, "bugs")
 STATE = os.path.join(INBOX, ".extracted.json")
+
+# Признак бага — слово в пути заметки (имя файла или папки) или в заголовке
+# раздела. Не список имён: «Багфиксы», «Баги», «bugs» — всё подходит.
+BUG = re.compile(r"баг|bug", re.I)
 
 # Свои файлы — не источник задач: README описывает папку, backlog ведётся руками.
 SKIP = {"README.md"}
@@ -106,25 +116,31 @@ def main():
             seen = json.load(f)
 
     os.makedirs(TASKS, exist_ok=True)
+    os.makedirs(BUGS, exist_ok=True)
     today = date.today().isoformat()
     made = []
 
     for path in sources():
         if ignored(path):
             continue
+        # Путь от inbox/ без расширения: ловит и «Багфиксы.md», и папку
+        # «Багфиксы/» с заметками внутри.
+        note_is_bugs = bool(BUG.search(os.path.splitext(os.path.relpath(path, INBOX))[0]))
         for line_no, text, section in items(path):
             k = key(text)
             if k in seen:
                 continue
+            is_bug = note_is_bugs or bool(BUG.search(section))
+            folder, kind = (BUGS, "bug") if is_bug else (TASKS, "task")
             name = f"{today}-{slug(text)}.md"
-            dest = os.path.join(TASKS, name)
+            dest = os.path.join(folder, name)
             if os.path.exists(dest):
                 name = f"{today}-{slug(text)}-{k}.md"
-                dest = os.path.join(TASKS, name)
+                dest = os.path.join(folder, name)
             body = (
                 "---\n"
                 "status: todo\n"
-                "kind: task\n"
+                f"kind: {kind}\n"
                 "scope:\n"
                 "priority:\n"
                 f"source: {path}:{line_no}\n"
@@ -134,9 +150,11 @@ def main():
             if section:
                 body += f"\nРаздел заметки: {section}\n"
             body += (
-                "\nЗаведено автоматически из заметки Obsidian. `scope` пуст, "
-                "значит разбор не тронет код: он выяснит, где это делается, "
-                "и напишет план.\n"
+                "\nЗаведено автоматически из заметки Obsidian. "
+                + ("Это баг: разбор найдёт, где он живёт, и починит кодом.\n"
+                   if is_bug else
+                   "Это задача: разбор напишет сюда краткие пути реализации, "
+                   "код не тронет.\n")
             )
             made.append((dest, text))
             seen[k] = dest

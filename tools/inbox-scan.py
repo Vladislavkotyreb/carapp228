@@ -6,9 +6,10 @@
 Заодно называет заметки, которые взяты не будут, и почему — иначе «не взяли»
 и «взяли и молча ничего не сделали» выглядят одинаково.
 
-Колонка `zone` говорит, что с задачей делать: `auto` — писать код, `find` —
-сперва выяснить, где это живёт в проекте, и тоже писать, `review` — работа
-не в коде (сервер, деньги, договориться с человеком) или в ручном pbxproj.
+Колонка `zone` говорит, что с заметкой делать. Решает `kind`, не `scope`:
+`fix` — баг, чинить кодом (пустой `scope` значит сперва найти, где живёт);
+`brief` — задача, написать в заметку краткие пути реализации, код не трогать;
+`review` — баг вне кода проекта или в ручном pbxproj: только разбор.
 
 Перед выдачей очереди сам снимает дубли (`inbox-dedup.py --mark`): то, что
 уже сделано в любой ветке на GitHub, в очередь не попадает, и отдельную
@@ -25,11 +26,10 @@ INBOX = "inbox"
 FOLDERS = ("tasks", "bugs")
 TAKEN = "todo"
 
-# Код проекта. Здесь разбор пишет правку — включая вью. Собрать её в облаке
-# нечем, поэтому каждая такая правка едет в ветку с честной пометкой «сборкой
-# не проверено», а не выдаётся за готовую. План вместо кода полезен там, где
-# работа вообще не в коде, — а не везде, где нет Xcode.
-AUTO_PREFIXES = ("AppMVP/", "docs/", "tools/", "inbox/")
+# Код проекта. Баг с `scope` отсюда разбор чинит — включая вью. Собрать
+# правку в облаке нечем, поэтому она едет в ветку с честной пометкой «сборкой
+# не проверено», а не выдаётся за готовую.
+FIX_PREFIXES = ("AppMVP/", "docs/", "tools/", "inbox/")
 
 # Сюда разбор не лезет: ручной pbxproj ломается молча, а Xcode на битом
 # проекте падает сообщениями, которые не намекают на причину.
@@ -52,13 +52,16 @@ def frontmatter(text):
     return out
 
 
-def zone(scope):
-    """auto — писать код; find — сперва выяснить, где это живёт; review — не код."""
+def zone(kind, scope):
+    """brief — задача, только пути реализации; fix — баг, чинить кодом;
+    review — баг вне кода проекта или в ручном pbxproj."""
+    if kind != "bug":
+        return "brief"
     if not scope:
-        return "find"
+        return "fix"
     if scope.startswith(NEVER):
         return "review"
-    return "auto" if scope.startswith(AUTO_PREFIXES) else "review"
+    return "fix" if scope.startswith(FIX_PREFIXES) else "review"
 
 
 def scan():
@@ -82,12 +85,13 @@ def scan():
                 skipped.append({"path": full,
                                 "why": f"status: {status or '(пусто)'}"})
                 continue
+            kind = fm.get("kind") or folder.rstrip("s")
             queue.append({
                 "path": full,
-                "kind": fm.get("kind") or folder.rstrip("s"),
+                "kind": kind,
                 "scope": fm.get("scope", ""),
                 "priority": fm.get("priority", ""),
-                "zone": zone(fm.get("scope", "")),
+                "zone": zone(kind, fm.get("scope", "")),
                 "title": name[:-3],
             })
     queue.sort(key=lambda it: (it["priority"] != "high", it["path"]))
@@ -119,7 +123,7 @@ def main():
     if not queue:
         print("Очередь пуста: заметок со `status: todo` нет.")
     for it in queue:
-        mark = {"auto": "auto  ", "find": "find  "}.get(it["zone"], "review")
+        mark = {"brief": "brief ", "fix": "fix   "}.get(it["zone"], "review")
         prio = " [high]" if it["priority"] == "high" else ""
         print(f"{mark}  {it['path']}{prio}")
         if it["scope"]:
