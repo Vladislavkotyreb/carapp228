@@ -1900,15 +1900,21 @@ struct CarMainView: View {
     /// Подтверждение из шторки «Это ваш автомобиль?»: только здесь найденное
     /// становится машиной. Тост о добавлении — процесс вставки мгновенный,
     /// но без него добавление выглядит как «шторка просто закрылась».
+    ///
+    /// Своё фото сюда не приходит вовсе, и это правило, а не упущение: поиск
+    /// по номеру возвращает поколение, по нему находится кадр каталога, и
+    /// `car.photo` этот кадр перебил бы. Форма снимок по номеру и не
+    /// предлагает, но поля у вкладок общие: выбранное на «По названию»
+    /// дожило бы сюда после переключения вкладки и прицепилось невидимо.
+    /// Поэтому ветка закрыта здесь, а не только отсутствием кнопки.
     private func confirmFoundCar() {
         guard let found = foundCar else { return }
         let price = NumberFormat.digits(carPrice)
-        let photoData = newCarPhoto.flatMap { ImageLoader.encode([$0]).first }
         insert(Car(plate: PlateFormat.format(carPlate), name: found.name,
                    vin: found.vehicle.displayVIN,
                    generation: found.vehicle.generation,
                    odometer: found.vehicle.odometer ?? 0,
-                   price: price, photo: photoData))
+                   price: price, photo: nil))
         foundCar = nil
         sheet = .closed
         presentToast("Машина добавлена!")
