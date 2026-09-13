@@ -50,7 +50,7 @@ check "z получил status: duplicate" 'grep -q "^status: duplicate" inbox/t
 check "y остался todo" 'grep -q "^status: todo" inbox/tasks/y.md'
 check "в x записано, где сделано" 'grep -q "## Дубль" inbox/tasks/x.md && grep -q "сделано-шторка" inbox/tasks/x.md'
 queue="$(python3 tools/inbox-scan.py)"
-check "сканер отдаёт только y" 'grep -q "inbox/tasks/y.md" <<<"$queue" && ! grep -q "^auto.*x.md\|^find.*x.md\|^auto.*z.md\|^find.*z.md" <<<"$queue"'
+check "сканер отдаёт только y" 'grep -qE "^(brief|fix|review) .*inbox/tasks/y.md" <<<"$queue" && ! grep -qE "^(brief|fix|review) .*(x|z)\.md" <<<"$queue"'
 
 echo "== 3. повторный --mark ничего не меняет =="
 sum1="$(cat inbox/tasks/*.md | sha1sum)"
