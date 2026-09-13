@@ -271,9 +271,28 @@ def main() -> int:
         if not forced:
             raise SystemExit(f"Нет ассета для образца: {args.reference}")
 
+    # Pillow нужен постобработке, но зовётся она уже после генерации —
+    # то есть после того, как деньги списаны. Поэтому проверка здесь,
+    # до первого запроса: упасть на импорте с полным кошельком дешевле,
+    # чем с пустым.
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        raise SystemExit(
+            "Нет Pillow, а без него не соберётся ни один кадр.\n"
+            "    python3 -m pip install --user pillow\n"
+            "Если генерация каталога уже стояла в венве, проще им же:\n"
+            "    ~/Library/Caches/kandinsky5-venv/bin/python "
+            "tools/catalog_openrouter.py ...")
+
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if not key and not args.dry_run:
         raise SystemExit("Нет OPENROUTER_API_KEY в окружении.")
+    if key and not key.startswith("sk-or-"):
+        raise SystemExit(
+            "OPENROUTER_API_KEY не похож на ключ OpenRouter: они начинаются\n"
+            "с «sk-or-v1-». Скопируйте ключ целиком со страницы ключей."
+            )
 
     if args.list_models:
         list_models(key)
