@@ -202,7 +202,8 @@ def recompose(path: str, size: int = 1024, margin: float = 0.08,
 
 def compose_hero(path: str, size: tuple[int, int] = (1536, 1024),
                  width_share: float = 0.86, bottom: float = 0.81,
-                 glow: float = 0.20, blur: int = 70) -> None:
+                 glow: float = 0.20, blur: int = 70,
+                 reflection: float = 0.0) -> None:
     """Собирает кадр в формате ассета главной (`CarPhoto`, 3:2): чистая
     вырезка машины (86% ширины, низ на 0.81 высоты) плюс ЕДИНАЯ
     синтетическая земля — требование пользователя: обычная тень ПОД
@@ -210,7 +211,13 @@ def compose_hero(path: str, size: tuple[int, int] = (1536, 1024),
     корпуса. Модель: светлый эллипс пола под низом машины (пик задаёт
     `glow`, мягкость — `blur`), на нём тень от днища — сплюснутый
     размытый силуэт, гасящий пол; машина кладётся поверх через маску.
-    На вход — файл ВЫРЕЗКИ (фон уже чёрный)."""
+    На вход — файл ВЫРЕЗКИ (фон уже чёрный).
+
+    `reflection` > 0 — под машиной глянцевый пол: её зеркальная копия,
+    гаснущая вниз, с пиком `reflection` от яркости кузова. У 76 кадров
+    прода отражение пришло из сырья и пережило вырезку; у второй очереди
+    (2026-09-15) вырезка оставляет только машину, и без этого параметра
+    между шинами и синтетическим полом остаётся чёрная полоса."""
     from PIL import Image, ImageChops, ImageFilter
     im = Image.open(path).convert("RGB")
     box = im.convert("L").point(lambda v: 255 if v > 14 else 0).getbbox()
@@ -252,6 +259,31 @@ def compose_hero(path: str, size: tuple[int, int] = (1536, 1024),
     floor = ImageChops.subtract(floor, shadow)
 
     out = Image.merge("RGB", (floor, floor, floor))
+
+    if reflection > 0:
+        from PIL import ImageOps
+        # Не честное зеркало: у машины в три четверти порог висит над
+        # линией шин, и зеркало вокруг неё оставляет между порогом и
+        # отражением чёрную щель. У прода отражение прижато к порогу —
+        # пол там нарисован моделью в перспективе. Поэтому зеркало сжато
+        # по высоте и поднято внутрь машины; нахлёст закроет сама машина,
+        # которая кладётся поверх.
+        squash, lift = 0.6, round(car.height * 0.22)
+        m_h = max(1, round(car.height * squash))
+        mirror = ImageOps.flip(car).resize((car.width, m_h)) \
+                         .filter(ImageFilter.GaussianBlur(3))
+        mirror_mask = ImageOps.flip(
+            car.convert("L").point(lambda v: 255 if v > 10 else 0)) \
+            .resize((car.width, m_h))
+        fade = ImageOps.invert(Image.linear_gradient("L").resize((car.width, m_h)))
+        fade = fade.point(lambda v: round(v * reflection))
+        top = bottom_y - lift
+        alpha = Image.new("L", size, 0)
+        alpha.paste(ImageChops.multiply(mirror_mask, fade), (x, top))
+        reflected = Image.new("RGB", size, (0, 0, 0))
+        reflected.paste(mirror, (x, top))
+        out = Image.composite(reflected, out, alpha)
+
     # Машина поверх через мягкую маску: прямоугольный paste затёр бы пол
     # чёрными полями вырезки.
     edge = silhouette.filter(ImageFilter.GaussianBlur(1.5))

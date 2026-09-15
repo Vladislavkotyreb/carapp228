@@ -29,7 +29,10 @@ struct AddCarView: View {
     /// Настоящий поиск по базе ОСАГО, когда токен в `VehicleLookupKey`
     /// заполнен; без него — заглушка с данными из макета.
     private let lookup: any VehicleLookup = VehicleLookupProvider.make()
-    @State private var photo: Image?
+    /// Именно `UIImage`, а не `Image`: из `Image` пикселей не достать, а
+    /// снимок надо сохранить в машину. Пока здесь лежал `Image`, выбранное
+    /// фото рисовалось в форме и пропадало при «Добавить».
+    @State private var photo: UIImage?
 
     /// Высота контейнера: от координаты макета до нижней safe area.
     /// В макете контейнер 735 упирается в самый низ, и кнопка «Добавить»
@@ -110,7 +113,7 @@ struct AddCarView: View {
             Task {
                 // Декодирование идёт вне главного актора, см. ImageLoader
                 if let uiImage = await ImageLoader.load(item) {
-                    photo = Image(uiImage: uiImage)
+                    photo = uiImage
                 }
             }
         }
@@ -172,7 +175,7 @@ struct AddCarView: View {
 
             if let photo {
                 VStack(spacing: 20) {
-                    photo
+                    Image(uiImage: photo)
                         .resizable()
                         .scaledToFill()
                         .frame(height: 200)
@@ -276,6 +279,12 @@ struct AddCarView: View {
     /// Собирает машину из того, что ввёл пользователь. По номеру данные
     /// приходят из «поиска» (пока это макетная заглушка), по названию —
     /// прямо из полей формы.
+    ///
+    /// Фото прикладывается только в ветке «по названию» — и потому, что
+    /// выбор фото стоит только там, и потому, что по номеру прикладывать
+    /// его нельзя: поиск даёт поколение, по нему находится кадр каталога,
+    /// а `car.photo` этот кадр перебивает (та же причина, что в
+    /// `CarMainView.confirmFoundCar`).
     private func newCar() -> Car {
         if let foundCar {
             return Car(
@@ -290,7 +299,8 @@ struct AddCarView: View {
             plate: "",
             name: name.trimmingCharacters(in: .whitespaces),
             odometer: NumberFormat.digits(mileage, or: 0),
-            price: NumberFormat.digits(price)
+            price: NumberFormat.digits(price),
+            photo: photo.flatMap { ImageLoader.encode([$0]).first }
         )
     }
 
