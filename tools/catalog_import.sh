@@ -15,7 +15,11 @@
 #
 #   tools/catalog_import.sh              # все слаги из обоих списков
 #   tools/catalog_import.sh kia-soul …   # только названные
+#   tools/catalog_import.sh --force …    # перезаписать готовые HEIC
 set -euo pipefail
+
+FORCE=0
+if [[ "${1:-}" == "--force" ]]; then FORCE=1; shift; fi
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RAW="${CANARY_RAW:-$HOME/canary-catalog/raw}"
@@ -46,7 +50,7 @@ fi
 made=0; kept=0; missing=()
 for slug in "${slugs[@]}"; do
   src="$RAW/$slug.png"; dst="$DEST/$slug.heic"
-  if [[ -f "$dst" ]]; then kept=$((kept+1)); continue; fi
+  if [[ -f "$dst" && $FORCE -eq 0 ]]; then kept=$((kept+1)); continue; fi
   if [[ ! -f "$src" ]]; then missing+=("$slug"); continue; fi
   sips -s format heic -s formatOptions 80 "$src" --out "$dst" >/dev/null
   echo "  + $slug.heic ($(du -k "$dst" | cut -f1) КБ)"

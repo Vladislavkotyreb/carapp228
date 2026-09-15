@@ -1,0 +1,46 @@
+# Кадры первой партии 2026-09-15, где под именем машины нарисован образец.
+# Порядок — по частоте машины в РФ, как в catalog_cars_next.json: если денег
+# на всё не хватит, первыми перегенерятся самые нужные.
+#
+#   python3 tools/catalog_openrouter.py --only "$(grep -v '^#' tools/catalog_redo.txt | paste -sd, -)" --force --limit 2
+#
+hyundai-accent
+toyota-camry-40
+bmw-3-e90
+kia-spectra
+lada-2110
+lada-2109
+hyundai-getz
+mitsubishi-pajero-sport
+kia-soul
+suzuki-grand-vitara
+honda-accord
+nissan-teana
+ford-mondeo
+opel-insignia
+renault-fluence
+vw-touareg
+bmw-x3
+mercedes-c-w204
+audi-a6-c6
+audi-q7
+hyundai-sonata
+kia-optima
+chery-tiggo4
+chery-tiggo8
+geely-monjaro
+geely-emgrand
+changan-cs35
+exeed-txl
+omoda-s5
+moskvich-3
+uaz-hunter
+mitsubishi-pajero-4
+nissan-murano
+subaru-outback
+ford-explorer
+opel-corsa
+chevrolet-captiva
+chevrolet-cobalt
+belgee-x50
+jaecoo-j7
