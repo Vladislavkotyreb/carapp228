@@ -706,6 +706,51 @@ do {
           "lada-vesta")
     check("год из строки поколения", CarCatalog.firstYear("X166 (2015-2026)"), 2015)
     check("год не находится в мусоре", CarCatalog.firstYear("седан 12345"), nil)
+
+    // Вторая очередь каталога (2026-09-15): третьи поколения и новые марки.
+    // Граница поколений — год старта нового, как у Rio и Focus.
+    check("Camry XV40 по году",
+          CarCatalog.slug(name: "Toyota Camry", generation: "XV40 (2006-2011)"),
+          "toyota-camry-40")
+    check("Camry 2011 — уже XV50",
+          CarCatalog.slug(name: "Toyota Camry", generation: "XV50 (2011-2017)"),
+          "toyota-camry-50")
+    check("Camry с индексом кузова — индекс сильнее года",
+          CarCatalog.slug(name: "Toyota Camry XV40", generation: "(2015-2017)"),
+          "toyota-camry-40")
+    check("E-класс до 2009 — W211",
+          CarCatalog.slug(name: "Mercedes-Benz E 240", generation: "W211 (2002-2009)"),
+          "mercedes-e-w211")
+    check("E-класс без года — новейший W212",
+          CarCatalog.slug(name: "Mercedes-Benz E200"), "mercedes-e-w212")
+    check("C-класс 2011 — W204",
+          CarCatalog.slug(name: "Mercedes-Benz C180", generation: "W204 (2007-2014)"),
+          "mercedes-c-w204")
+    check("C180 без года — по-прежнему W205",
+          CarCatalog.slug(name: "Mercedes-Benz C180"), "mercedes-c-w205")
+    check("ML — не GL",
+          CarCatalog.slug(name: "Mercedes-Benz ML 350"), "mercedes-ml")
+    check("BMW 320d 2008 — E90",
+          CarCatalog.slug(name: "BMW 320d", generation: "E90 (2005-2012)"), "bmw-3-e90")
+    check("BMW 320d без года — F30",
+          CarCatalog.slug(name: "BMW 320d"), "bmw-3-f30")
+    check("BMW 525 с индексом E60 — E60 при любом годе",
+          CarCatalog.slug(name: "BMW 525i E60", generation: "(2015-2017)"), "bmw-5-e60")
+    check("X3 раньше серий", CarCatalog.slug(name: "BMW X3 xDrive20d"), "bmw-x3")
+    check("Pajero Sport — не большой Pajero",
+          CarCatalog.slug(name: "Mitsubishi Pajero Sport"), "mitsubishi-pajero-sport")
+    check("Pajero без Sport — четвёртый",
+          CarCatalog.slug(name: "Митсубиси Паджеро"), "mitsubishi-pajero-4")
+    check("Tiggo 4 Pro", CarCatalog.slug(name: "Chery Tiggo 4 Pro"), "chery-tiggo4")
+    check("Tiggo 8 Pro Max", CarCatalog.slug(name: "Chery Tiggo 8 Pro Max"), "chery-tiggo8")
+    check("Grand Vitara — две группы",
+          CarCatalog.slug(name: "Suzuki Grand Vitara"), "suzuki-grand-vitara")
+    check("Хёндэ Акцент по-русски", CarCatalog.slug(name: "Хендай Акцент"), "hyundai-accent")
+    check("ВАЗ-21099 — девятка", CarCatalog.slug(name: "ВАЗ 21099"), "lada-2109")
+    check("Москвич 3 — свой кадр", CarCatalog.slug(name: "Москвич 3"), "moskvich-3")
+    check("Omoda S5 — не C5", CarCatalog.slug(name: "Omoda S5"), "omoda-s5")
+    check("Omoda C5 кириллицей — по-прежнему C5",
+          CarCatalog.slug(name: "Омода С5"), "omoda-c5")
 }
 
 // ---------------------------------------------------------------- PhoneFormat
