@@ -234,7 +234,7 @@ def cutout_binary(explicit: str = "") -> str | None:
 
 
 def assemble(slug: str, source: str, dest: str, cutout: str | None,
-             flip: bool, floor: int) -> None:
+             flip: bool, floor: int, reflection: float = 0.0) -> None:
     """Сырой кадр → кадр каталога, как у 76 в проде: вырезка машины →
     `compose_hero` с единым полом и тенью, 1264×841.
 
@@ -258,7 +258,7 @@ def assemble(slug: str, source: str, dest: str, cutout: str | None,
         finalize(work, flip=False, floor=floor)
     # Размер как у 76 кадров прода (1264×841, те же 3:2), а не 1536×1024
     # по умолчанию: первая партия ушла крупнее без пользы для экрана.
-    compose_hero(work, size=(1264, 841))
+    compose_hero(work, size=(1264, 841), reflection=reflection)
     os.replace(work, dest)
 
 
@@ -321,7 +321,7 @@ def recompose(args, cutout: str | None) -> int:
             import shutil
             shutil.copyfile(dest, raw_path)
             source = raw_path
-        assemble(car["slug"], source, dest, cutout, args.flip, args.floor)
+        assemble(car["slug"], source, dest, cutout, args.flip, args.floor, args.reflection)
         ok, peak = edges_are_black(dest)
         done.append(car["slug"])
         log(f"{car['slug']}: пересобран, края {peak}" + ("" if ok else " — светлые"))
@@ -379,6 +379,13 @@ def main() -> int:
                          "собирается из tools/cutout.swift сам)")
     ap.add_argument("--no-cutout", action="store_true",
                     help="собрать без вырезки: под колёсами будет чёрная полоса")
+    # У прода отражение под машиной пришло из сырья и пережило вырезку;
+    # у второй очереди вырезка оставляет только машину, и без отражения
+    # между шинами и полом остаётся чёрная полоса. 0.28 подобрано глазами
+    # по зуму рядом с продом (0.22 бледнее прода, 0.32 уже ярче).
+    ap.add_argument("--reflection", type=float, default=0.28,
+                    help="синтетическое отражение под машиной, доля яркости "
+                         "кузова; 0 — выключить")
     ap.add_argument("--recompose", action="store_true",
                     help="без сети: пересобрать кадры из уже лежащих в raw "
                          "(<slug>.raw.png, иначе <slug>.png) через вырезку")
@@ -501,7 +508,7 @@ def main() -> int:
                 open(tmp_out, "wb").write(png)
                 finalize(tmp_out, flip=args.flip, floor=args.floor)
             else:
-                assemble(car["slug"], tmp_raw, tmp_out, cutout, args.flip, args.floor)
+                assemble(car["slug"], tmp_raw, tmp_out, cutout, args.flip, args.floor, args.reflection)
             os.remove(tmp_raw)
             ok, peak = edges_are_black(tmp_out)
             if best is None or peak < best[0]:
