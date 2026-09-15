@@ -203,7 +203,8 @@ def recompose(path: str, size: int = 1024, margin: float = 0.08,
 def compose_hero(path: str, size: tuple[int, int] = (1536, 1024),
                  width_share: float = 0.86, bottom: float = 0.81,
                  glow: float = 0.20, blur: int = 70,
-                 reflection: float = 0.0) -> None:
+                 reflection: float = 0.0, contact: float = 0.0,
+                 shadow_fill: int = 110) -> None:
     """Собирает кадр в формате ассета главной (`CarPhoto`, 3:2): чистая
     вырезка машины (86% ширины, низ на 0.81 высоты) плюс ЕДИНАЯ
     синтетическая земля — требование пользователя: обычная тень ПОД
@@ -213,11 +214,16 @@ def compose_hero(path: str, size: tuple[int, int] = (1536, 1024),
     размытый силуэт, гасящий пол; машина кладётся поверх через маску.
     На вход — файл ВЫРЕЗКИ (фон уже чёрный).
 
-    `reflection` > 0 — под машиной глянцевый пол: её зеркальная копия,
-    гаснущая вниз, с пиком `reflection` от яркости кузова. У 76 кадров
-    прода отражение пришло из сырья и пережило вырезку; у второй очереди
-    (2026-09-15) вырезка оставляет только машину, и без этого параметра
-    между шинами и синтетическим полом остаётся чёрная полоса."""
+    `reflection` > 0 — зеркальная копия машины под ней (не похоже на
+    эталон: светит под порогами, а эталон светит под колёсами; оставлено
+    как вариант). `contact` > 0 — светлые пятна под шинами, как у
+    `lexus-rx`: точки контакта ищутся по низу силуэта (два самых низких
+    кластера — шины), пик `contact` от 255 на +25 px ниже низа машины.
+    `shadow_fill` — сила тени под днищем; у эталона пол под машиной не
+    гаснет в ноль (минимум 6–8), поэтому для контактного режима тень
+    ослабляется. У 76 кадров прода эти пятна пришли из сырья и пережили
+    вырезку; у второй очереди (2026-09-15) вырезка оставляет только машину,
+    и без синтетики между шинами и полом остаётся чёрная полоса."""
     from PIL import Image, ImageChops, ImageFilter
     im = Image.open(path).convert("RGB")
     box = im.convert("L").point(lambda v: 255 if v > 14 else 0).getbbox()
@@ -254,9 +260,39 @@ def compose_hero(path: str, size: tuple[int, int] = (1536, 1024),
     shadow = Image.new("L", size, 0)
     ImageDraw.Draw(shadow).ellipse(
         (canvas_w // 2 - sw, bottom_y - sh, canvas_w // 2 + sw, bottom_y + sh),
-        fill=110)
+        fill=shadow_fill)
     shadow = shadow.filter(ImageFilter.GaussianBlur(25))
     floor = ImageChops.subtract(floor, shadow)
+
+    if contact > 0:
+        # Шины — два самых низких кластера нижней кромки силуэта.
+        sil = car.convert("L").point(lambda v: 255 if v > 10 else 0)
+        sp = sil.load()
+        edge = []
+        for cx in range(car.width):
+            ys = [yy for yy in range(car.height - 1, -1, -1) if sp[cx, yy]]
+            edge.append(ys[0] if ys else -1)
+        lowest = max(edge)
+        band = [cx for cx, ey in enumerate(edge) if ey >= lowest - car.height * 0.03]
+        runs, cur = [], [band[0]] if band else []
+        for cx in band[1:]:
+            if cx - cur[-1] <= 4:
+                cur.append(cx)
+            else:
+                runs.append(cur); cur = [cx]
+        if cur:
+            runs.append(cur)
+        runs = sorted(runs, key=len, reverse=True)[:2]
+        r = max(24, round(car.width * 0.11))
+        spots = Image.new("L", size, 0)
+        sd = ImageDraw.Draw(spots)
+        for run in runs:
+            px_x = x + (run[0] + run[-1]) // 2
+            px_y = y + edge[(run[0] + run[-1]) // 2]
+            sd.ellipse((px_x - r, px_y - r // 2, px_x + r, px_y + r // 2),
+                       fill=round(255 * contact))
+        spots = spots.filter(ImageFilter.GaussianBlur(r // 2))
+        floor = ImageChops.lighter(floor, spots)
 
     out = Image.merge("RGB", (floor, floor, floor))
 

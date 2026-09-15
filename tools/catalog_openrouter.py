@@ -104,10 +104,15 @@ MODEL = "google/gemini-2.5-flash-image"
 
 # Что просим сделать с образцом. Стиль показывается картинкой, а не
 # описывается словами заново: слова уже сказаны в мастер-промпте.
+# Про ориентацию отдельно: в партии 2 половина машин вышла мордой влево
+# при образце мордой вправо. Просьба текстом помогает не всегда — потому
+# в порядке работы стоит проверка по листу и бесплатное зеркало
+# (`--recompose --flip --only …`): сырьё лежит рядом.
 REFERENCE_NOTE = (
     "The attached image is the reference for style, not for the car model. "
-    "Match its lighting, black background, camera angle and framing exactly. "
-    "Draw a different car: "
+    "Match its lighting, black background, camera angle and framing exactly, "
+    "including orientation: the front of the car points to the right side "
+    "of the frame, exactly like in the reference. Draw a different car: "
 )
 
 
@@ -234,7 +239,8 @@ def cutout_binary(explicit: str = "") -> str | None:
 
 
 def assemble(slug: str, source: str, dest: str, cutout: str | None,
-             flip: bool, floor: int, reflection: float = 0.0) -> None:
+             flip: bool, floor: int, reflection: float = 0.0,
+             contact: float = 0.08, shadow: int = 45) -> None:
     """Сырой кадр → кадр каталога, как у 76 в проде: вырезка машины →
     `compose_hero` с единым полом и тенью, 1264×841.
 
@@ -258,7 +264,8 @@ def assemble(slug: str, source: str, dest: str, cutout: str | None,
         finalize(work, flip=False, floor=floor)
     # Размер как у 76 кадров прода (1264×841, те же 3:2), а не 1536×1024
     # по умолчанию: первая партия ушла крупнее без пользы для экрана.
-    compose_hero(work, size=(1264, 841), reflection=reflection)
+    compose_hero(work, size=(1264, 841), reflection=reflection,
+                 contact=contact, shadow_fill=shadow)
     os.replace(work, dest)
 
 
@@ -321,7 +328,8 @@ def recompose(args, cutout: str | None) -> int:
             import shutil
             shutil.copyfile(dest, raw_path)
             source = raw_path
-        assemble(car["slug"], source, dest, cutout, args.flip, args.floor, args.reflection)
+        assemble(car["slug"], source, dest, cutout, args.flip, args.floor,
+                 args.reflection, args.contact, args.shadow)
         ok, peak = edges_are_black(dest)
         done.append(car["slug"])
         log(f"{car['slug']}: пересобран, края {peak}" + ("" if ok else " — светлые"))
@@ -379,13 +387,21 @@ def main() -> int:
                          "собирается из tools/cutout.swift сам)")
     ap.add_argument("--no-cutout", action="store_true",
                     help="собрать без вырезки: под колёсами будет чёрная полоса")
-    # У прода отражение под машиной пришло из сырья и пережило вырезку;
-    # у второй очереди вырезка оставляет только машину, и без отражения
-    # между шинами и полом остаётся чёрная полоса. 0.28 подобрано глазами
-    # по зуму рядом с продом (0.22 бледнее прода, 0.32 уже ярче).
-    ap.add_argument("--reflection", type=float, default=0.28,
-                    help="синтетическое отражение под машиной, доля яркости "
-                         "кузова; 0 — выключить")
+    # Сборка откалибрована по эталону lexus-rx численно: вертикальный
+    # профиль яркости под машиной у эталона [13,11,8,7,6,8,10,11,9,8,6,5,3,
+    # 2,1,0] (шаг 10 px вниз от низа машины), и перебор glow × shadow ×
+    # contact на трёх кадрах партии 2 ближе всего лёг при glow 0.20 (как у
+    # прода), тени 45 вместо 110 и контактном свечении 0.08. Зеркальное
+    # отражение (--reflection) к эталону не приближает: светит под
+    # порогами, а эталон светит под колёсами. Выключено.
+    ap.add_argument("--reflection", type=float, default=0.0,
+                    help="зеркальное отражение под машиной, доля яркости "
+                         "кузова; по умолчанию выключено")
+    ap.add_argument("--contact", type=float, default=0.08,
+                    help="контактное свечение под шинами, как у lexus-rx")
+    ap.add_argument("--shadow", type=int, default=45,
+                    help="сила тени под днищем (у прода из сырья ~110, "
+                         "для синтетики 45 — иначе под машиной ноль)")
     ap.add_argument("--recompose", action="store_true",
                     help="без сети: пересобрать кадры из уже лежащих в raw "
                          "(<slug>.raw.png, иначе <slug>.png) через вырезку")
@@ -508,7 +524,8 @@ def main() -> int:
                 open(tmp_out, "wb").write(png)
                 finalize(tmp_out, flip=args.flip, floor=args.floor)
             else:
-                assemble(car["slug"], tmp_raw, tmp_out, cutout, args.flip, args.floor, args.reflection)
+                assemble(car["slug"], tmp_raw, tmp_out, cutout, args.flip, args.floor,
+                         args.reflection, args.contact, args.shadow)
             os.remove(tmp_raw)
             ok, peak = edges_are_black(tmp_out)
             if best is None or peak < best[0]:
