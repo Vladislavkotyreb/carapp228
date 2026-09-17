@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="ru" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Canary — brag</title>
+    <script src="vendor/gsap.min.js"></script>
+    <script src="assets/audio-data.js"></script>
+    <style>
+      @font-face {
+        font-family: "Inter";
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: block;
+        src: url("assets/fonts/inter-cyrillic.woff2") format("woff2");
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: block;
+        src: url("assets/fonts/inter-latin.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+          U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+          U+FEFF, U+FFFD;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #000000;
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000000;
+        color: #ffffff;
+        font-family: "Inter", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .clip { position: absolute; inset: 0; overflow: hidden; }
+      .abs { position: absolute; }
+      .muted { color: #8e8e93; }
+      .tertiary { color: rgba(235, 235, 245, 0.6); }
+
+      /* ---------- Сцена 1: слушатель ---------- */
+      #s1-hook {
+        left: 0; right: 0; top: 176px;
+        text-align: center;
+        font-size: 56px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15;
+      }
+      #s1-hook span { display: block; }
+      #s1-orb-glow {
+        left: 660px; top: 372px; width: 600px; height: 520px;
+        border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(88, 240, 168, 0.55), rgba(64, 210, 224, 0.12) 55%, rgba(0, 0, 0, 0) 75%);
+        opacity: 0.35;
+      }
+      #s1-orb {
+        left: 780px; top: 400px; width: 360px; height: auto;
+        display: block;
+      }
+      #s1-btn {
+        left: 794px; top: 850px; width: 332px; height: 74px;
+        border-radius: 37px;
+        background: #2c2c2e;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 30px; font-weight: 500;
+      }
+      #s1-btn span { position: absolute; }
+      #s1-btn-stop { opacity: 0; }
+      #s1-cursor {
+        left: 960px; top: 990px; width: 38px; height: 38px; border-radius: 50%;
+        background: rgba(255, 255, 255, 0.85);
+        box-shadow: 0 0 0 10px rgba(255, 255, 255, 0.15);
+        opacity: 0;
+      }
+
+      /* ---------- Сцена 2: шторка находок ---------- */
+      #s2-sheet {
+        left: 570px; top: 110px; width: 780px; height: 970px;
+        border-radius: 60px 60px 0 0;
+        background: #1c1c1e;
+        box-shadow: 0 -30px 80px rgba(0, 0, 0, 0.6);
+        padding: 28px 44px 0;
+      }
+      #s2-grabber {
+        left: 342px; top: 12px; width: 96px; height: 6px; border-radius: 3px;
+        background: #333333;
+      }
+      #s2-title { margin-top: 40px; font-size: 42px; font-weight: 600; letter-spacing: -0.01em; }
+      #s2-detail { margin-top: 14px; font-size: 27px; line-height: 1.3; max-width: 690px; }
+      .s2-card {
+        margin-top: 26px; width: 692px;
+        border-radius: 34px; background: #1a1a1a;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 26px 30px;
+      }
+      .s2-card h3 { font-size: 34px; font-weight: 600; letter-spacing: -0.01em; }
+      .s2-card p { margin-top: 8px; font-size: 27px; }
+      .s2-advice {
+        margin-top: 18px; display: flex; align-items: flex-start; gap: 12px;
+        font-size: 25px; line-height: 1.3; color: rgba(235, 235, 245, 0.6);
+      }
+      .s2-advice svg { flex: none; width: 28px; height: 28px; margin-top: 3px; }
+
+      /* ---------- Сцена 3: карточка машины ---------- */
+      #s3-floor {
+        left: 260px; top: 560px; width: 1400px; height: 420px; border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05) 55%, rgba(0, 0, 0, 0) 78%);
+        opacity: 0.5;
+      }
+      #s3-car { left: 330px; top: 120px; width: 1260px; height: auto; display: block; }
+      #s3-plate {
+        left: 120px; top: 120px;
+        display: flex; align-items: center;
+        height: 88px; padding: 0 26px;
+        border-radius: 20px; background: #1a1a1a; border: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 40px; font-weight: 700; letter-spacing: 0.12em;
+      }
+      #s3-plate .region { margin-left: 22px; padding-left: 22px; border-left: 1px solid rgba(255, 255, 255, 0.18); font-size: 30px; letter-spacing: 0.06em; }
+      #s3-plate .rus { display: block; font-size: 14px; letter-spacing: 0.2em; color: #8e8e93; margin-top: 2px; }
+      #s3-name { left: 120px; top: 232px; font-size: 44px; font-weight: 600; letter-spacing: -0.02em; }
+      .s3-tile {
+        top: 890px; width: 420px; height: 150px;
+        border-radius: 32px; background: #1a1a1a; border: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 24px 30px;
+      }
+      .s3-tile .label { font-size: 22px; color: #8e8e93; }
+      .s3-tile .value { margin-top: 12px; font-size: 40px; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; }
+      #s3-tile-1 { left: 520px; }
+      #s3-tile-2 { left: 980px; }
+
+      /* ---------- Сцена 4: каталог ---------- */
+      #s4-title {
+        left: 0; right: 0; top: 96px; text-align: center;
+        font-size: 52px; font-weight: 600; letter-spacing: -0.02em;
+      }
+      #s4-sub { left: 0; right: 0; top: 960px; text-align: center; font-size: 26px; }
+      #s4-strip { left: 0; top: 240px; width: 1920px; height: 620px; }
+      .s4-car { position: absolute; top: 0; width: 900px; height: auto; display: block; }
+
+      /* ---------- Сцена 5: Canary ---------- */
+      #s5-logo {
+        left: 0; right: 0; top: 380px; text-align: center;
+        font-size: 150px; font-weight: 700; letter-spacing: -0.04em; line-height: 1;
+        background: linear-gradient(180deg, #ffffff 0%, #bfbfbf 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      #s5-tag { left: 0; right: 0; top: 570px; text-align: center; font-size: 40px; font-weight: 500; letter-spacing: -0.01em; }
+      #s5-small { left: 0; right: 0; top: 650px; text-align: center; font-size: 22px; letter-spacing: 0.02em; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="20" data-width="1920" data-height="1080">
+
+      <!-- Сцена 1: слушатель. Живёт до 4.6, чтобы шар ещё дышал под поднимающейся шторкой -->
+      <section id="s1" class="clip" data-start="0" data-duration="4.6" data-track-index="0">
+        <div id="s1-hook" class="abs"><span>Поднесите телефон</span><span>к двигателю</span></div>
+        <div id="s1-orb-glow" class="abs"></div>
+        <img id="s1-orb" class="abs" src="assets/img/orb-base.png" alt="" />
+        <div id="s1-btn" class="abs"><span id="s1-btn-listen">Слушать</span><span id="s1-btn-stop">Стоп</span></div>
+        <div id="s1-cursor" class="abs"></div>
+      </section>
+
+      <!-- Сцена 2: шторка находок -->
+      <section id="s2" class="clip" data-start="4" data-duration="5" data-track-index="1">
+        <div id="s2-sheet" class="abs">
+          <div id="s2-grabber" class="abs"></div>
+          <div id="s2-title">Похоже на неисправность</div>
+          <div id="s2-detail" class="muted">Оценка «что-то не так» — 74 %. Ниже версии, что именно, по убыванию.</div>
+          <div id="s2-card-1" class="s2-card">
+            <h3>Подвеска и рулевое</h3>
+            <p class="muted">модель ставит сюда 83 %</p>
+            <div class="s2-advice">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 8H6.2"/><circle cx="9.5" cy="20" r="1.4"/><circle cx="17.5" cy="20" r="1.4"/></svg>
+              <span>Проверить стойки, сайлентблоки и опоры на трассе со стыками</span>
+            </div>
+          </div>
+          <div id="s2-card-2" class="s2-card">
+            <h3>Опоры двигателя</h3>
+            <p class="muted">модель ставит сюда 11 %</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Сцена 3: карточка машины -->
+      <section id="s3" class="clip" data-start="9" data-duration="4" data-track-index="2">
+        <div id="s3-floor" class="abs"></div>
+        <img id="s3-car" class="abs" src="assets/img/lexus-rx.png" alt="" />
+        <div id="s3-plate" class="abs"><span>А 777 АА</span><span class="region">777<span class="rus">RUS</span></span></div>
+        <div id="s3-name" class="abs">Lexus RX</div>
+        <div id="s3-tile-1" class="abs s3-tile"><div class="label">ТО через</div><div class="value">3 500 км</div></div>
+        <div id="s3-tile-2" class="abs s3-tile"><div class="label">Цена авто</div><div class="value">≈ 3 900 000 ₽</div></div>
+      </section>
+
+      <!-- Сцена 4: каталог -->
+      <section id="s4" class="clip" data-start="13" data-duration="4.5" data-track-index="3" data-layout-allow-overflow>
+        <div id="s4-title" class="abs">Ваша модель уже нарисована</div>
+        <div id="s4-strip" class="abs">
+          <img class="s4-car" id="s4-car-0" src="assets/img/hyundai-solaris.png" alt="" style="left: 510px" />
+          <img class="s4-car" id="s4-car-1" src="assets/img/toyota-camry-70.png" alt="" style="left: 1510px" />
+          <img class="s4-car" id="s4-car-2" src="assets/img/bmw-3-f30.png" alt="" style="left: 2510px" />
+          <img class="s4-car" id="s4-car-3" src="assets/img/lada-vesta.png" alt="" style="left: 3510px" />
+          <img class="s4-car" id="s4-car-4" src="assets/img/mercedes-gl.png" alt="" style="left: 4510px" />
+        </div>
+        <div id="s4-sub" class="abs muted">88 моделей, самые частые в России</div>
+      </section>
+
+      <!-- Сцена 5: Canary -->
+      <section id="s5" class="clip" data-start="17.5" data-duration="2.5" data-track-index="4">
+        <div id="s5-logo" class="abs">Canary</div>
+        <div id="s5-tag" class="abs tertiary">Слушает мотор. Помнит ТО.</div>
+        <div id="s5-small" class="abs muted">iOS · данные остаются на телефоне</div>
+      </section>
+
+      <!-- Звук -->
+      <audio id="bgm" src="assets/music/happy-beats-business-moves-vol-1-by-ende-dot-app.mp3" data-start="0" data-duration="20" data-track-index="10" data-volume="0.55"></audio>
+      <audio id="sfx-click" src="assets/sfx/interface/click_003.ogg" data-start="2.4" data-duration="0.15" data-track-index="11" data-volume="0.9"></audio>
+      <audio id="sfx-sheet" src="assets/sfx/impact/impactSoft_medium_001.ogg" data-start="4.05" data-duration="0.4" data-track-index="11" data-volume="0.7"></audio>
+      <audio id="sfx-card-1" src="assets/sfx/casino/card-slide-1.ogg" data-start="4.53" data-duration="0.45" data-track-index="12" data-volume="0.5"></audio>
+      <audio id="sfx-card-2" src="assets/sfx/casino/card-slide-1.ogg" data-start="5.53" data-duration="0.45" data-track-index="12" data-volume="0.5"></audio>
+      <audio id="sfx-car-land" src="assets/sfx/impact/impactSoft_medium_004.ogg" data-start="9.55" data-duration="0.4" data-track-index="11" data-volume="0.7"></audio>
+      <audio id="sfx-tile-1" src="assets/sfx/interface/bong_001.ogg" data-start="10.52" data-duration="0.25" data-track-index="12" data-volume="0.45"></audio>
+      <audio id="sfx-tile-2" src="assets/sfx/interface/bong_001.ogg" data-start="11.02" data-duration="0.25" data-track-index="12" data-volume="0.45"></audio>
+      <audio id="sfx-sweep-1" src="assets/sfx/casino/card-slide-1.ogg" data-start="13.51" data-duration="0.45" data-track-index="12" data-volume="0.4"></audio>
+      <audio id="sfx-sweep-2" src="assets/sfx/casino/card-slide-1.ogg" data-start="14.02" data-duration="0.45" data-track-index="12" data-volume="0.4"></audio>
+      <audio id="sfx-sweep-3" src="assets/sfx/casino/card-slide-1.ogg" data-start="14.52" data-duration="0.45" data-track-index="12" data-volume="0.4"></audio>
+      <audio id="sfx-sweep-4" src="assets/sfx/casino/card-slide-1.ogg" data-start="15.02" data-duration="0.45" data-track-index="12" data-volume="0.4"></audio>
+      <audio id="sfx-sweep-5" src="assets/sfx/casino/card-slide-1.ogg" data-start="15.52" data-duration="0.45" data-track-index="12" data-volume="0.4"></audio>
+      <audio id="sfx-gl-land" src="assets/sfx/impact/impactSoft_medium_001.ogg" data-start="16.02" data-duration="0.4" data-track-index="11" data-volume="0.7"></audio>
+      <audio id="sfx-bell" src="assets/sfx/impact/impactBell_heavy_000.ogg" data-start="17.52" data-duration="1.8" data-track-index="11" data-volume="0.8"></audio>
+    </div>
+
+    <script>
+      // Все времена глобальные (секунды от начала ролика). Сетка битов трека
+      // 120 BPM: 3.02, 3.52, 4.02, 4.53, 5.03, 5.53 … шаг 0.5. Сильные удары
+      // с 16.02 (16.02, 17.02, 17.52, 18.02, 18.52).
+      const tl = gsap.timeline({ paused: true });
+      const E = "power3.out";
+
+      // ---------- Музыка: вход и уход ----------
+      tl.fromTo("#bgm", { volume: 0 }, { volume: 0.55, duration: 0.6, ease: "none" }, 0);
+      tl.to("#bgm", { volume: 0, duration: 1.5, ease: "power1.in" }, 18.5);
+
+      // ---------- Сцена 1 ----------
+      tl.fromTo("#s1-hook span", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: E, stagger: 0.12 }, 0.3);
+      tl.fromTo("#s1-orb", { scale: 0.86, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.0, ease: E }, 0.15);
+      tl.fromTo("#s1-btn", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: E }, 0.8);
+      // Симулированное нажатие «Слушать» на 2.4
+      tl.fromTo("#s1-cursor", { opacity: 0, x: 60, y: 60 }, { opacity: 1, x: 0, y: -100, duration: 0.5, ease: "power2.out" }, 1.85);
+      tl.to("#s1-btn", { scale: 0.96, duration: 0.08, ease: "power1.in" }, 2.36);
+      tl.to("#s1-btn", { scale: 1, duration: 0.25, ease: "back.out(2)" }, 2.44);
+      tl.to("#s1-cursor", { opacity: 0, duration: 0.3 }, 2.6);
+      tl.to("#s1-btn-listen", { opacity: 0, duration: 0.15 }, 2.42);
+      tl.to("#s1-btn-stop", { opacity: 1, duration: 0.2 }, 2.5);
+      // Шар растёт и разгорается после нажатия; дальше дыхание по музыке (ниже)
+      tl.to("#s1-orb", { scale: 1.15, duration: 0.8, ease: "power2.out" }, 2.42);
+      tl.to("#s1-orb-glow", { scale: 1.2, duration: 0.8, ease: "power2.out" }, 2.42);
+      // Уход под шторку
+      tl.to("#s1-hook span", { y: -20, opacity: 0, duration: 0.4, ease: "power2.in", stagger: 0.05 }, 3.7);
+      tl.to(["#s1-btn", "#s1-orb", "#s1-orb-glow"], { opacity: 0, duration: 0.5, ease: "power2.in" }, 4.05);
+
+      // ---------- Сцена 2 ----------
+      tl.fromTo("#s2-sheet", { y: 1000 }, { y: 0, duration: 0.65, ease: E }, 4.0);
+      tl.fromTo(["#s2-title", "#s2-detail"], { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: E, stagger: 0.08 }, 4.35);
+      // beat-grid: карточка 1 на 4.53, карточка 2 на 5.53 — по биту, с холдом на чтение
+      tl.fromTo("#s2-card-1", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: E }, 4.53);
+      tl.fromTo("#s2-card-2", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: E }, 5.53);
+      tl.to("#s2-sheet", { y: 1000, duration: 0.5, ease: "power3.in" }, 8.45);
+
+      // ---------- Сцена 3 ----------
+      tl.fromTo("#s3-car", { x: 140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.75, ease: E }, 9.0);
+      tl.fromTo("#s3-floor", { opacity: 0 }, { opacity: 0.5, duration: 0.8, ease: "power2.out" }, 9.1);
+      tl.fromTo(["#s3-plate", "#s3-name"], { y: -18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: E, stagger: 0.1 }, 9.5);
+      // beat-grid: плитки на 10.52 и 11.02
+      tl.fromTo("#s3-tile-1", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: E }, 10.52);
+      tl.fromTo("#s3-tile-2", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: E }, 11.02);
+      // Уход влево, карусель подхватывает
+      tl.to("#s3-car", { x: -1500, opacity: 0, duration: 0.55, ease: "power3.in" }, 12.5);
+      tl.to(["#s3-plate", "#s3-name", "#s3-tile-1", "#s3-tile-2", "#s3-floor"], { opacity: 0, duration: 0.35, ease: "power2.in" }, 12.6);
+
+      // ---------- Сцена 4 ----------
+      tl.fromTo("#s4-title", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: E }, 13.3);
+      tl.fromTo("#s4-sub", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: E }, 13.6);
+      // beat-grid: машины встают в центр на 13.51, 14.02, 14.52, 15.02; beat-locked: GL на 16.02
+      // Полоса: машина i стоит на left = 510 + i*1000, центр кадра — при x = -i*1000.
+      tl.fromTo("#s4-strip", { x: 1000 }, { x: 0, duration: 0.5, ease: "power2.inOut" }, 13.01);
+      tl.to("#s4-strip", { x: -1000, duration: 0.5, ease: "power2.inOut" }, 13.52);
+      tl.to("#s4-strip", { x: -2000, duration: 0.5, ease: "power2.inOut" }, 14.02);
+      tl.to("#s4-strip", { x: -3000, duration: 0.5, ease: "power2.inOut" }, 14.52);
+      tl.to("#s4-strip", { x: -4000, duration: 0.5, ease: "power2.inOut" }, 15.52); // beat-locked: 16.02
+      tl.to(["#s4-title", "#s4-sub", "#s4-strip"], { opacity: 0, duration: 0.4, ease: "power2.in" }, 17.05);
+
+      // ---------- Сцена 5 ----------
+      // beat-locked: 17.52 «Canary», 18.52 тэглайн
+      tl.fromTo("#s5-logo", { scale: 0.92, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.7, ease: E }, 17.52);
+      tl.fromTo("#s5-tag", { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: E }, 18.52);
+      tl.fromTo("#s5-small", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: E }, 19.0);
+
+      // ---------- Аудио-реактив: шар дышит и пятно под машиной светится по музыке ----------
+      // Данные извлечены заранее (assets/audio-data.js), 30 fps. Сэмплируем покадрово
+      // через tl.call; никаких Web Audio и случайностей. Свечение шара — сцена 1,
+      // пятно под машиной — сцена 3. Ход маленький: это дыхание, а не пульс.
+      const AD = window.AUDIO_DATA;
+      if (AD && AD.frames) {
+        const glow = document.getElementById("s1-orb-glow");
+        const floor = document.getElementById("s3-floor");
+        const level = (fr) => {
+          if (typeof fr.rms === "number") return fr.rms;
+          const b = fr.bands || [];
+          return b.length ? (b[0] + b[1] + (b[2] || 0)) / 3 : 0;
+        };
+        for (let f = 0; f < AD.totalFrames; f++) {
+          const t = f / AD.fps;
+          const v = level(AD.frames[f]);
+          if (t < 4.3) {
+            tl.call((val) => {
+              glow.style.opacity = String(0.3 + val * 0.5);
+              glow.style.filter = "blur(" + (2 + val * 6).toFixed(1) + "px)";
+            }, [v], t);
+          } else if (t >= 9.3 && t < 12.5) {
+            tl.call((val) => {
+              floor.style.opacity = String(0.42 + val * 0.28);
+            }, [v], t);
+          }
+        }
+      }
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
