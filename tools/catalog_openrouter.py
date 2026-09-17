@@ -305,11 +305,8 @@ def generate(car: dict, key: str, model: str,
 
 
 def recompose(args, cutout: str | None) -> int:
-    """Пересобрать кадры из того, что уже лежит в raw, без единого запроса.
-    Источник — `<slug>.raw.png`; у первой партии сырьё не сохранялось,
-    тогда берётся сам `<slug>.png`: в нём машина плюс чёрная полоса и
-    синтетический пол, вырезка вытащит из него машину, и сборка пройдёт
-    заново правильно."""
+    """Пересобрать кадры из сырья `<slug>.raw.png`, без единого запроса.
+    Кадры без сырья пропускаются и не трогаются."""
     cars = json.load(open(args.cars))
     if args.only:
         wanted = {s.strip() for s in args.only.split(",") if s.strip()}
@@ -320,22 +317,23 @@ def recompose(args, cutout: str | None) -> int:
     for car in cars:
         dest = os.path.join(args.out, car["slug"] + ".png")
         raw_path = os.path.join(args.out, car["slug"] + ".raw.png")
-        source = raw_path if os.path.exists(raw_path) else dest
+        # Только настоящее сырьё. Раньше при его отсутствии брался готовый
+        # `<slug>.png` — и 2026-09-17 `--recompose` без `--only` молча
+        # пересобрал 53 кадра первой партии (чужие машины, срезанные шины)
+        # из их старых сборок, а импорт вернул их в репозиторий. Кадр без
+        # `.raw.png` пересобирать не из чего: только генерировать заново.
+        source = raw_path
         if not os.path.exists(source):
             skipped.append(car["slug"]); continue
-        if source == dest:
-            # Сырья нет — сохранить то, что есть, прежде чем перезаписать.
-            import shutil
-            shutil.copyfile(dest, raw_path)
-            source = raw_path
         assemble(car["slug"], source, dest, cutout, args.flip, args.floor,
                  args.reflection, args.contact, args.shadow)
         ok, peak = edges_are_black(dest)
         done.append(car["slug"])
         log(f"{car['slug']}: пересобран, края {peak}" + ("" if ok else " — светлые"))
-    log(f"пересобрано: {len(done)}, нет исходника: {len(skipped)}")
+    log(f"пересобрано: {len(done)}, без сырья (не тронуты): {len(skipped)}")
     if skipped:
         log("  " + ", ".join(skipped))
+        log("  у этих нет <slug>.raw.png — их можно только сгенерировать заново")
     return 0
 
 
