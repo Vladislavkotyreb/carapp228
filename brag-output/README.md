@@ -1,4 +1,4 @@
-# brag-output — launch-видео Canary
+# brag-output — launch-видео Beepy
 
 Собрано навыком `/brag` (`.claude/skills/brag`) поверх Hyperframes 2026-09-17.
 В git лежат `brag-plan.md`, `composition-brief.md`, `composition/index.html`,

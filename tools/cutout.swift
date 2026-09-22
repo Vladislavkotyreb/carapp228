@@ -12,9 +12,9 @@
 // во временном каталоге сессии — этот его замена.
 //
 // Сборка (один раз, потом бинарник быстрый):
-//     swiftc -O tools/cutout.swift -o ~/canary-catalog/cutout
+//     swiftc -O tools/cutout.swift -o ~/beepy-catalog/cutout
 // Запуск, парами вход/выход:
-//     ~/canary-catalog/cutout in.png out.png [in2.png out2.png …]
+//     ~/beepy-catalog/cutout in.png out.png [in2.png out2.png …]
 // Код возврата 1, если хоть один кадр не вырезался; генератор это ловит.
 
 import AppKit

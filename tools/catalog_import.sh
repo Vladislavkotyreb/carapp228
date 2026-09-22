@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Сгенерированные кадры → каталог приложения.
 #
-# Берёт PNG из ~/canary-catalog/raw для каждого слага из списков генерации
+# Берёт PNG из ~/beepy-catalog/raw для каждого слага из списков генерации
 # и кладёт HEIC в AppMVP/Resources/CarCatalog тем же `sips` с качеством 80,
 # которым сделаны остальные кадры. Уже лежащие HEIC не перезаписывает:
 # перегенерировать кадр — удалить старый HEIC руками, чтобы это было
@@ -22,7 +22,11 @@ FORCE=0
 if [[ "${1:-}" == "--force" ]]; then FORCE=1; shift; fi
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RAW="${CANARY_RAW:-$HOME/canary-catalog/raw}"
+# Папка кадров: новая, а если её ещё нет и осталась старая (до
+# переименования в Beepy 2026-09-22) — старая, чтобы не потерять сырьё.
+CATALOG_HOME="$HOME/beepy-catalog"
+[[ ! -d "$CATALOG_HOME" && -d "$HOME/canary-catalog" ]] && CATALOG_HOME="$HOME/canary-catalog"
+RAW="${BEEPY_RAW:-$CATALOG_HOME/raw}"
 DEST="$REPO/AppMVP/Resources/CarCatalog"
 
 if ! command -v sips >/dev/null; then

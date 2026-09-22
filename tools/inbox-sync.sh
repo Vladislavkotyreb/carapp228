@@ -13,15 +13,15 @@
 #
 # Установка — раз:
 #   chmod +x tools/inbox-sync.sh
-#   cp tools/dev.canary.inbox-sync.plist ~/Library/LaunchAgents/
-#   launchctl load ~/Library/LaunchAgents/dev.canary.inbox-sync.plist
+#   cp tools/dev.beepy.inbox-sync.plist ~/Library/LaunchAgents/
+#   launchctl load ~/Library/LaunchAgents/dev.beepy.inbox-sync.plist
 #
 # Разовый прогон руками: tools/inbox-sync.sh
 set -euo pipefail
 
 # --- Настройка ---------------------------------------------------------------
 # Править этот файл не нужно. Путь к папке с заметками передаётся один раз
-# аргументом, скрипт запоминает его в ~/.config/canary/vault и дальше берёт
+# аргументом, скрипт запоминает его в ~/.config/beepy/vault и дальше берёт
 # оттуда — launchd запускает без аргументов.
 #
 #   tools/inbox-sync.sh "/путь/к/хранилищу/Whelly"   # первый раз
@@ -33,14 +33,14 @@ set -euo pipefail
 # Папка репозитория — там, где лежит сам скрипт, а не там, откуда его запустили.
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-CONFIG="$HOME/.config/canary/vault"
+CONFIG="$HOME/.config/beepy/vault"
 # Путь запоминался под прежним именем приложения. Читаем старый файл, если
 # нового ещё нет, но пишем всегда в новый — так настройка переезжает сама
 # и не теряется. Без этого переименование молча стёрло бы путь, и утренняя
 # синхронизация встала бы с «путь не задан».
-LEGACY_CONFIG="$HOME/.config/beepy/vault"
+LEGACY_CONFIG="$HOME/.config/canary/vault"
 
-VAULT="${1:-${CANARY_VAULT:-}}"
+VAULT="${1:-${BEEPY_VAULT:-}}"
 if [[ -z "$VAULT" ]]; then
   if   [[ -f "$CONFIG"        ]]; then VAULT="$(cat "$CONFIG")"
   elif [[ -f "$LEGACY_CONFIG" ]]; then VAULT="$(cat "$LEGACY_CONFIG")"
@@ -48,7 +48,7 @@ if [[ -z "$VAULT" ]]; then
 fi
 
 # Ветка, в которую уезжают заметки.
-BRANCH="${CANARY_BRANCH:-claude/epic-darwin-axs48i}"
+BRANCH="${BEEPY_BRANCH:-claude/epic-darwin-axs48i}"
 # -----------------------------------------------------------------------------
 
 log() { printf '%s  %s\n' "$(date '+%F %T')" "$*"; }

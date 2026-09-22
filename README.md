@@ -1,4 +1,4 @@
-# Canary — iOS-приложение
+# Beepy — iOS-приложение
 
 SwiftUI, таргет iOS 17.0. Дизайн ведётся в Figma
 (файл `9GXgWezTGI6TjklsnuBns2`) и воспроизводится попиксельно.
@@ -11,7 +11,7 @@ SwiftUI, таргет iOS 17.0. Дизайн ведётся в Figma
 ## Быстрый старт
 
 ```bash
-open Canary.xcodeproj
+open Beepy.xcodeproj
 ```
 
 Схема `AppMVP`, ⌘R на симуляторе. Для запуска на своём iPhone —
@@ -47,6 +47,7 @@ docs/                     — устройство проекта и проце�
 | [docs/DIAGNOSIS.md](docs/DIAGNOSIS.md) | Разбор звука: сервер, модель, пороги |
 | [docs/BACKEND.md](docs/BACKEND.md), [docs/DATABASES.md](docs/DATABASES.md) | План бэкенда и где держать базу в РФ |
 | [docs/CAR_IMAGES.md](docs/CAR_IMAGES.md) | Откуда брать изображения машин |
+| [docs/LOCAL_SESSION.md](docs/LOCAL_SESSION.md) | Локальная сессия на маке: панель симулятора, сборка, тапы, скриншоты |
 | [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md), [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md), [docs/APPLE_DEVELOPER.md](docs/APPLE_DEVELOPER.md), [docs/XCODE_SETUP.md](docs/XCODE_SETUP.md) | Как поставить, подписать, раздать |
 
 Полная карта со слоями и правилом для каждого — [docs/STATE.md](docs/STATE.md), Часть V.
@@ -59,12 +60,12 @@ docs/                     — устройство проекта и проце�
 
 ## Про проект Xcode
 
-`Canary.xcodeproj/project.pbxproj` ведётся **вручную**: XcodeGen не
+`Beepy.xcodeproj/project.pbxproj` ведётся **вручную**: XcodeGen не
 установлен, `project.yml` оставлен только для справки и уже разошёлся с
 реальным проектом. Новый `.swift`-файл нужно прописать в четырёх местах —
 `PBXBuildFile`, `PBXFileReference`, `children` группы и `PBXSourcesBuildPhase`.
-После правки — `plutil -lint Canary.xcodeproj/project.pbxproj`.
+После правки — `plutil -lint Beepy.xcodeproj/project.pbxproj`.
 
 ## Bundle ID
 
-`com.vladislavkotyrev.appmvp`, на устройстве приложение подписано как **Canary**.
+`com.vladislavkotyrev.appmvp`, на устройстве приложение подписано как **Beepy**.

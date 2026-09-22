@@ -56,7 +56,7 @@ OpenRouter, а не по нашей оценке цены.
 
 1. В каталог проекта, тем же `sips`, что и остальные 76:
 
-       sips -s format heic -s formatOptions 80 ~/canary-catalog/raw/<slug>.png \
+       sips -s format heic -s formatOptions 80 ~/beepy-catalog/raw/<slug>.png \
             --out AppMVP/Resources/CarCatalog/<slug>.heic
 
    Папка подключена одной folder reference, так что в `project.pbxproj`
@@ -86,10 +86,21 @@ REPO = os.path.dirname(HERE)
 CARS_NEXT = os.path.join(HERE, "catalog_cars_next.json")
 CARS_DONE = os.path.join(HERE, "catalog_cars.json")
 ASSETS = os.path.join(REPO, "AppMVP", "Resources", "CarCatalog")
-RAW = os.path.expanduser("~/canary-catalog/raw")
+# Рабочая папка кадров. Приложение переименовано в Beepy 2026-09-22, но
+# сырьё партии 2 уже лежит в `~/canary-catalog` — молча «не найти» его
+# значило бы потерять кадры, за которые заплачено. Поэтому новая папка,
+# а если её ещё нет и есть старая, берётся старая.
+def _catalog_home() -> str:
+    new = os.path.expanduser("~/beepy-catalog")
+    old = os.path.expanduser("~/canary-catalog")
+    return old if not os.path.isdir(new) and os.path.isdir(old) else new
+
+
+CATALOG_HOME = _catalog_home()
+RAW = os.path.join(CATALOG_HOME, "raw")
 API = "https://openrouter.ai/api/v1"
 CUTOUT_SRC = os.path.join(HERE, "cutout.swift")
-CUTOUT_BIN = os.path.expanduser("~/canary-catalog/cutout")
+CUTOUT_BIN = os.path.join(CATALOG_HOME, "cutout")
 # Образец по умолчанию — ассет главной. Им же, одним на всех, сделаны
 # 64 банановых кадра прода (журнал 2026-09-06): стиль переносится, а
 # машина в нём чужая для любого слага, копировать нечего.
@@ -173,7 +184,7 @@ def reference_png(slug: str) -> bytes | None:
     heic = os.path.join(ASSETS, slug + ".heic")
     if not os.path.exists(heic):
         return None
-    out = os.path.join("/tmp", f"canary-ref-{slug}.png")
+    out = os.path.join("/tmp", f"beepy-ref-{slug}.png")
     try:
         subprocess.run(["sips", "-s", "format", "png", heic, "--out", out],
                        check=True, capture_output=True)
@@ -293,7 +304,7 @@ def generate(car: dict, key: str, model: str,
     cost = float((answer.get("usage") or {}).get("cost") or 0)
     images = ((answer.get("choices") or [{}])[0].get("message") or {}).get("images") or []
     if not images:
-        dump = os.path.join("/tmp", f"canary-openrouter-{car['slug']}.json")
+        dump = os.path.join("/tmp", f"beepy-openrouter-{car['slug']}.json")
         with open(dump, "w", encoding="utf-8") as f:
             json.dump(answer, f, ensure_ascii=False, indent=2)
         raise SystemExit(
@@ -432,7 +443,7 @@ def main() -> int:
 
     cutout = None if args.no_cutout else cutout_binary(args.cutout)
     if not cutout and not args.no_cutout and not args.dry_run:
-        log("ВНИМАНИЕ: вырезки нет (нет ~/canary-catalog/cutout и не собрался "
+        log(f"ВНИМАНИЕ: вырезки нет (нет {CUTOUT_BIN} и не собрался "
             "swiftc) — кадры соберутся с чёрной полосой под колёсами. "
             "Осознанно — добавьте --no-cutout.")
         if not args.recompose:
