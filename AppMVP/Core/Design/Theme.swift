@@ -29,7 +29,7 @@ struct Theme {
     static let buttonHeight: CGFloat = 52
 }
 
-/// Значения один-в-один из Figma (Canary). С 05.09.2026 всё приложение идёт
+/// Значения один-в-один из Figma (Beepy). С 05.09.2026 всё приложение идёт
 /// в тёмной теме: токены переведены на тёмные варианты тех же переменных
 /// библиотеки (тёмная секция 46225:7442 и палитра HIG Dark). Акцент кнопок —
 /// белый по прямому указанию пользователя: синие кнопки прототипа не берём.
@@ -42,6 +42,8 @@ enum Figma {
     static let sheetBackground = Color(red: 28 / 255, green: 28 / 255, blue: 30 / 255)
     static let labelsPrimary = Color.white                                          // Labels/Primary (Dark) #FFFFFF
     static let graysGray = Color(red: 142 / 255, green: 142 / 255, blue: 147 / 255) // Grays/Gray #8E8E93
+    static let labelsSecondary = Color(red: 235 / 255, green: 235 / 255, blue: 245 / 255)
+        .opacity(0.6)                                                               // Labels/Secondary (Dark)
     static let labelsTertiary = Color(red: 235 / 255, green: 235 / 255, blue: 245 / 255)
         .opacity(0.3)                                                               // Labels/Tertiary (Dark)
     static let vibrantControlsPrimary = Color(red: 245 / 255, green: 245 / 255, blue: 245 / 255) // Labels-Vibrant-Controls/Primary (Dark) #F5F5F5

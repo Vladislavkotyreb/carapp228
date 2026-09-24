@@ -74,6 +74,9 @@ struct CarMainView: View {
     @Query(sort: \Car.createdAt) private var cars: [Car]
 
     @State private var tab = 0
+    /// «Записаться» нажали: карта, открывшись, найдёт ближайший сервис и
+    /// сбросит флаг. См. `MapScreen.findsNearestService`.
+    @State private var findsNearestService = false
     @State private var carPage = 0
     /// Выезд машины при входе в приложение: блок фото выкатывается слева и
     /// плавно тормозит. Играет один раз за жизнь экрана — guard в onAppear
@@ -319,6 +322,26 @@ struct CarMainView: View {
         return cars.indices.contains(index) ? cars[index] : nil
     }
     private var services: [ServiceRecord] { car?.sortedServices ?? [] }
+    /// Прослушивания текущей машины, свежие сверху.
+    private var checks: [EngineCheck] { (car?.checks ?? []).sorted { $0.date > $1.date } }
+
+    /// Итог быстрого прослушивания: живёт между шторкой записи и шторкой
+    /// находок. Отдельно от слота `sheet`: это данные, а не «какое окно
+    /// открыто» — то же разделение, что у `editingRecord`.
+    @State private var quickOutcome: DiagnosisCards.Outcome?
+
+    /// Фильтр общей ленты «История обслуживания» (вариант B).
+    @State private var historyFilter: HistoryFilter = .all
+
+    /// Лента: ТО и прослушивания одной хронологией, свежие сверху.
+    private var historyItems: [HistoryItem] {
+        let items: [HistoryItem] = switch historyFilter {
+        case .all: services.map(HistoryItem.service) + checks.map(HistoryItem.check)
+        case .services: services.map(HistoryItem.service)
+        case .checks: checks.map(HistoryItem.check)
+        }
+        return items.sorted { $0.date > $1.date }
+    }
     private var odometer: Int { car?.odometer ?? 0 }
 
     // Поля шторки «Добавление ТО»
@@ -344,6 +367,48 @@ struct CarMainView: View {
                 onPickPhoto: { sheet = .docSource },
                 onManual: { sheet = .service }
             )
+        }
+        // «Что расскажем сервису» (вариант D): сводка перед картой. Кнопки
+        // шторки закрывают её и ведут дальше — на карту или в «Ошибки».
+        .bottomSheet(isPresented: presenting(.booking)) {
+            if let car {
+                BookingSummarySheet(
+                    model: bookingModel(for: car),
+                    onClose: { sheet = .closed },
+                    onFindService: {
+                        sheet = .closed
+                        findsNearestService = true
+                        tab = 1
+                    },
+                    onListen: { sheet = .listening }
+                )
+            }
+        }
+        // Быстрое прослушивание — та же модалка записи, что в «Ошибках»
+        // (затемнение, панель 370×549, рост из кнопки, хаптик), затем
+        // стандартная «Вот что мы нашли». Замена одной модалки другой — один
+        // переход слота, как у остальных пар.
+        .overlay {
+            QuickListenOverlay(isPresented: sheet == .listening) { outcome in
+                quickOutcome = outcome
+                sheet = .findings
+            }
+        }
+        .bottomSheet(isPresented: presenting(.findings)) {
+            if let outcome = quickOutcome {
+                FindingsSheet(
+                    findings: outcome.cards,
+                    nothingHeard: outcome.nothingHeard,
+                    onClose: { sheet = .closed },
+                    onApprove: {
+                        EngineCheck.record(outcome.cards, car: car, in: modelContext)
+                        sheet = .closed
+                        presentToast("Прослушивание сохранено")
+                        addedServiceTick += 1
+                    },
+                    onRetry: { sheet = .listening }
+                )
+            }
         }
         // Шторка цены (референс пользователя): крупная цена, объяснение
         // средней по рынку, карандаш ведёт в алерт правки — замена шторки
@@ -611,9 +676,9 @@ struct CarMainView: View {
                         .toolbarVisibility(.visible, for: .navigationBar)
                 }
             }
-            Tab("Карта", systemImage: "map", value: 1) { MapScreen() }
+            Tab("Карта", systemImage: "map", value: 1) { MapScreen(findsNearestService: $findsNearestService) }
             Tab("Ошибки", systemImage: "wrench.adjustable", value: 2) {
-                IssuesScreen(hidesTabBar: $hidesTabBar)
+                IssuesScreen(hidesTabBar: $hidesTabBar, car: car)
                     .ignoresSafeArea()
                     // Видимость бара объявляется **содержимым вкладки**, а не
                     // самим `TabView`: на `TabView` модификатор молча
@@ -647,8 +712,8 @@ struct CarMainView: View {
     private var legacyTabs: some View {
         ZStack(alignment: .topLeading) {
             switch tab {
-            case 1: MapScreen().transition(tabTransition)
-            case 2: IssuesScreen(hidesTabBar: $hidesTabBar)
+            case 1: MapScreen(findsNearestService: $findsNearestService).transition(tabTransition)
+            case 2: IssuesScreen(hidesTabBar: $hidesTabBar, car: car)
                     .ignoresSafeArea().transition(tabTransition)
             case 3: MoreScreen().ignoresSafeArea().transition(tabTransition)
             default: carScreen.transition(tabTransition)
@@ -759,8 +824,14 @@ struct CarMainView: View {
         }
         let index = max(0, page)
         guard cars.indices.contains(index) else { return PageMetrics() }
-        return cars[index].services.isEmpty
-            ? PageMetrics(headerGap: 24, cardHeight: 92, statsGap: 24, history: 0)
+        let car = cars[index]
+        if car.services.isEmpty {
+            return PageMetrics(headerGap: 24, cardHeight: 92, statsGap: 24, history: 0)
+        }
+        // Кнопка «Записаться» растит карточку на свою высоту и зазор до
+        // полосы — смесь по весам делает это плавно и при свайпе.
+        return suggestsBooking(car)
+            ? PageMetrics(cardHeight: PageMetrics().cardHeight + Self.bookingRowHeight)
             : PageMetrics()
     }
 
@@ -782,11 +853,17 @@ struct CarMainView: View {
     /// 16 отступ секции + 28 заголовок + 20 + 96 сводка, дальше на каждую
     /// группу 24 зазора + 129 (25 дата + 8 + 96 карточка), и снизу снова 16.
     /// Ошибка видна в покое щелью снизу или срезанной карточкой.
+    ///
+    /// С лентой ТО и прослушиваний (вариант B) к сумме добавилась строка
+    /// фильтра: 32 капсулы + 24 зазора. Группы считаются по отфильтрованной
+    /// ленте — прослушивание той же высоты, что и ТО.
     private var historyHeight: CGFloat {
         let group: CGFloat = 129 + 24      // карточка с датой и зазор перед ней
-        let n = CGFloat(services.count)
-        return 176 + n * group
+        let n = CGFloat(historyItems.count)
+        return 176 + Self.historyFilterRow + n * group
     }
+
+    private static let historyFilterRow: CGFloat = 32 + 24
 
     private func carPageBody(progress p: Double) -> some View {
         let visible = 1 - p
@@ -807,6 +884,9 @@ struct CarMainView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(p > 0.5 ? "Добавить авто" : "ТО")
+                // Оверлеем, а не внутри карточки: карточка сама кнопка, и
+                // кнопка в её лейбле делила бы нажатие с ней.
+                .overlay(alignment: .bottomTrailing) { bookingButtons }
 
                 Spacer(minLength: 0).frame(height: m.statsGap)
 
@@ -1335,7 +1415,8 @@ struct CarMainView: View {
         // карточка в покое остаётся ровно такой, какой была. Смешанное
         // значение включается только в движении, где важна плавность,
         // а не попадание в пиксель.
-        .frame(height: height >= PageMetrics().cardHeight ? nil : height)
+        .frame(height: height >= max(PageMetrics().cardHeight, settledCardHeight) - 0.5
+                   ? nil : height)
         // Figma 45867:2944 — «Liquid Glass - Regular - Small» в тёмном
         // варианте. Тот же рецепт, что у остальных карточек экрана.
         .darkGlassCard(in: RoundedRectangle(cornerRadius: 36))
@@ -1382,7 +1463,84 @@ struct CarMainView: View {
                 }
             }
             .frame(height: 30)
+
+            // Подпись «почему» слева, «Записаться» справа. Сама кнопка
+            // лежит оверлеем поверх карточки (см. `bookingButtons`), здесь —
+            // её невидимый двойник: он держит место ровно по её размеру.
+            if let hint = ServiceMath.bookingHint(kmLeft: kmUntilService(for: car)) {
+                HStack(spacing: 12) {
+                    // 13 и две строки: в одну 15-м кеглем подпись не
+                    // влезала рядом с кнопкой и обрезалась многоточием.
+                    Text(hint)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Figma.labelsSecondary)
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    bookingLabel(tint: urgencyColor(for: car)).hidden()
+                }
+                .frame(height: Self.bookingButtonHeight)
+            }
         }
+    }
+
+    /// «Записаться» — с жёлтой зоны пробега: ведёт на карту к ближайшему
+    /// сервису, где можно позвонить, написать или записаться онлайн.
+    ///
+    /// По кнопке на машину, с тем же весом страницы, что и содержимое
+    /// карточки: при свайпе она уходит вместе с ней. Погашенная кнопка
+    /// нажатий не принимает — иначе невидимая ловила бы тапы по карточке.
+    ///
+    /// HIG, а не главная кнопка экрана: маленькая тонированная капсула в
+    /// цвет зоны (`.bordered` + tint, controlSize `.small`). Это подсказка
+    /// к карточке, и спорить с ней за внимание она не должна.
+    private var bookingButtons: some View {
+        ZStack(alignment: .bottomTrailing) {
+            ForEach(cars) { car in
+                if !car.services.isEmpty, suggestsBooking(car) {
+                    let visible = weight(of: index(of: car))
+                    Button {
+                        sheet = .booking
+                    } label: {
+                        bookingLabel(tint: urgencyColor(for: car))
+                            // Видно 34, нажимается 44 — HIG. Раскладку
+                            // рамка касания не раздвигает.
+                            .contentShape(Rectangle().inset(by: -5))
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(visible)
+                    .allowsHitTesting(visible > 0.5)
+                    .accessibilityHidden(visible < 0.5)
+                    .accessibilityHint("Покажет, что уйдёт в\u{00A0}сервис, и\u{00A0}найдёт ближайший")
+                }
+            }
+        }
+        .padding(24)
+    }
+
+    private func bookingLabel(tint: Color) -> some View {
+        Label("Записаться", systemImage: "calendar.badge.plus")
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(tint)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 14)
+            .frame(height: Self.bookingButtonHeight)
+            .background(tint.opacity(0.18), in: Capsule())
+    }
+
+    /// Высота кнопки «Записаться» и её строка в карточке вместе с зазором 12
+    /// до полосы.
+    private static let bookingButtonHeight: CGFloat = 34
+    private static let bookingRowHeight: CGFloat = 12 + bookingButtonHeight
+
+    private func suggestsBooking(_ car: Car) -> Bool {
+        ServiceMath.suggestsBooking(kmLeft: kmUntilService(for: car))
+    }
+
+    /// Высота карточки текущей страницы в покое. Ниже неё высоту задаёт
+    /// смесь — идёт свайп; на ней самой — содержимое, как в макете.
+    private var settledCardHeight: CGFloat {
+        metrics(of: nearestPage).cardHeight
     }
 
     /// Значение перекрёстно меняется между машинами, подложка рисуется один
@@ -1468,6 +1626,8 @@ struct CarMainView: View {
                 historySummary
             }
 
+            historyFilterChips
+
             historyStrip
         }
         .padding(.vertical, 16)
@@ -1483,6 +1643,74 @@ struct CarMainView: View {
         }
         .frame(height: 96)
         .darkGlassCard(in: Self.statCardShape)
+    }
+
+    // MARK: - Сводка для сервиса (вариант D)
+
+    /// Находки с названной деталью — у них есть совет. Карточка-вердикт
+    /// («Похоже на неисправность») деталью не является и в сводку не идёт.
+    private func partFindings(of check: EngineCheck) -> [String] {
+        check.orderedFindings.filter { $0.advice != nil }.map(\.title)
+    }
+
+    /// Переходник `Car → значения` для шторки «Что расскажем сервису».
+    private func bookingModel(for car: Car) -> BookingSummarySheet.Model {
+        let calendar = Calendar.current
+        let plate = car.plate.isEmpty ? "" : PlateFormat.format(car.plate)
+        let lastService = car.sortedServices.first
+        let serviceValue = lastService.map {
+            ListeningSummary.Service(date: ListeningSummary.dayMonth($0.date, calendar: calendar),
+                                     mileage: $0.mileage)
+        }
+        let check = car.lastCheck
+        let findings = check.map(partFindings(of:)) ?? []
+        let checkValue = check.map {
+            ListeningSummary.Check(date: ListeningSummary.dayMonth($0.date, calendar: calendar),
+                                   mileage: $0.mileage, findings: findings)
+        }
+        let checkInfo = check.map { check -> BookingSummarySheet.CheckInfo in
+            let days = ListeningSummary.daysSince(check.date, now: .now, calendar: calendar)
+            let at = check.mileage.map { " · на\u{00A0}\(NumberFormat.grouped($0))\u{00A0}км" } ?? ""
+            // Дата — во второй строке: рядом с переключателем «Прослушивание
+            // 22 сентября» не помещалось и обрезалось (кадр 25.09).
+            return .init(title: "Прослушивание",
+                         subtitle: "\(ListeningSummary.dayMonth(check.date, calendar: calendar)), "
+                             + ListeningSummary.relative(days: days) + at,
+                         findings: findings,
+                         isStale: ListeningSummary.isStale(days: days))
+        }
+        let message = { (check: ListeningSummary.Check?) in
+            ListeningSummary.message(carName: car.name, plate: plate, odometer: car.odometer,
+                                     lastService: serviceValue, check: check)
+        }
+        return .init(
+            carTitle: plate.isEmpty ? car.name : "\(car.name) · \(plate)",
+            carSubtitle: "\(NumberFormat.grouped(car.odometer))\u{00A0}км · ТО через "
+                + "\(NumberFormat.grouped(kmUntilService(for: car)))\u{00A0}км",
+            check: checkInfo,
+            lastService: lastService.map {
+                (title: "Последнее ТО \(ListeningSummary.dayMonth($0.date, calendar: calendar))",
+                 subtitle: "на \(NumberFormat.grouped($0.mileage))\u{00A0}км")
+            },
+            messageWithCheck: message(checkValue),
+            messageWithoutCheck: message(nil)
+        )
+    }
+
+    private static let toolbarGroupWidth: CGFloat = 104
+
+    /// Кнопка-иконка внутри группы тулбара: 52×44, половина капсулы.
+    private func toolbarIcon(_ symbol: String, label: String,
+                             action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: Self.toolbarGroupWidth / 2, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     // MARK: - Тулбар (нода 46165:3243)
@@ -1519,8 +1747,9 @@ struct CarMainView: View {
 
         ToolbarItem(placement: .principal) {
             // 15pt Semibold, две строки, по левому краю — как в макете.
-            // Ширина была 167 из ноды; ужата до 155 — просьба пользователя
-            // отодвинуть название от кнопки «Добавить ТО» на 12pt.
+            // Ширина была 167 из ноды, потом 155 — просьба пользователя
+            // держать 12pt до кнопки справа. Кнопка стала группой 104pt
+            // вместо 139, и название на те же 35pt шире.
             Text(car?.name ?? "")
                 .font(.system(size: 15, weight: .semibold))
                 .tracking(-0.23)
@@ -1531,21 +1760,27 @@ struct CarMainView: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(width: 155, alignment: .leading)
+                .frame(width: 190, alignment: .leading)
                 .modifier(ToolbarFade(toolbar: toolbar))
         }
 
+        // Группа из двух кнопок в одной капсуле — «Button Group» системного
+        // тулбара iOS 27 (UI Kit, нода 754:48381): «Послушать мотор» и
+        // «Добавить ТО». Раньше здесь была текстовая «Добавить ТО» 139pt;
+        // вторая кнопка рядом с ней в строку не влезала.
         ToolbarItem(placement: .topBarTrailing) {
-            Button { sheet = .serviceChoice } label: {
-                Text("Добавить ТО")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(.white)
-                    .frame(width: 139, height: 44)
-                    .darkGlassChip(in: Capsule())
-                    .contentShape(Capsule())
+            HStack(spacing: 0) {
+                toolbarIcon("waveform", label: "Послушать мотор") { sheet = .listening }
+                toolbarIcon("plus", label: "Добавить ТО") { sheet = .serviceChoice }
             }
-            .buttonStyle(.plain)
-            .modifier(ToolbarFade(toolbar: toolbar))
+            .frame(width: Self.toolbarGroupWidth, height: 44)
+            .darkGlassChip(in: Capsule())
+            // Видна и до прокрутки, как «…» слева (просьба пользователя
+            // 25.09.2026): послушать мотор и добавить ТО нужно и над фото, а
+            // не только в прокрученном списке. Гаснет на странице «Добавить
+            // авто» — там нечего слушать и некуда добавлять ТО.
+            .opacity(1 - weight(of: addPageIndex))
+            .allowsHitTesting(weight(of: addPageIndex) < 0.5)
         }
         .sharedBackgroundVisibility(.hidden)
     }
@@ -1590,11 +1825,11 @@ struct CarMainView: View {
     /// потому, что горизонтальный `ScrollView` обрезал тени по своим границам.
     private var historyStrip: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(services.enumerated()), id: \.element.id) { index, record in
+            ForEach(Array(historyItems.enumerated()), id: \.element.id) { index, item in
                 if index > 0 { Spacer(minLength: 0).frame(height: 24) }
 
                 // Дата — заголовок группы, 16pt Semibold из макета
-                Text(record.date, format: .dateTime.day(.twoDigits)
+                Text(item.date, format: .dateTime.day(.twoDigits)
                     .month(.twoDigits).year())
                     .font(.system(size: 16, weight: .semibold))
                     // Трекинга нет намеренно. В ноде он объявлен (−0.45), но
@@ -1610,29 +1845,119 @@ struct CarMainView: View {
 
                 Spacer(minLength: 0).frame(height: 8)
 
-                // Снова contextMenu — просьба пользователя со ссылкой на HIG:
-                // при зажатии карточка приподнимается и растёт, фон
-                // затемняется, хаптик системный. Прошлое «улетает вверх»
-                // давал кастомный preview — без него система поднимает
-                // элемент на месте. Тап отдельно — сразу в правку.
-                Button { startEditing(record) } label: {
-                    serviceCard(record)
-                }
-                .buttonStyle(.plain)
-                .contentShape(.contextMenuPreview, Self.serviceCardShape)
-                .contextMenu {
+                switch item {
+                case .service(let record):
+                    // Снова contextMenu — просьба пользователя со ссылкой на HIG:
+                    // при зажатии карточка приподнимается и растёт, фон
+                    // затемняется, хаптик системный. Прошлое «улетает вверх»
+                    // давал кастомный preview — без него система поднимает
+                    // элемент на месте. Тап отдельно — сразу в правку.
                     Button { startEditing(record) } label: {
-                        Label("Изменить", systemImage: "pencil")
+                        serviceCard(record)
                     }
+                    .buttonStyle(.plain)
+                    .contentShape(.contextMenuPreview, Self.serviceCardShape)
+                    .contextMenu {
+                        Button { startEditing(record) } label: {
+                            Label("Изменить", systemImage: "pencil")
+                        }
 
-                    Button(role: .destructive) {
-                        deleteService(record)
-                    } label: {
-                        Label("Удалить", systemImage: "trash")
+                        Button(role: .destructive) {
+                            deleteService(record)
+                        } label: {
+                            Label("Удалить", systemImage: "trash")
+                        }
                     }
+                case .check(let check):
+                    // Прослушивание правке не подлежит — оно запись того, что
+                    // услышал разбор. Тап ведёт в «Ошибки», меню — удалить.
+                    Button { tab = 2 } label: {
+                        checkCard(check)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(.contextMenuPreview, Self.serviceCardShape)
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            modelContext.delete(check)
+                        } label: {
+                            Label("Удалить", systemImage: "trash")
+                        }
+                    }
+                    .accessibilityHint("Откроет раздел «Ошибки»")
                 }
             }
         }
+    }
+
+    /// «Всё / ТО / Прослушивания» над лентой — капсулами, как фильтры
+    /// приложения; выбранная — белая. Смена фильтра меняет высоту ленты, и
+    /// она анимируется вместе с содержимым.
+    private var historyFilterChips: some View {
+        HStack(spacing: 8) {
+            ForEach(HistoryFilter.allCases, id: \.self) { filter in
+                let isOn = historyFilter == filter
+                Button {
+                    withAnimation(.snappy(duration: 0.3)) { historyFilter = filter }
+                } label: {
+                    Text(filter.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(isOn ? Color.black : .white)
+                        .padding(.horizontal, 14)
+                        .frame(height: 32)
+                        .background(isOn ? AnyShapeStyle(Color.white) : AnyShapeStyle(Figma.fillsTertiary),
+                                    in: Capsule())
+                        // Видно 32, нажимается 44 — HIG.
+                        .contentShape(Rectangle().inset(by: -6))
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(height: 32)
+        .sensoryFeedback(.selection, trigger: historyFilter)
+    }
+
+    /// Карточка прослушивания — той же геометрии, что карточка ТО (96pt,
+    /// то же стекло), чтобы лента читалась одной хронологией. Отличается
+    /// жёлтой волной в заголовке: цвет прослушиваний в приложении.
+    private func checkCard(_ check: EngineCheck) -> some View {
+        let findings = partFindings(of: check)
+        let lastService = services.first { $0.date <= check.date }
+        let after = ListeningSummary.kmAfterService(checkMileage: check.mileage,
+                                                    lastServiceMileage: lastService?.mileage)
+        let head = ["Прослушивание",
+                    check.mileage.map { "\(NumberFormat.grouped($0))\u{00A0}км" }]
+            .compactMap { $0 }.joined(separator: " · ")
+        let detail = [findings.isEmpty ? "Явных неисправностей не нашёл" : findings.joined(separator: ", "),
+                      after.map { "\(NumberFormat.grouped($0))\u{00A0}км после ТО" }]
+            .compactMap { $0 }.joined(separator: " · ")
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "waveform")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Figma.accentsYellow)
+                Text(head)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .frame(height: 20)
+
+            Text(detail)
+                .font(.system(size: 13))
+                .tracking(-0.08)
+                .figmaLineHeight(18, fontSize: 13)
+                .foregroundStyle(Figma.vibrantSecondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(height: 36, alignment: .top)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: Self.serviceCardHeight)
+        .darkGlassCard(in: Self.serviceCardShape)
+        .contentShape(Self.serviceCardShape)
     }
 
     /// Карточка записи: 370×96, `Liquid Glass - Regular - Small` из макета.
@@ -2234,4 +2559,37 @@ private struct CarMainChrome: ViewModifier {
 #Preview {
     CarMainView()
         .environmentObject(AppState())
+}
+
+
+/// Запись общей ленты «История обслуживания»: ТО или прослушивание.
+private enum HistoryItem: Identifiable {
+    case service(ServiceRecord)
+    case check(EngineCheck)
+
+    var id: PersistentIdentifier {
+        switch self {
+        case .service(let record): record.persistentModelID
+        case .check(let check): check.persistentModelID
+        }
+    }
+
+    var date: Date {
+        switch self {
+        case .service(let record): record.date
+        case .check(let check): check.date
+        }
+    }
+}
+
+private enum HistoryFilter: CaseIterable {
+    case all, services, checks
+
+    var title: String {
+        switch self {
+        case .all: "Всё"
+        case .services: "ТО"
+        case .checks: "Прослушивания"
+        }
+    }
 }

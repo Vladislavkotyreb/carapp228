@@ -40,10 +40,10 @@ SKIP_DIRS = {"tasks", "bugs", "done", "reports", "attachments", "_templates"}
 
 ITEM = re.compile(r"^\s*[-*]\s*\[ \]\s*(.+?)\s*$")
 HEADING = re.compile(r"^\s*(#{1,6})\s*(.+?)\s*$")
-# Заметка «не для разбора»: шапка с `canary: ignore`. Признак, а не список имён —
-# пометить можно любую, и переименование её не расколдует. Прежний ключ `beepy`
-# понимается тоже: заметки в хранилище помечены им, и переименование приложения
-# не должно втащить их в разбор.
+# Заметка «не для разбора»: шапка с `beepy: ignore`. Признак, а не список имён —
+# пометить можно любую, и переименование её не расколдует. Ключ `canary` (имя
+# приложения с 11 по 23.09.2026) понимается тоже: заметки в хранилище помечены
+# им, и обратное переименование не должно втащить их в разбор.
 IGNORED = re.compile(r"\A---\r?\n(.*?)\r?\n---", re.S)
 
 
@@ -55,7 +55,7 @@ def ignored(path):
         return False
     for line in m.group(1).splitlines():
         k, sep, v = line.partition(":")
-        if sep and k.strip() in ("canary", "beepy") \
+        if sep and k.strip() in ("beepy", "canary") \
                 and v.strip().strip("\"'") in ("ignore", "игнор"):
             return True
     return False

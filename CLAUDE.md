@@ -1,11 +1,11 @@
-# Canary — руководство для агента
+# Beepy — руководство для агента
 
 iOS-приложение для автомобилистов: **диагностика машины и трекинг ТО**.
 Раздел «Ошибки» слушает звук мотора и возвращает находки, раздел «Машина»
 ведёт историю обслуживания и считает, когда следующее ТО.
 
-SwiftUI, таргет iOS 17.0, проект `Canary.xcodeproj`, схема `AppMVP`, бандл
-`com.vladislavkotyrev.appmvp`, на устройстве подписан **Canary**.
+SwiftUI, таргет iOS 17.0, проект `Beepy.xcodeproj`, схема `AppMVP`, бандл
+`com.vladislavkotyrev.appmvp`, на устройстве подписан **Beepy**.
 Дизайн — Figma `9GXgWezTGI6TjklsnuBns2`, воспроизводится попиксельно.
 Данные пользователя лежат локально в SwiftData: приложение для РФ, по 152-ФЗ
 персональные данные телефон не покидают, пока нет сервера в России.
@@ -64,15 +64,15 @@ SwiftUI, таргет iOS 17.0, проект `Canary.xcodeproj`, схема `App
 заявлять собранным то, что не собиралось. Установка Xcode — [docs/XCODE_SETUP.md](docs/XCODE_SETUP.md).
 
 ```bash
-xcodebuild -project Canary.xcodeproj -scheme AppMVP -sdk iphonesimulator \
+xcodebuild -project Beepy.xcodeproj -scheme AppMVP -sdk iphonesimulator \
   -configuration Debug -destination "id=<UDID>" \
-  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/canary build
+  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/beepy build
 ```
 
 **Не собирать внутрь папки проекта.** Проект лежит на Рабочем столе, тот
 синхронизируется с iCloud Drive, файловый провайдер вешает на бандл
 `com.apple.FinderInfo`, и подпись падает с `resource fork ... not allowed`.
-Отсюда `-derivedDataPath` наружу. Собрали внутрь — `xattr -cr путь/к/Canary.app`.
+Отсюда `-derivedDataPath` наружу. Собрали внутрь — `xattr -cr путь/к/Beepy.app`.
 
 Установка на iPhone и логи — [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md).
 
@@ -87,7 +87,7 @@ XcodeGen не установлен. `project.yml` — **справочный**, 
 - Свободный префикс ID **проверить грепом, а не угадать.** Совпадение с чужим
   объектом Xcode ловит падением `unrecognized selector`, которое ничем не
   намекает на коллизию.
-- После правки — `plutil -lint Canary.xcodeproj/project.pbxproj`.
+- После правки — `plutil -lint Beepy.xcodeproj/project.pbxproj`.
 - Проверить, что всё сошлось: `.claude/hooks/require-journal.sh --audit`.
 
 ## Как проверять (обязательный минимум)

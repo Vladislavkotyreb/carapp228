@@ -22,6 +22,11 @@ struct MapScreen: View {
 
     @StateObject private var controller = MapController()
 
+    /// «Записаться» на главной: найти ближайший сервис и открыть его
+    /// карточку. Флаг, а не вызов: вкладка может ещё не существовать в
+    /// момент нажатия, и просьба должна дождаться её появления.
+    @Binding var findsNearestService: Bool
+
     /// Карта или список. Состояние вью, а не контроллера: подача — дело
     /// экрана, карте и базе она безразлична.
     @State private var mode: MapMode = .map
@@ -78,8 +83,14 @@ struct MapScreen: View {
             // прокрутке — ровно как содержимое под системной панелью.
             .safeAreaInset(edge: .top, spacing: 0) { header }
             .animation(Motion.sheet, value: controller.selected)
-            .animation(Motion.sheet, value: controller.route)
-            .onAppear { controller.update(saved: places) }
+            .onAppear {
+                controller.update(saved: places)
+                controller.resume()
+                consumeServiceRequest()
+            }
+            .onChange(of: findsNearestService) { _, wants in
+                if wants { consumeServiceRequest() }
+            }
             .onChange(of: places) { _, new in controller.update(saved: new) }
             .onDisappear { controller.detach() }
             // Добавили или убрали место — короткий отклик. Звезда без него
@@ -102,6 +113,13 @@ struct MapScreen: View {
             } message: {
                 Text(controller.message ?? "")
             }
+    }
+
+    private func consumeServiceRequest() {
+        guard findsNearestService else { return }
+        findsNearestService = false
+        mode = .map
+        controller.showNearestService()
     }
 
     /// Место под плавающим таббаром на iOS 17–25: там бар лежит поверх
@@ -161,7 +179,7 @@ struct MapScreen: View {
                 chip(kind)
             }
 
-            if controller.isSearching {
+            if controller.isSearching || controller.isFindingService {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .tint(Figma.labelsPrimary)
@@ -345,85 +363,23 @@ struct MapScreen: View {
 
     // MARK: - Карточка места
 
+    /// Карточка места по HIG — как карточка в Apple Maps: заголовок и факты,
+    /// ряд одинаковых плиток-действий (первая — маршрут), ниже сгруппированный
+    /// список каналов записи. Вариант B3 из секции «Запись на ТО — варианты»
+    /// в Figma, выбран пользователем 23.09.2026.
+    ///
+    /// Грабера нет, хотя в макете он нарисован: карточку не тянут, а грабер
+    /// обещал бы жест, которого нет.
     @ViewBuilder
     private var bottomCard: some View {
         if let pin = controller.selected {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: pin.kind.symbol)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(pin.kind.tint)
-                        .frame(width: 28, height: 28)
+            let booking = pin.contacts.filter { $0.channel != .website }
+            VStack(alignment: .leading, spacing: 16) {
+                cardHeader(pin)
+                actionTiles(pin)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(pin.title)
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .lineLimit(2)
-
-                        Text(pin.subtitle ?? pin.kind.singular)
-                            .font(.system(size: 13))
-                            .foregroundStyle(Figma.vibrantSecondary)
-                            .lineLimit(2)
-                    }
-
-                    Spacer(minLength: 0)
-
-                    // Своя точка в избранное не добавляется: она и так своя.
-                    // Пустая звезда рядом с ней предлагала бы действие,
-                    // которого нет.
-                    if stored(pin)?.origin != .mine { star(pin) }
-
-                    Button { controller.selected = nil; controller.clearRoute() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(Figma.vibrantSecondary)
-                            // Кружок 28 — то, что видно; 44×44 — то, во что
-                            // можно попасть пальцем. HIG требует второе, и
-                            // отрицательный отступ не даёт цели раздвинуть
-                            // раскладку карточки.
-                            .frame(width: 28, height: 28)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(-8)
-                    .accessibilityLabel("Закрыть")
-                }
-
-                // Запись на сервис: приложение её не делает и делать не
-                // может — своего расписания у сервисов нет. Зато номер у
-                // организации есть, и один тап по нему заменяет весь сценарий
-                // записи, ради которого пришлось бы договариваться с каждым
-                // СТО отдельно.
-                if let phone = pin.phone, let call = callURL(for: pin) {
-                    callButton(number: phone, url: call)
-                }
-
-                if let route = controller.route {
-                    // Маршрут построен: показываем, во что он обходится, и
-                    // только потом предлагаем уйти в Яндекс Карты.
-                    Label("\(route.time) · \(route.distance)", systemImage: "car.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-
-                    GlassProminentButton(title: "Открыть в Яндекс Картах",
-                                         lineHeight: 18,
-                                         action: controller.openInYandexMaps)
-
-                    // Высота 44: у текстовой кнопки цель касания иначе равна
-                    // высоте строки, около 20pt.
-                    Button("Убрать маршрут") { controller.clearRoute() }
-                        .font(.system(size: 15))
-                        .foregroundStyle(Figma.vibrantSecondary)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .contentShape(Rectangle())
-                } else {
-                    GlassProminentButton(title: "Маршрут",
-                                         lineHeight: 18,
-                                         isBusy: controller.isRouting) {
-                        controller.buildRoute(to: pin)
-                    }
+                if !booking.isEmpty {
+                    bookingList(booking)
                 }
 
                 if stored(pin)?.origin == .mine {
@@ -445,28 +401,173 @@ struct MapScreen: View {
         }
     }
 
+    private func cardHeader(_ pin: MapPin) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(pin.title)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+
+                Text(facts(pin))
+                    .font(.system(size: 15))
+                    .foregroundStyle(pin.id == controller.nearestServiceID
+                                     ? Figma.accentsYellow : Figma.labelsSecondary)
+                    .lineLimit(1)
+
+                if let address = pin.subtitle {
+                    Text(address)
+                        .font(.system(size: 15))
+                        .foregroundStyle(Figma.labelsSecondary)
+                        .lineLimit(2)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Своя точка в избранное не добавляется: она и так своя.
+            // Пустая звезда рядом с ней предлагала бы действие, которого нет.
+            if stored(pin)?.origin != .mine { star(pin) }
+
+            Button { controller.selected = nil } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Figma.graysGray2)
+                    // Кружок 30 — системный крестик шторки; 44×44 — цель
+                    // касания по HIG. Отрицательный отступ не даёт ей
+                    // раздвинуть шапку.
+                    .frame(width: 30, height: 30)
+                    .background(Figma.fillsTertiary, in: Circle())
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(-7)
+            .accessibilityLabel("Закрыть")
+        }
+    }
+
+    /// «Автосервис · 350 м», а у найденного кнопкой «Записаться» — «Ближайший
+    /// сервис · 350 м»: человек должен видеть, почему открыт именно этот.
+    private func facts(_ pin: MapPin) -> String {
+        let head = pin.id == controller.nearestServiceID ? "Ближайший сервис" : pin.kind.singular
+        guard let meters = meters(to: pin.point) else { return head }
+        return "\(head) · \(MapGeo.distanceLabel(meters: meters))"
+    }
+
+    // MARK: Плитки действий
+
+    /// Ряд одинаковых плиток, как в Apple Maps. Плитки нет, если нет
+    /// данных: пустая «Позвонить» обещала бы звонок в никуда.
+    private func actionTiles(_ pin: MapPin) -> some View {
+        HStack(spacing: 8) {
+            routeTile(pin)
+
+            if let phone = pin.phone, let call = callURL(for: pin) {
+                tile(title: "Позвонить", symbol: "phone.fill") { openURL(call) }
+                    .accessibilityValue(PhoneFormat.display(phone))
+            }
+
+            if let site = pin.contacts.first(where: { $0.channel == .website }) {
+                tile(title: "Сайт", symbol: "safari.fill") { openURL(site.url) }
+            }
+        }
+    }
+
+    /// Первая плитка — маршрут, и она единственная залитая: это главное
+    /// действие карточки. Тап сразу уводит в Яндекс Карты — своего маршрута
+    /// в приложении нет, см. `MapController.openInYandexMaps`.
+    private func routeTile(_ pin: MapPin) -> some View {
+        tile(title: "Маршрут", symbol: "arrow.triangle.turn.up.right.diamond.fill",
+             prominent: true) { controller.openInYandexMaps(to: pin) }
+            .accessibilityHint("Откроет маршрут в\u{00A0}Яндекс Картах")
+    }
+
+    private func tile(title: String, symbol: String, prominent: Bool = false,
+                      isBusy: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                if isBusy {
+                    ProgressView().tint(.black).frame(height: 22)
+                } else {
+                    Image(systemName: symbol)
+                        .font(.system(size: 18, weight: .semibold))
+                        .frame(height: 22)
+                }
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(prominent ? Color.black : .white)
+            .frame(maxWidth: .infinity, minHeight: 56)
+            .background(prominent ? AnyShapeStyle(Figma.labelsPrimary)
+                                  : AnyShapeStyle(Figma.fillsTertiary),
+                        in: Self.tileShape)
+            .contentShape(Self.tileShape)
+        }
+        .buttonStyle(.plain)
+        .disabled(isBusy)
+    }
+
+    // MARK: Список «Записаться»
+
+    /// Онлайн-запись и мессенджеры — сгруппированным списком, как
+    /// `List(.insetGrouped)`: строк бывает до пяти, и ряд капсул на столько
+    /// не рассчитан. Сайт живёт плиткой выше — записаться через него нельзя.
+    private func bookingList(_ links: [ContactLink]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("ЗАПИСАТЬСЯ")
+                .font(.system(size: 13))
+                .foregroundStyle(Figma.labelsSecondary)
+                .padding(.leading, 16)
+
+            VStack(spacing: 0) {
+                ForEach(Array(links.enumerated()), id: \.element.channel) { index, link in
+                    if index > 0 {
+                        Rectangle()
+                            .fill(Figma.separatorsOnDark.opacity(0.65))
+                            .frame(height: 0.5)
+                            .padding(.leading, 46)
+                    }
+                    bookingRow(link)
+                }
+            }
+            .background(Figma.sheetControl, in: Self.tileShape)
+        }
+    }
+
+    private func bookingRow(_ link: ContactLink) -> some View {
+        Button { openURL(link.url) } label: {
+            HStack(spacing: 12) {
+                Image(systemName: link.channel.symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .frame(width: 18)
+                Text(link.channel.title)
+                    .font(.system(size: 17))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let host = link.channel == .booking ? link.url.host : nil {
+                    Text(host)
+                        .font(.system(size: 17))
+                        .foregroundStyle(Figma.labelsSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Figma.labelsTertiary)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     /// Ссылка для звонка или `nil`: телефона нет либо он не разобрался.
     private func callURL(for pin: MapPin) -> URL? {
         guard let phone = pin.phone, let dial = PhoneFormat.dial(phone) else { return nil }
         return URL(string: dial)
-    }
-
-    /// «Позвонить» — номером, а не словом: человек видит, куда звонит, ещё
-    /// до нажатия, и может переписать его себе, если звонить сейчас неудобно.
-    private func callButton(number: String, url: URL) -> some View {
-        Button { openURL(url) } label: {
-            Label(PhoneFormat.display(number), systemImage: "phone.fill")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Figma.accentsBlue)
-                .lineLimit(1)
-                // Высота 44: у текстовой кнопки цель касания иначе равна
-                // высоте строки.
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Позвонить")
-        .accessibilityValue(number)
     }
 
     private func star(_ pin: MapPin) -> some View {
@@ -489,6 +590,9 @@ struct MapScreen: View {
     }
 
     private static let cardShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+    /// Плитки действий и группа списка — 12, как у системных `.bordered`
+    /// кнопок крупного размера и `insetGrouped`.
+    private static let tileShape = RoundedRectangle(cornerRadius: 12, style: .continuous)
     /// Скругление подложки сегментед-контрола: 9 у самого контрола плюс 3
     /// отступа вокруг него — чтобы кромка шла ровно вдоль его углов.
     private static let pickerShape = RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -497,7 +601,6 @@ struct MapScreen: View {
         guard let place = stored(pin) else { return }
         if controller.selected == pin {
             controller.selected = nil
-            controller.clearRoute()
         }
         modelContext.delete(place)
     }
@@ -574,5 +677,18 @@ private struct AddPlaceSheet: View {
         // чёрный: фон тот же, что у остальных шторок.
         .background(Figma.sheetBackground)
         .onAppear { titleFocused = true }
+    }
+}
+
+private extension ContactChannel {
+    var symbol: String {
+        switch self {
+        case .booking: "calendar.badge.plus"
+        case .telegram: "paperplane.fill"
+        case .whatsapp: "message.fill"
+        case .viber: "phone.bubble.left.fill"
+        case .vk: "person.2.fill"
+        case .website: "globe"
+        }
     }
 }

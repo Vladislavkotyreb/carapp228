@@ -57,6 +57,23 @@ enum ServiceMath {
         return .normal
     }
 
+    /// Предлагать ли записаться на сервис: с жёлтой зоны и дальше. В зелёной
+    /// кнопка звала бы туда, куда ехать ещё рано.
+    static func suggestsBooking(kmLeft: Int) -> Bool {
+        urgency(kmLeft: kmLeft) != .normal
+    }
+
+    /// Подпись рядом с «Записаться»: почему кнопка появилась. Число — порог
+    /// зоны, а не остаток: остаток крупно написан строкой выше.
+    static func bookingHint(kmLeft: Int) -> String? {
+        switch urgency(kmLeft: kmLeft) {
+        case .normal: nil
+        case .soon: "Осталось меньше \(NumberFormat.grouped(soonThreshold))\u{00A0}км"
+        case .urgent where kmLeft == 0: "ТО пора пройти"
+        case .urgent: "Осталось меньше \(NumberFormat.grouped(urgentThreshold))\u{00A0}км"
+        }
+    }
+
     /// Текст напоминания. Номер подставляется только если он есть: у машины,
     /// добавленной по названию, его нет вовсе.
     static func reminderText(name: String, plate: String, kmLeft: Int) -> String {

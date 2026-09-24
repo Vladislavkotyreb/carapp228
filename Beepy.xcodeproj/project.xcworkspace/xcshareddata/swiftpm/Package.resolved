@@ -1,0 +1,15 @@
+{
+  "originHash" : "1131472eb4f8b27b7685345f8cff4bff88a1a8490ddb91416260e1913269285e",
+  "pins" : [
+    {
+      "identity" : "mapkit-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/yandex/mapkit-ios",
+      "state" : {
+        "revision" : "55a09b470578626d34ad34f234739ad3b643cfe5",
+        "version" : "4.42.0"
+      }
+    }
+  ],
+  "version" : 3
+}

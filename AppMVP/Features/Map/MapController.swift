@@ -23,6 +23,10 @@ struct MapPin: Identifiable, Equatable {
     /// `let`: так почленный инициализатор остаётся прежним для тех, у кого
     /// телефона нет вовсе, — своя точка на карте телефона не имеет.
     var phone: String?
+    /// Как ещё записаться: онлайн-запись, мессенджеры, сайт — из карточки
+    /// организации у Яндекса. В базу не сохраняется: избранное хранит только
+    /// телефон, а ссылки приходят заново с каждым поиском.
+    var contacts: [ContactLink] = []
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
@@ -55,13 +59,6 @@ extension MapPin {
     }
 }
 
-/// Построенный маршрут в том виде, в каком его показывает карточка.
-struct RouteSummary: Equatable {
-    let distance: String
-    let time: String
-    let destination: MapPin
-}
-
 /// Заготовка места, которую пользователь ставит долгим нажатием.
 struct PlaceDraft: Identifiable, Equatable {
     let id = UUID()
@@ -86,13 +83,16 @@ final class MapController: NSObject, ObservableObject {
 
     /// Какие типы показывать. Меняется чипами наверху.
     @Published var activeKinds: Set<PlaceKind> = Set(PlaceKind.allCases) {
-        didSet { if activeKinds != oldValue { redraw(); search() } }
+        didSet {
+            guard activeKinds != oldValue else { return }
+            carparks?.setVisibleWithOn(activeKinds.contains(.parking))
+            redraw()
+            search()
+        }
     }
     @Published private(set) var found: [MapPin] = []
     @Published var selected: MapPin?
-    @Published private(set) var route: RouteSummary?
     @Published private(set) var isSearching = false
-    @Published private(set) var isRouting = false
     @Published var draft: PlaceDraft?
     @Published var message: String?
     /// Есть ли разрешение и позиция. Без неё маршрут строить не от чего.
@@ -101,6 +101,12 @@ final class MapController: NSObject, ObservableObject {
     /// ключа карта показывает пустую сетку и выглядит сломанной, хотя сломан
     /// не код. Определяется по типу ошибки из SDK, а не по её тексту.
     @Published private(set) var keyRejected = false
+    /// Идёт поиск ближайшего сервиса для записи — кнопка «Записаться» на
+    /// главной привела сюда.
+    @Published private(set) var isFindingService = false
+    /// Точка, которую нашли как ближайший сервис. Карточка подписывает её
+    /// «Ближайший сервис», пока выбрана именно она.
+    @Published private(set) var nearestServiceID: String?
 
     /// Сохранённые места. Их держит `@Query` на экране и передаёт сюда:
     /// контроллеру не нужен доступ к базе, ему нужен только список.
@@ -110,7 +116,11 @@ final class MapController: NSObject, ObservableObject {
 
     private weak var map: YMKMap?
     private var placemarks: YMKMapObjectCollection?
-    private var routeLine: YMKMapObjectCollection?
+    /// Готовый слой парковок Яндекса: платные и бесплатные зоны с разметкой,
+    /// те же, что в Яндекс Картах. Им, а не поиском «парковка», показываются
+    /// парковки: поиск находил организации-парковки точками, а у Яндекса
+    /// парковка — это участок улицы с ценой, и точкой её не описать.
+    private var carparks: YMKCarparksLayer?
     private var userLayer: YMKUserLocationLayer?
 
     /// Сессии держим сильно: в SDK они отменяются, как только на них не
@@ -120,11 +130,15 @@ final class MapController: NSObject, ObservableObject {
     /// уходит в бесконечные повторы и обработчик не вызывает вовсе — без
     /// сторожа индикатор крутился бы всегда.
     private var searchWatchdog: DispatchWorkItem?
-    private var routeSession: YMKDrivingSession?
+    /// Отдельно от `searchSessions`: смена фильтров перезапускает тот поиск
+    /// и отменила бы этот.
+    private var nearestSession: YMKSearchSession?
+    /// Ближайший сервис попросили раньше, чем пришла геопозиция. Искать
+    /// будем с первой же точкой — от случайной области карты «ближайший»
+    /// ничего не значит.
+    private var wantsNearestService = false
     private lazy var searchManager =
         YMKSearchFactory.instance().createSearchManager(with: .combined)
-    private lazy var router =
-        YMKDirectionsFactory.instance().createDrivingRouter(withType: .combined)
 
     private let location = CLLocationManager()
     /// Где пользователь. Наблюдаемое, потому что от него зависят подписи
@@ -148,7 +162,6 @@ final class MapController: NSObject, ObservableObject {
         map.isNightModeEnabled = true
 
         placemarks = map.mapObjects.add()
-        routeLine = map.mapObjects.add()
 
         // Слушатели SDK хранит слабо — живыми их держит сам контроллер,
         // который лежит в `@StateObject` экрана.
@@ -159,6 +172,11 @@ final class MapController: NSObject, ObservableObject {
             .createUserLocationLayer(with: mapView.mapWindow)
         layer.setVisibleWithOn(true)
         userLayer = layer
+
+        let carparks = YMKDirectionsFactory.instance()
+            .createCarparksLayer(with: mapView.mapWindow)
+        carparks.setVisibleWithOn(activeKinds.contains(.parking))
+        self.carparks = carparks
 
         location.delegate = self
         location.desiredAccuracy = kCLLocationAccuracyHundredMeters
@@ -171,10 +189,19 @@ final class MapController: NSObject, ObservableObject {
         searchWatchdog?.cancel()
         searchSessions.values.forEach { $0.cancel() }
         searchSessions.removeAll()
-        routeSession?.cancel()
-        routeSession = nil
+        nearestSession?.cancel()
+        nearestSession = nil
+        isFindingService = false
         location.stopUpdatingLocation()
-        map = nil
+        // Карту не отпускаем: ссылка на неё и так слабая, а системный
+        // `TabView` на iOS 26 вкладку не пересоздаёт — `makeUIView` второй
+        // раз не придёт, и после возврата на вкладку контроллер остался бы
+        // без карты: ни поиска, ни камеры.
+    }
+
+    /// Вкладку показали снова — геопозиция нужна опять.
+    func resume() {
+        requestLocation()
     }
 
     func update(saved places: [Place]) {
@@ -198,8 +225,10 @@ final class MapController: NSObject, ObservableObject {
     /// карту в соседний район именно затем, чтобы посмотреть, что там, — и
     /// поиск вокруг его собственной точки в этот момент бесполезен.
     func search() {
-        guard let map, !activeKinds.isEmpty else {
-            if activeKinds.isEmpty { found = []; redraw() }
+        // Парковки не ищутся: их рисует слой Яндекса, см. `carparks`.
+        let kinds = activeKinds.subtracting([.parking])
+        guard let map, !kinds.isEmpty else {
+            if kinds.isEmpty { found = []; redraw() }
             return
         }
 
@@ -230,7 +259,6 @@ final class MapController: NSObject, ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 15, execute: watchdog)
 
         var collected: [PlaceKind: [MapPin]] = [:]
-        let kinds = activeKinds
         var pending = kinds.count
 
         for kind in kinds {
@@ -295,8 +323,18 @@ final class MapController: NSObject, ObservableObject {
                           latitude: point.latitude,
                           longitude: point.longitude,
                           source: .found,
-                          phone: phone(of: object))
+                          phone: phone(of: object),
+                          contacts: contacts(of: object))
         }
+    }
+
+    /// Онлайн-запись, мессенджеры и сайт из карточки организации. Лежат там
+    /// же, где телефон, — в метаданных бизнеса.
+    private static func contacts(of object: YMKGeoObject) -> [ContactLink] {
+        let business = object.metadataContainer
+            .getItemOf(YMKSearchBusinessObjectMetadata.self) as? YMKSearchBusinessObjectMetadata
+        guard let business else { return [] }
+        return BusinessContacts.links(from: business.links.map { (href: $0.link.href, tag: $0.tag) })
     }
 
     /// Телефон организации из ответа поиска.
@@ -310,6 +348,82 @@ final class MapController: NSObject, ObservableObject {
             .getItemOf(YMKSearchBusinessObjectMetadata.self) as? YMKSearchBusinessObjectMetadata
         guard let business else { return nil }
         return PhoneFormat.first(of: business.phones.map(\.formattedNumber))
+    }
+
+    // MARK: - Ближайший сервис
+
+    /// Найти ближайший к пользователю автосервис и открыть его карточку.
+    ///
+    /// Сюда ведёт «Записаться» с главной. Ищем вокруг пользователя, а не по
+    /// видимой области: карта в этот момент может смотреть куда угодно, а
+    /// вопрос — «куда мне ехать отсюда».
+    func showNearestService() {
+        selected = nil
+        // Сервисы должны быть видны на карте, иначе выбранная точка
+        // окажется карточкой без значка.
+        if !activeKinds.contains(.service) { activeKinds.insert(.service) }
+
+        guard let here else {
+            switch location.authorizationStatus {
+            case .denied, .restricted:
+                message = "Разрешите доступ к геопозиции, чтобы найти ближайший сервис"
+            default:
+                wantsNearestService = true
+                isFindingService = true
+                requestLocation()
+            }
+            return
+        }
+        findNearestService(from: here)
+    }
+
+    private func findNearestService(from here: CLLocationCoordinate2D) {
+        wantsNearestService = false
+        isFindingService = true
+
+        // Квадрат ±10 км: в городе сервис найдётся в первых сотнях метров,
+        // за городом — хотя бы в соседнем посёлке.
+        let dLat = 0.09
+        let dLon = dLat / max(0.2, cos(here.latitude * .pi / 180))
+        let box = YMKBoundingBox(
+            southWest: YMKPoint(latitude: here.latitude - dLat, longitude: here.longitude - dLon),
+            northEast: YMKPoint(latitude: here.latitude + dLat, longitude: here.longitude + dLon))
+
+        let options = YMKSearchOptions()
+        options.searchTypes = .biz
+        options.resultPageSize = 32
+        options.userPosition = YMKPoint(latitude: here.latitude, longitude: here.longitude)
+
+        nearestSession?.cancel()
+        nearestSession = searchManager.submit(
+            withText: PlaceKind.service.query,
+            geometry: YMKGeometry(boundingBox: box),
+            searchOptions: options
+        ) { [weak self] response, error in
+            guard let self else { return }
+            self.isFindingService = false
+            if let error, Self.isKeyRejected(error) {
+                self.keyRejected = true
+                return
+            }
+            let pins = response.map { Self.pins(from: $0, kind: .service) } ?? []
+            let origin = GeoPoint(latitude: here.latitude, longitude: here.longitude)
+            guard let index = MapGeo.nearest(to: origin, among: pins.map(\.point)) else {
+                self.message = response == nil ? "Не удалось найти сервисы рядом"
+                                                : "Рядом не нашлось автосервисов"
+                return
+            }
+            let pin = pins[index]
+            if !self.found.contains(where: { $0.id == pin.id }) {
+                self.found.append(pin)
+                self.redraw()
+            }
+            self.nearestServiceID = pin.id
+            self.selected = pin
+            // Камера к сервису, и уже оттуда — обычный поиск по видимой
+            // области: вокруг появятся остальные места.
+            self.move(to: pin.coordinate, zoom: 15) { [weak self] in self?.search() }
+        }
     }
 
     // MARK: - Отрисовка
@@ -379,99 +493,22 @@ final class MapController: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - Маршрут
-
-    /// Строит маршрут от текущей позиции до точки и показывает его на карте.
-    ///
-    /// Считаем сами, хотя дальше маршрут всё равно уходит в Яндекс Карты: без
-    /// этого кнопка «Открыть в Яндекс Картах» была бы предложением уйти в
-    /// никуда, не сказав ни времени, ни расстояния.
-    func buildRoute(to pin: MapPin) {
-        guard let here else {
-            message = "Не видно вашего местоположения"
-            requestLocation()
-            return
-        }
-
-        isRouting = true
-        route = nil
-        let points = [
-            YMKRequestPoint(point: YMKPoint(latitude: here.latitude, longitude: here.longitude),
-                            type: .waypoint, pointContext: nil,
-                            drivingArrivalPointId: nil, indoorLevelId: nil),
-            YMKRequestPoint(point: YMKPoint(latitude: pin.latitude, longitude: pin.longitude),
-                            type: .waypoint, pointContext: nil,
-                            drivingArrivalPointId: nil, indoorLevelId: nil)
-        ]
-
-        routeSession?.cancel()
-        routeSession = router.requestRoutes(
-            with: points,
-            drivingOptions: YMKDrivingOptions(),
-            vehicleOptions: YMKDrivingVehicleOptions()
-        ) { [weak self] routes, _ in
-            guard let self else { return }
-            self.isRouting = false
-            guard let first = routes?.first else {
-                self.message = "Не удалось построить маршрут"
-                return
-            }
-            self.draw(route: first)
-            let weight = first.metadata.weight
-            self.route = RouteSummary(distance: weight.distance.text,
-                                      time: weight.timeWithTraffic.text,
-                                      destination: pin)
-        }
-    }
-
-    private func draw(route: YMKDrivingRoute) {
-        guard let routeLine else { return }
-        routeLine.clear()
-        let line = routeLine.addPolyline(with: route.geometry)
-        // Через `style`, а не через отдельные свойства линии: те помечены
-        // устаревшими и в следующей версии SDK исчезнут.
-        let style = YMKLineStyle()
-        style.strokeWidth = 5
-        style.outlineWidth = 1
-        style.outlineColor = UIColor.white.withAlphaComponent(0.6)
-        line.style = style
-        line.setStrokeColorWith(UIColor(Figma.accentsBlue))
-
-        // Показываем маршрут целиком, а не только его начало.
-        if let map {
-            let position = map.cameraPosition(with: YMKGeometry(polyline: route.geometry))
-            let padded = YMKCameraPosition(target: position.target,
-                                           zoom: max(position.zoom - 0.4, 2),
-                                           azimuth: position.azimuth,
-                                           tilt: position.tilt)
-            map.move(with: padded,
-                     animation: YMKAnimation(type: .smooth, duration: 0.45),
-                     cameraCallback: nil)
-        }
-    }
-
-    func clearRoute() {
-        routeSession?.cancel()
-        routeSession = nil
-        routeLine?.clear()
-        route = nil
-        isRouting = false
-    }
-
     // MARK: - Передача в Яндекс Карты
 
-    /// Отдаёт маршрут приложению Яндекс Карт, а если его нет — сайту.
+    /// Маршрут до точки — сразу в приложении Яндекс Карт, а без него — на сайте.
+    ///
+    /// Своего маршрута в приложении больше нет: считать его, рисовать и
+    /// показывать время ради ещё одного тапа до навигатора незачем (решение
+    /// пользователя 23.09.2026). Начало маршрута пустое (`rtext=~точка`) —
+    /// Яндекс Карты ведут от своей геопозиции, и наша для этого не нужна.
     ///
     /// Схему `yandexmaps` нельзя просто открыть «на удачу»: `canOpenURL` без
     /// объявления схемы в `LSApplicationQueriesSchemes` всегда отвечает «нет».
     /// Объявление лежит в `AppMVP/Resources/Info.plist`.
-    func openInYandexMaps() {
-        guard let here, let destination = route?.destination ?? selected else { return }
-        let from = "\(here.latitude),\(here.longitude)"
-        let to = "\(destination.latitude),\(destination.longitude)"
-
-        let app = URL(string: "yandexmaps://maps.yandex.ru/?rtext=\(from)~\(to)&rtt=auto")
-        let web = URL(string: "https://yandex.ru/maps/?rtext=\(from)~\(to)&rtt=auto")
+    func openInYandexMaps(to pin: MapPin) {
+        let to = "\(pin.latitude),\(pin.longitude)"
+        let app = URL(string: "yandexmaps://maps.yandex.ru/?rtext=~\(to)&rtt=auto")
+        let web = URL(string: "https://yandex.ru/maps/?rtext=~\(to)&rtt=auto")
 
         if let app, UIApplication.shared.canOpenURL(app) {
             UIApplication.shared.open(app)
@@ -488,7 +525,6 @@ final class MapController: NSObject, ObservableObject {
     /// выбрали, но не знает, где стоит камера, и двигать её должен тот, кто
     /// владеет картой.
     func show(_ pin: MapPin) {
-        clearRoute()
         selected = pin
         move(to: pin.coordinate, zoom: 16)
     }
@@ -519,7 +555,6 @@ extension MapController: YMKMapObjectTapListener {
     func onMapObjectTap(with mapObject: YMKMapObject, point: YMKPoint) -> Bool {
         guard let id = mapObject.userData as? String,
               let pin = visiblePins.first(where: { $0.id == id }) else { return false }
-        clearRoute()
         selected = pin
         return true
     }
@@ -532,7 +567,6 @@ extension MapController: YMKMapInputListener {
         // Тап по пустому месту закрывает карточку — так же ведут себя
         // системные карты.
         selected = nil
-        clearRoute()
     }
 
     /// Долгое нажатие ставит новое место. Жест выбран не случайно: обычный тап
@@ -555,6 +589,13 @@ extension MapController: CLLocationManagerDelegate {
         guard let last = locations.last else { return }
         here = last.coordinate
         hasLocation = true
+
+        if wantsNearestService {
+            // Камеру подведёт сам поиск — к найденному сервису, а не к нам.
+            didCenter = true
+            findNearestService(from: last.coordinate)
+            return
+        }
 
         guard !didCenter else { return }
         didCenter = true
