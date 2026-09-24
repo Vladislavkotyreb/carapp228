@@ -39,3 +39,13 @@ brag-output/composition/node_modules/
 brag-output/fonts/
 brag-output/*.mp4
 brag-output/*.jpg
+
+# Шоурил: то же правило, что у /brag. В git — композиция и README с
+# командами пересборки, медиа и рендер восстанавливаются из них.
+showreel-output/composition/assets/
+showreel-output/composition/vendor/
+showreel-output/composition/snapshots/
+showreel-output/composition/node_modules/
+showreel-output/*.mp4
+showreel-output/*.jpg
+showreel-output/work-*/

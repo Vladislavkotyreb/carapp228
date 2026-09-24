@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="ru" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Beepy — шоурил</title>
+    <script src="vendor/gsap.min.js"></script>
+    <script src="assets/audio-data.js"></script>
+    <style>
+      @font-face {
+        font-family: "Inter";
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: block;
+        src: url("assets/fonts/inter-cyrillic.woff2") format("woff2");
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: block;
+        src: url("assets/fonts/inter-latin.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+          U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+          U+FEFF, U+FFFD;
+      }
+      :root {
+        --ink: #ffffff;
+        --muted: #8e8e93;
+        --gray2: #aeaeb2;
+        --dim: rgba(235, 235, 245, 0.3);
+        --sheet: #1c1c1e;
+        --card: #2c2c2e;
+        --fill3: rgba(118, 118, 128, 0.24);
+        --sep: rgba(84, 84, 88, 0.65);
+        --blue: #0a84ff;
+        --red: #ff453a;
+        --yellow: #ffd60a;
+        --green: #30d158;
+        --accent: #58f0a8;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      #root {
+        position: relative; width: 100%; height: 100%; overflow: hidden;
+        background: #000; color: var(--ink);
+        font-family: "Inter", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .clip { position: absolute; inset: 0; overflow: hidden; }
+      .abs { position: absolute; }
+      .nb { white-space: nowrap; }
+
+      /* ---------- Вступление и финал ---------- */
+      .wordmark {
+        font-weight: 700; letter-spacing: -0.045em; line-height: 1;
+        background: linear-gradient(180deg, #ffffff 0%, #b8b8b8 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      #in-logo { left: 0; right: 0; top: 400px; text-align: center; font-size: 170px; opacity: 0; }
+      #in-tag { left: 0; right: 0; top: 610px; text-align: center; font-size: 40px; font-weight: 500; color: rgba(235, 235, 245, 0.6); letter-spacing: -0.01em; opacity: 0; }
+      #out-logo { left: 0; right: 0; top: 372px; text-align: center; font-size: 170px; opacity: 0; }
+      #out-tag { left: 0; right: 0; top: 590px; text-align: center; font-size: 42px; font-weight: 500; color: rgba(235, 235, 245, 0.62); letter-spacing: -0.01em; opacity: 0; }
+      #out-small { left: 0; right: 0; top: 668px; text-align: center; font-size: 24px; color: var(--muted); letter-spacing: 0.02em; opacity: 0; }
+
+      /* ---------- Сцена: фон, метка, дорожка прогресса ---------- */
+      #spot {
+        left: 835px; top: 40px; width: 1000px; height: 1000px; border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02) 60%, rgba(0, 0, 0, 0) 100%);
+        opacity: 0;
+      }
+      #aura {
+        left: 935px; top: 140px; width: 800px; height: 800px; border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(88, 240, 168, 0.30), rgba(64, 210, 224, 0.08) 55%, rgba(0, 0, 0, 0) 100%);
+        opacity: 0;
+      }
+      #mark { left: 150px; top: 84px; font-size: 40px; opacity: 0; }
+      #rail { left: 150px; top: 960px; display: flex; gap: 10px; opacity: 0; }
+      .seg { width: 64px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+      .seg i { display: block; width: 100%; height: 100%; background: #fff; transform-origin: 0 50%; transform: scaleX(0); }
+      #rail-n { position: relative; display: inline-block; width: 30px; height: 22px; vertical-align: top; }
+      #rail-n span { position: absolute; left: 0; top: 0; opacity: 0; }
+      #rail-count { left: 150px; top: 918px; font-size: 22px; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; opacity: 0; }
+
+      /* ---------- Подписи функций ---------- */
+      .ft { left: 150px; top: 330px; width: 760px; }
+      .ft .num { font-size: 26px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); opacity: 0; }
+      .ft h2 { margin-top: 18px; font-size: 84px; font-weight: 700; letter-spacing: -0.035em; line-height: 1.02; opacity: 0; }
+      .ft p { margin-top: 30px; font-size: 34px; line-height: 1.34; color: rgba(235, 235, 245, 0.62); letter-spacing: -0.005em; opacity: 0; max-width: 700px; }
+
+      /* ---------- Телефон ---------- */
+      #phone {
+        left: 1110px; top: 65px; width: 450px; height: 950px; border-radius: 72px;
+        background: #0c0c0d;
+        box-shadow: 0 0 0 2px #2a2a2c, 0 0 0 3px #0a0a0a, 0 50px 120px rgba(0, 0, 0, 0.7), 0 0 90px rgba(255, 255, 255, 0.05);
+        opacity: 0;
+      }
+      #screen { position: absolute; left: 12px; top: 12px; width: 426px; height: 926px; border-radius: 60px; overflow: hidden; background: #000; }
+      #ios { position: absolute; left: 0; top: 0; width: 402px; height: 874px; transform: scale(1.0597); transform-origin: 0 0; overflow: hidden; }
+      #island { left: 138px; top: 11px; width: 126px; height: 37px; border-radius: 19px; background: #000; z-index: 50; }
+      #status { left: 0; top: 0; width: 402px; height: 54px; z-index: 40; }
+      #status .time { position: absolute; left: 36px; top: 17px; width: 76px; text-align: center; font-size: 17px; font-weight: 600; }
+      #status .icons { position: absolute; right: 30px; top: 22px; display: flex; gap: 7px; align-items: center; }
+
+      .scr { position: absolute; left: 0; top: 0; width: 402px; height: 874px; }
+      .glass {
+        background: linear-gradient(180deg, #252527 0%, #17171a 100%);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 8px 24px rgba(0, 0, 0, 0.45);
+      }
+      .pill-btn { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 27px; font-size: 17px; font-weight: 500; }
+      .white-btn { background: #fff; color: #000; font-weight: 600; }
+      .circle-btn { position: absolute; width: 44px; height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; }
+      .sheet { position: absolute; left: 0; width: 402px; background: var(--sheet); border-radius: 34px 34px 0 0; box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55); }
+      .grabber { position: absolute; left: 172px; top: 5px; width: 58px; height: 4px; border-radius: 2px; background: #5a5a5e; }
+      .sheet-title { position: absolute; left: 70px; right: 70px; top: 28px; text-align: center; font-size: 17px; font-weight: 600; }
+      .x-btn { left: 16px; top: 16px; background: var(--card); }
+      .ok-btn { right: 16px; top: 16px; background: #fff; }
+
+      /* Таббар */
+      #tabbar { left: 21px; top: 791px; width: 360px; height: 62px; border-radius: 31px; background: rgba(30, 30, 32, 0.94); border: 1px solid rgba(255, 255, 255, 0.10); z-index: 30; }
+      #tab-pill { position: absolute; left: 4px; top: 4px; width: 90px; height: 52px; border-radius: 26px; background: rgba(255, 255, 255, 0.09); }
+      .tab { position: absolute; top: 0; width: 90px; height: 60px; text-align: center; }
+      .tab svg { position: absolute; left: 31px; top: 9px; width: 28px; height: 26px; }
+      .tab span { position: absolute; left: 0; right: 0; top: 38px; font-size: 10px; font-weight: 600; }
+      .tab { color: #ffffff; }
+      .tab svg { fill: currentColor; }
+
+      /* Касание */
+      #tap { left: 0; top: 0; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); border: 2px solid rgba(255, 255, 255, 0.8); opacity: 0; z-index: 90; }
+
+      /* Экран «Ошибки» */
+      #iss-title { left: 16px; top: 76px; width: 370px; text-align: center; font-size: 28px; font-weight: 700; line-height: 34px; letter-spacing: -0.01em; }
+      #iss-glow { left: 51px; top: 125px; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(closest-side, rgba(88, 240, 168, 0.55), rgba(64, 210, 224, 0.12) 60%, rgba(0, 0, 0, 0) 100%); opacity: 0.3; }
+      #iss-orb { left: 1px; top: 106px; width: 400px; height: auto; display: block; }
+      #iss-desc { left: 16px; top: 452px; width: 370px; text-align: center; font-size: 15px; line-height: 20px; color: #7c7c80; }
+      #iss-btn { left: 16px; top: 722px; width: 370px; height: 54px; }
+      #iss-btn span { position: absolute; }
+      #iss-stop { opacity: 0; }
+
+      /* Шторка находок */
+      #sh-find { top: 62px; height: 812px; z-index: 60; }
+      .fcard { position: absolute; left: 16px; width: 370px; border-radius: 24px; background: var(--card); padding: 14px 18px 15px; opacity: 0; }
+      .fcard h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+      .fcard p { margin-top: 4px; font-size: 15px; line-height: 20px; color: var(--muted); }
+      #fc-1 { top: 86px; } #fc-2 { top: 184px; } #fc-3 { top: 282px; }
+      #find-yes { left: 16px; top: 652px; width: 370px; height: 54px; opacity: 0; }
+      #find-no { left: 16px; top: 718px; width: 370px; height: 54px; opacity: 0; }
+
+      /* Добавление авто */
+      #sh-add { top: 62px; height: 812px; z-index: 60; }
+      #seg { left: 16px; top: 86px; width: 370px; height: 36px; border-radius: 18px; background: var(--fill3); }
+      #seg-pill { position: absolute; left: 2px; top: 2px; width: 183px; height: 32px; border-radius: 16px; background: #636366; }
+      #seg span { position: absolute; top: 9px; width: 185px; text-align: center; font-size: 14px; font-weight: 600; }
+      #plate { left: 16px; top: 154px; width: 370px; height: 86px; border-radius: 26px; background: var(--fill3); }
+      #plate-main { position: absolute; left: 0; top: 0; width: 277px; height: 86px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+      #plate-sep { position: absolute; left: 277px; top: 17px; width: 1px; height: 52px; background: var(--sep); }
+      #plate-reg { position: absolute; left: 278px; top: 0; width: 92px; height: 86px; }
+      #plate-reg .row { position: absolute; left: 0; right: 0; top: 20px; display: flex; justify-content: center; gap: 3px; }
+      #plate-reg .rus { position: absolute; left: 0; right: 0; top: 52px; text-align: center; font-size: 9px; font-weight: 600; letter-spacing: 0.6px; color: var(--dim); }
+      .ch { position: relative; display: inline-block; font-weight: 700; font-variant-numeric: tabular-nums; }
+      .ch .ph { color: var(--dim); }
+      .ch .v { position: absolute; left: 0; top: 0; color: #fff; opacity: 0; }
+      #plate-main .ch { font-size: 34px; width: 22px; text-align: center; }
+      #plate-reg .ch { font-size: 22px; width: 14px; text-align: center; }
+      #plate-main .ch .v, #plate-reg .ch .v { width: 100%; text-align: center; }
+      #add-hint { left: 16px; top: 260px; width: 370px; text-align: center; font-size: 15px; line-height: 20px; color: var(--muted); }
+
+      /* Тост */
+      .toast { left: 0; right: 0; top: 58px; z-index: 80; display: flex; justify-content: center; opacity: 0; }
+      .toast .box { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 22px; background: rgba(48, 48, 50, 0.96); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); font-size: 15px; font-weight: 600; }
+
+      /* «Это ваш автомобиль?» */
+      #sh-found { top: 98px; height: 776px; z-index: 62; }
+      #found-name { left: 0; right: 0; top: 88px; text-align: center; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+      .grad-name { background: linear-gradient(90deg, #8a8a8e 0%, #e2e2e6 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .plate-pill { position: absolute; left: 146px; width: 110px; height: 28px; border-radius: 14px; background: rgba(118, 118, 128, 0.26); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #9a9aa0; letter-spacing: 0.02em; }
+      .plate-pill b { font-weight: 600; margin-left: 7px; padding-left: 7px; border-left: 1px solid rgba(255, 255, 255, 0.2); }
+      #found-plate { top: 128px; }
+      #found-car { left: -4px; top: 168px; width: 410px; height: auto; display: block; mix-blend-mode: lighten; }
+      #found-cap { left: 0; right: 0; top: 440px; text-align: center; font-size: 13px; color: var(--muted); }
+      #found-gen { left: 24px; top: 488px; font-size: 16px; color: var(--muted); }
+      #found-year { left: 24px; top: 516px; font-size: 16px; color: var(--muted); }
+      #found-gen b, #found-year b { color: #fff; font-weight: 500; }
+      #found-yes { left: 16px; top: 596px; width: 370px; height: 54px; }
+      #found-no { left: 16px; top: 662px; width: 370px; height: 54px; color: #fff; }
+
+      /* Главная */
+      #main { opacity: 0; }
+      #main-scroll { position: absolute; left: 0; top: 0; width: 402px; height: 1300px; }
+      #main-name { left: 0; right: 0; top: 108px; text-align: center; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+      #main-plate { top: 148px; }
+      #main-car { left: -8px; top: 196px; width: 418px; height: auto; display: block; }
+      #main-dots { left: 0; right: 0; top: 482px; display: flex; justify-content: center; gap: 8px; align-items: center; }
+      #main-dots i { display: block; width: 8px; height: 8px; border-radius: 4px; background: #3a3a3c; }
+      #main-dots i:first-child { background: #fff; }
+      #card { left: 16px; top: 530px; width: 370px; height: 148px; border-radius: 36px; }
+      #card-add { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 18px; font-weight: 500; }
+      #card-to { position: absolute; inset: 0; opacity: 0; }
+      #to-label { position: absolute; left: 0; right: 0; top: 24px; text-align: center; font-size: 14px; color: var(--gray2); letter-spacing: -0.02em; }
+      #to-km { position: absolute; left: 0; right: 0; top: 46px; text-align: center; font-size: 28px; font-weight: 700; letter-spacing: 0.01em; }
+      #to-track { position: absolute; left: 24px; top: 94px; width: 322px; height: 30px; border-radius: 15px; background: rgba(118, 118, 128, 0.24); overflow: hidden; }
+      #to-bar { position: absolute; left: 0; top: 0; height: 30px; width: 30px; border-radius: 15px; background: var(--green); }
+      .tile { position: absolute; top: 694px; width: 177px; height: 95px; border-radius: 48px; text-align: center; }
+      .tile .l { margin-top: 24px; font-size: 14px; color: var(--muted); letter-spacing: -0.02em; }
+      .tile .v { margin-top: 6px; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+      #tile-price { left: 16px; } #tile-odo { left: 209px; }
+      #hist-title, #hist-sum, #hist-item { opacity: 0; }
+      #hist-title { left: 0; right: 0; top: 830px; text-align: center; font-size: 22px; font-weight: 700; }
+      #hist-sum { left: 16px; top: 878px; width: 370px; height: 96px; border-radius: 30px; display: flex; }
+      #hist-sum > div { flex: 1; text-align: center; padding-top: 22px; }
+      #hist-sum .l { font-size: 14px; color: var(--muted); }
+      #hist-sum .v { margin-top: 6px; font-size: 22px; font-weight: 700; white-space: nowrap; }
+      #hist-item { left: 16px; top: 990px; width: 370px; height: 92px; border-radius: 26px; padding: 16px 20px; }
+      #hist-item .d { font-size: 13px; color: var(--muted); }
+      #hist-item .w { margin-top: 6px; font-size: 17px; font-weight: 600; }
+      #hist-item .a { position: absolute; right: 20px; top: 36px; font-size: 17px; font-weight: 600; }
+
+      /* Выбор способа добавления ТО */
+      #sh-choice { top: 411px; height: 463px; z-index: 60; }
+      #ch-photo { left: 16px; top: 150px; width: 370px; height: 140px; border-radius: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 18px; font-weight: 600; }
+      #ch-manual { left: 16px; top: 304px; width: 370px; height: 110px; border-radius: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-size: 18px; font-weight: 600; }
+      #sh-choice .x-btn { left: auto; right: 16px; }
+
+      /* Форма ТО */
+      #sh-svc { top: 62px; height: 812px; z-index: 61; }
+      #svc-thumb { left: 16px; top: 84px; width: 99px; height: 94px; border-radius: 16px; background: #f1eee7; overflow: hidden; }
+      #svc-thumb i { position: absolute; left: 12px; height: 4px; border-radius: 2px; background: #bdb8ad; }
+      #svc-fields { left: 16px; top: 194px; width: 370px; height: 104px; border-radius: 26px; background: var(--card); }
+      .frow { position: absolute; left: 18px; right: 18px; height: 52px; display: flex; align-items: center; justify-content: space-between; font-size: 17px; }
+      .frow .k { color: var(--muted); }
+      #svc-works-t { left: 20px; top: 318px; font-size: 20px; font-weight: 700; }
+      #svc-works { left: 16px; top: 356px; width: 370px; height: 260px; border-radius: 26px; background: var(--card); }
+      .wrow { position: absolute; left: 18px; right: 18px; height: 52px; display: flex; align-items: center; justify-content: space-between; font-size: 16px; opacity: 0; }
+      .wrow .a { font-weight: 600; white-space: nowrap; }
+      .hair { position: absolute; left: 18px; right: 0; height: 1px; background: rgba(84, 84, 88, 0.45); opacity: 0; }
+
+      /* Уведомление */
+      #notif { left: 10px; top: 8px; width: 382px; border-radius: 26px; padding: 13px 16px 14px 62px; background: rgba(58, 58, 60, 0.97); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6); z-index: 85; }
+      #notif-icon { left: 14px; top: 14px; width: 38px; height: 38px; border-radius: 9px; background: #000; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.12); }
+      #notif-icon img { position: absolute; left: -12px; top: -4px; width: 62px; height: auto; }
+      #notif .t { font-size: 15px; font-weight: 600; }
+      #notif .b { margin-top: 2px; font-size: 15px; line-height: 20px; color: rgba(235, 235, 245, 0.85); }
+      #notif .when { position: absolute; right: 16px; top: 14px; font-size: 13px; color: rgba(235, 235, 245, 0.55); }
+
+      /* Цена */
+      #sh-price { top: 380px; height: 494px; z-index: 60; }
+      #pr-val { left: 0; right: 0; top: 96px; text-align: center; font-size: 40px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
+      #pr-cap { left: 0; right: 0; top: 150px; text-align: center; font-size: 15px; color: var(--muted); opacity: 0; }
+      #pr-pen { left: 173px; top: 188px; width: 56px; height: 40px; border-radius: 20px; background: var(--card); display: flex; align-items: center; justify-content: center; opacity: 0; }
+      #pr-box { left: 16px; top: 250px; width: 370px; border-radius: 26px; background: var(--card); padding: 18px 20px 20px; opacity: 0; }
+      #pr-box h4 { font-size: 17px; font-weight: 600; }
+      #pr-box p { margin-top: 6px; font-size: 15px; line-height: 20px; color: var(--muted); }
+
+      /* Карта */
+      #map { opacity: 0; }
+      #map svg.city { position: absolute; left: 0; top: 0; width: 402px; height: 874px; }
+      #chips { left: 16px; top: 62px; display: flex; gap: 8px; }
+      .chip { height: 36px; padding: 0 14px 0 10px; border-radius: 18px; display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600; background: rgba(44, 44, 46, 0.92); border: 1px solid rgba(255, 255, 255, 0.08); color: rgba(235, 235, 245, 0.55); }
+      .chip i { display: block; width: 10px; height: 10px; border-radius: 5px; opacity: 0.35; }
+      .pin { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 17px; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: #fff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); opacity: 0; }
+      .pin.p { background: #0a6ed1; } .pin.t { background: var(--green); } .pin.s { background: var(--red); }
+      #me { left: 196px; top: 470px; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 9px; background: var(--blue); border: 3px solid #fff; box-shadow: 0 0 0 10px rgba(10, 132, 255, 0.22); }
+      #route-pill { left: 238px; top: 380px; height: 32px; padding: 0 12px; border-radius: 16px; background: #fff; color: #000; font-size: 13px; font-weight: 700; display: flex; align-items: center; opacity: 0; white-space: nowrap; }
+      #map-card { left: 8px; top: 560px; width: 386px; height: 226px; border-radius: 32px; background: var(--sheet); box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.55); z-index: 25; }
+      #mc-name { left: 20px; top: 24px; font-size: 22px; font-weight: 700; }
+      #mc-sub { left: 20px; top: 56px; font-size: 15px; color: var(--muted); }
+      #mc-star { right: 16px; top: 18px; background: var(--card); }
+      #mc-route { left: 16px; top: 96px; width: 354px; height: 50px; border-radius: 25px; }
+      #mc-call { left: 16px; top: 156px; width: 172px; height: 50px; border-radius: 25px; background: var(--card); font-size: 16px; }
+      #mc-fav { left: 198px; top: 156px; width: 172px; height: 50px; border-radius: 25px; background: var(--card); font-size: 16px; }
+      .pill-btn svg { margin-right: 8px; }
+
+      /* Замок */
+      #lock-dim { left: 0; top: 0; width: 402px; height: 874px; background: rgba(0, 0, 0, 0.6); opacity: 0; z-index: 70; }
+      #lock { left: 111px; top: 247px; width: 180px; height: 180px; border-radius: 90px; background: rgba(28, 28, 30, 0.95); border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 0 60px rgba(88, 240, 168, 0.35); display: flex; align-items: center; justify-content: center; opacity: 0; z-index: 71; }
+      #lock-cap { left: 0; right: 0; top: 452px; text-align: center; font-size: 20px; font-weight: 600; opacity: 0; z-index: 71; }
+      #lock-sub { left: 0; right: 0; top: 484px; text-align: center; font-size: 15px; color: var(--muted); opacity: 0; z-index: 71; }
+
+      /* Заказ-наряд рядом с телефоном */
+      #receipt { left: 1470px; top: 212px; width: 320px; height: 470px; border-radius: 12px; background: #f3f0e9; color: #1d1d1f; padding: 24px 22px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); opacity: 0; }
+      #receipt .h { font-size: 17px; line-height: 20px; font-weight: 800; letter-spacing: 0.03em; }
+      #receipt .s { margin-top: 4px; font-size: 13px; line-height: 16px; color: #6b6b6b; }
+      #receipt .meta { margin-top: 12px; font-size: 13px; line-height: 19px; color: #3a3a3c; }
+      #receipt .rr { position: relative; display: flex; justify-content: space-between; font-size: 14px; line-height: 19px; padding: 7px 7px; margin: 0 -7px; border-radius: 5px; }
+      #receipt .rr span, #receipt .rr b { position: relative; }
+      #receipt .rr b { font-weight: 700; white-space: nowrap; margin-left: 10px; }
+      #receipt .rule { margin: 12px 0 8px; height: 1px; background: #cfcac0; }
+      #receipt .tot { display: flex; justify-content: space-between; font-size: 16px; line-height: 19px; font-weight: 800; }
+      .hl { position: absolute; inset: 0; border-radius: 5px; background: rgba(88, 240, 168, 0.38); opacity: 0; }
+      #scan { left: 1446px; top: 212px; width: 368px; height: 3px; background: var(--accent); box-shadow: 0 0 18px 4px rgba(88, 240, 168, 0.7); opacity: 0; }
+      .corner { position: absolute; width: 36px; height: 36px; border-color: rgba(255, 255, 255, 0.9); border-style: solid; border-width: 0; opacity: 0; }
+      #c1 { left: 1452px; top: 194px; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 12px; }
+      #c2 { left: 1772px; top: 194px; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 12px; }
+      #c3 { left: 1452px; top: 664px; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 12px; }
+      #c4 { left: 1772px; top: 664px; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 12px; }
+
+      /* Итоговый список */
+      #rc-title { left: 0; right: 0; top: 340px; text-align: center; font-size: 30px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; opacity: 0; }
+      #rc-grid { left: 60px; top: 424px; width: 1800px; display: flex; flex-wrap: wrap; justify-content: center; gap: 22px 22px; }
+      .rc { height: 96px; padding: 0 36px 0 28px; border-radius: 48px; display: flex; align-items: center; gap: 18px; font-size: 34px; font-weight: 600; letter-spacing: -0.015em; white-space: nowrap; opacity: 0; }
+      .rc b { font-size: 24px; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="42.5" data-width="1920" data-height="1080">
+
+      <!-- Вступление -->
+      <section id="intro" class="clip" data-start="0" data-duration="4.2" data-track-index="0">
+        <div id="in-logo" class="abs wordmark">Beepy</div>
+        <div id="in-tag" class="abs">Семь вещей, которые умеет приложение</div>
+      </section>
+
+      <!-- Основная сцена: подписи слева, телефон справа -->
+      <section id="stage" class="clip" data-start="3.4" data-duration="31.8" data-track-index="1" data-layout-allow-overflow>
+        <div id="spot" class="abs"></div>
+        <div id="aura" class="abs"></div>
+        <div id="mark" class="abs wordmark">Beepy</div>
+        <div id="rail-count" class="abs nb"><span id="rail-n"><span id="rn1">01</span><span id="rn2">02</span><span id="rn3">03</span><span id="rn4">04</span><span id="rn5">05</span><span id="rn6">06</span><span id="rn7">07</span></span> / 07</div>
+        <div id="rail" class="abs">
+          <div class="seg"><i id="sg1"></i></div><div class="seg"><i id="sg2"></i></div><div class="seg"><i id="sg3"></i></div>
+          <div class="seg"><i id="sg4"></i></div><div class="seg"><i id="sg5"></i></div><div class="seg"><i id="sg6"></i></div>
+          <div class="seg"><i id="sg7"></i></div>
+        </div>
+
+        <div id="ft1" class="abs ft"><div class="num">01</div><h2>Диагностика по&nbsp;звуку</h2><p>Поднесите телефон к&nbsp;двигателю&nbsp;— Beepy выслушает мотор и&nbsp;подскажет, на&nbsp;что посмотреть в&nbsp;сервисе.</p></div>
+        <div id="ft2" class="abs ft"><div class="num">02</div><h2>Машина по&nbsp;госномеру</h2><p>Введите номер&nbsp;— Beepy найдёт модель и&nbsp;поколение и&nbsp;подберёт кадр из&nbsp;каталога.</p></div>
+        <div id="ft3" class="abs ft"><div class="num">03</div><h2>История обслуживания</h2><p>Сфотографируйте заказ-наряд или загрузите PDF&nbsp;— работы и&nbsp;суммы распознаются сами.</p></div>
+        <div id="ft4" class="abs ft"><div class="num">04</div><h2>Напоминание о&nbsp;ТО</h2><p>Beepy считает километры до&nbsp;следующего ТО и&nbsp;напомнит, когда пора в&nbsp;сервис.</p></div>
+        <div id="ft5" class="abs ft"><div class="num">05</div><h2>Рыночная цена</h2><p>Средняя по&nbsp;объявлениям о&nbsp;продаже похожих машин. Свою цену можно ввести вручную.</p></div>
+        <div id="ft6" class="abs ft"><div class="num">06</div><h2>Карта для&nbsp;водителя</h2><p>Парковки, шиномонтажи и&nbsp;СТО рядом. Маршрут, звонок и&nbsp;избранное&nbsp;— в&nbsp;один тап.</p></div>
+        <div id="ft7" class="abs ft"><div class="num">07</div><h2>Всё на&nbsp;телефоне</h2><p>Без регистрации. Машины и&nbsp;история ТО хранятся только на&nbsp;вашем телефоне.</p></div>
+
+        <!-- Заказ-наряд, который «фотографирует» телефон -->
+        <div id="receipt" class="abs">
+          <div class="h">ЗАКАЗ-НАРЯД №&nbsp;2417</div>
+          <div class="s">от&nbsp;12.09.2026</div>
+          <div class="meta">Lexus RX · А&nbsp;777&nbsp;АА&nbsp;777<br />Пробег: 86&nbsp;400&nbsp;км</div>
+          <div class="rule"></div>
+          <div class="rr" id="rr1"><div class="hl"></div><span>Замена масла ДВС</span><b>1&nbsp;200</b></div>
+          <div class="rr" id="rr2"><div class="hl"></div><span>Масло 5W-30, 5&nbsp;л</span><b>4&nbsp;900</b></div>
+          <div class="rr" id="rr3"><div class="hl"></div><span>Фильтр масляный</span><b>850</b></div>
+          <div class="rr" id="rr4"><div class="hl"></div><span>Фильтр салонный</span><b>1&nbsp;300</b></div>
+          <div class="rule"></div>
+          <div class="tot"><span>Итого</span><span class="nb">8&nbsp;250&nbsp;₽</span></div>
+        </div>
+        <div id="c1" class="corner"></div><div id="c2" class="corner"></div><div id="c3" class="corner"></div><div id="c4" class="corner"></div>
+        <div id="scan" class="abs"></div>
+
+        <!-- Телефон -->
+        <div id="phone" class="abs">
+          <div id="screen">
+            <div id="ios">
+
+              <!-- Главная -->
+              <div id="main" class="scr">
+                <div id="main-scroll">
+                  <div id="main-name" class="abs grad-name">Lexus RX</div>
+                  <div id="main-plate" class="plate-pill">А&nbsp;777&nbsp;АА<b>777</b></div>
+                  <img id="main-car" class="abs" src="assets/img/lexus-rx.png" alt="" />
+                  <div id="main-dots" class="abs"><i></i><i></i>
+                    <svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 1v8M1 5h8" stroke="#3a3a3c" stroke-width="2" stroke-linecap="round"/></svg>
+                  </div>
+                  <div id="card" class="abs glass">
+                    <div id="card-add">
+                      <svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 2v14M2 9h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+                      <span>Добавить ТО</span>
+                    </div>
+                    <div id="card-to">
+                      <div id="to-label">ТО через</div>
+                      <div id="to-km" class="nb">10&nbsp;000&nbsp;км</div>
+                      <div id="to-track"><div id="to-bar"></div></div>
+                    </div>
+                  </div>
+                  <div id="tile-price" class="tile glass"><div class="l">Цена авто</div><div class="v">≈&nbsp;3&nbsp;900&nbsp;000&nbsp;₽</div></div>
+                  <div id="tile-odo" class="tile glass"><div class="l">Пробег</div><div class="v" id="odo-v">86&nbsp;400&nbsp;км</div></div>
+                  <div id="hist-title" class="abs">История обслуживания</div>
+                  <div id="hist-sum" class="abs glass">
+                    <div><div class="l">Количество ТО</div><div class="v">1</div></div>
+                    <div><div class="l">Всего потрачено</div><div class="v">8&nbsp;250&nbsp;₽</div></div>
+                  </div>
+                  <div id="hist-item" class="abs glass">
+                    <div class="d">12&nbsp;сентября · 86&nbsp;400&nbsp;км</div>
+                    <div class="w">Замена масла, 2&nbsp;фильтра</div>
+                    <div class="a">8&nbsp;250&nbsp;₽</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Экран «Ошибки» -->
+              <div id="issues" class="scr">
+                <div id="iss-title" class="abs">Поднесите телефон<br />к&nbsp;двигателю</div>
+                <div id="iss-glow" class="abs"></div>
+                <img id="iss-orb" class="abs" src="assets/img/orb-base.png" alt="" />
+                <div id="iss-desc" class="abs">Поднесите телефон к&nbsp;двигателю или выхлопной<br />трубе и&nbsp;нажмите кнопку для начала<br />диагностики</div>
+                <div id="iss-btn" class="pill-btn glass"><span id="iss-listen">Слушать</span><span id="iss-stop">Стоп</span></div>
+              </div>
+
+              <!-- Карта -->
+              <div id="map" class="scr">
+                <svg class="city" viewBox="0 0 402 874">
+                  <rect width="402" height="874" fill="#17191d"/>
+                  <path d="M-10 610 C 80 590, 140 640, 230 620 S 360 560, 420 600 L 420 660 C 360 620, 300 690, 220 680 S 60 650, -10 670 Z" fill="#132a3d"/>
+                  <rect x="250" y="150" width="120" height="110" rx="14" fill="#18261c"/>
+                  <rect x="30" y="700" width="140" height="80" rx="14" fill="#18261c"/>
+                  <g stroke="#2b2f36" stroke-linecap="round" fill="none">
+                    <path d="M-10 250 L 420 190" stroke-width="12"/>
+                    <path d="M-10 470 L 420 440" stroke-width="10"/>
+                    <path d="M120 -10 L 170 900" stroke-width="12"/>
+                    <path d="M310 -10 L 280 900" stroke-width="9"/>
+                    <path d="M-10 360 L 420 350" stroke-width="6"/>
+                    <path d="M-10 120 L 420 100" stroke-width="6"/>
+                    <path d="M40 -10 L 60 900" stroke-width="5"/>
+                    <path d="M220 -10 L 230 900" stroke-width="5"/>
+                    <path d="M-10 780 L 420 760" stroke-width="6"/>
+                  </g>
+                  <g stroke="#3a3f47" stroke-linecap="round" fill="none">
+                    <path d="M-10 250 L 420 190" stroke-width="2"/>
+                    <path d="M120 -10 L 170 900" stroke-width="2"/>
+                  </g>
+                  <path id="route" d="M196 470 L 214 468 L 225 360 L 231 300 L 298 292" stroke="#0a84ff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+                <div id="me" class="abs"></div>
+                <div id="pin1" class="pin p" style="left: 92px; top: 300px">P</div>
+                <div id="pin2" class="pin p" style="left: 345px; top: 140px">P</div>
+                <div id="pin3" class="pin t" style="left: 298px; top: 292px"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.8" stroke="#fff" stroke-width="2.4" fill="none"/><circle cx="8" cy="8" r="1.9" fill="#fff"/></svg></div>
+                <div id="pin4" class="pin t" style="left: 70px; top: 540px"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.8" stroke="#fff" stroke-width="2.4" fill="none"/><circle cx="8" cy="8" r="1.9" fill="#fff"/></svg></div>
+                <div id="pin5" class="pin s" style="left: 170px; top: 210px"><svg width="17" height="17" viewBox="19 0 30 28"><path fill="#fff" d="M21.9678 26.1914C21.3115 25.5352 20.875 24.8057 20.6582 24.0029C20.4414 23.2002 20.459 22.3945 20.7109 21.5859C20.9629 20.7832 21.4639 20.0508 22.2139 19.3887C22.8057 18.8613 23.5029 18.3193 24.3057 17.7627C25.1084 17.2002 25.9609 16.6143 26.8633 16.0049C27.7656 15.3955 28.6621 14.748 29.5527 14.0625C30.4434 13.377 31.2754 12.6533 32.0488 11.8916C32.4531 11.4814 32.7314 11.0391 32.8838 10.5645C33.042 10.0898 33.1328 9.58594 33.1562 9.05273C33.1797 8.51367 33.1973 7.95703 33.209 7.38281C33.2207 6.80859 33.2793 6.2168 33.3848 5.60742C33.4961 4.99805 33.71 4.38281 34.0264 3.76172C34.3486 3.14062 34.8379 2.5166 35.4941 1.88965C36.168 1.25098 36.9297 0.776367 37.7793 0.46582C38.6348 0.155273 39.5166 0.0117188 40.4248 0.0351562C41.3389 0.0585937 42.2236 0.246094 43.0791 0.597656C43.9346 0.949219 44.6963 1.46777 45.3643 2.15332C45.6338 2.42871 45.8594 2.71875 46.041 3.02344C46.2227 3.32227 46.3545 3.58887 46.4365 3.82324L42.0771 5.02734C41.5908 5.16211 41.2598 5.39648 41.084 5.73047C40.9141 6.06445 40.8848 6.44531 40.9961 6.87305L42.9648 13.9922C42.4844 14.1855 42.0127 14.3145 41.5498 14.3789C41.0928 14.4375 40.6445 14.4756 40.2051 14.4932C39.7715 14.5107 39.3438 14.5488 38.9219 14.6074C38.5059 14.6602 38.0986 14.7744 37.7002 14.9502C37.3018 15.126 36.9092 15.4072 36.5225 15.7939C35.9072 16.4092 35.2979 17.0918 34.6943 17.8418C34.0967 18.5859 33.5107 19.3506 32.9365 20.1357C32.3682 20.9209 31.8291 21.6826 31.3193 22.4209C30.8096 23.165 30.3379 23.8418 29.9043 24.4512C29.4707 25.0605 29.0898 25.5557 28.7617 25.9365C28.1172 26.6982 27.3906 27.2051 26.582 27.457C25.7793 27.709 24.9707 27.7236 24.1562 27.501C23.3477 27.2842 22.6182 26.8477 21.9678 26.1914ZM25.3252 24.1611C25.6943 24.1611 26.0078 24.0322 26.2656 23.7744C26.5234 23.5166 26.6523 23.2031 26.6523 22.834C26.6523 22.4707 26.5234 22.1572 26.2656 21.8936C26.0078 21.6357 25.6943 21.5068 25.3252 21.5068C24.9619 21.5068 24.6484 21.6357 24.3848 21.8936C24.127 22.1572 23.998 22.4707 23.998 22.834C23.998 23.2031 24.127 23.5166 24.3848 23.7744C24.6484 24.0322 24.9619 24.1611 25.3252 24.1611ZM36.1533 8.97363L38.7021 8.29688C38.8193 8.26758 38.9072 8.20312 38.9658 8.10352C39.0244 8.00391 39.0361 7.89258 39.001 7.76953C38.9658 7.6582 38.8984 7.57324 38.7988 7.51465C38.7051 7.45605 38.6055 7.44141 38.5 7.4707L35.9248 8.16504C35.8076 8.19434 35.7197 8.26172 35.6611 8.36719C35.6025 8.4668 35.5908 8.56641 35.626 8.66602C35.6611 8.78906 35.7256 8.87988 35.8193 8.93848C35.9189 8.99121 36.0303 9.00293 36.1533 8.97363ZM36.4697 10.292L39.0273 9.61523C39.1387 9.58594 39.2236 9.52148 39.2822 9.42188C39.3467 9.32227 39.3584 9.21094 39.3174 9.08789C39.2881 8.97656 39.2236 8.89453 39.124 8.8418C39.0244 8.7832 38.9248 8.76855 38.8252 8.79785L36.25 9.4834C36.1328 9.5127 36.0449 9.58008 35.9863 9.68555C35.9277 9.78516 35.916 9.88477 35.9512 9.98438C36.0391 10.2598 36.2119 10.3623 36.4697 10.292ZM36.7949 11.6104L39.3701 10.916C39.4756 10.8867 39.5576 10.8223 39.6162 10.7227C39.6748 10.6172 39.6895 10.5088 39.6602 10.3975C39.6309 10.292 39.5664 10.21 39.4668 10.1514C39.373 10.0928 39.2676 10.0811 39.1504 10.1162L36.5752 10.8018C36.4639 10.8311 36.3789 10.8926 36.3203 10.9863C36.2676 11.0801 36.2529 11.1855 36.2764 11.3027C36.3057 11.4258 36.3701 11.5166 36.4697 11.5752C36.5752 11.6279 36.6836 11.6396 36.7949 11.6104ZM44.2744 13.3506L42.9209 8.41113C43.0674 8.44043 43.2168 8.44922 43.3691 8.4375C43.5273 8.42578 43.6943 8.39648 43.8701 8.34961L47.377 7.37402C47.4824 7.89551 47.4795 8.44922 47.3682 9.03516C47.2627 9.62109 47.0605 10.1953 46.7617 10.7578C46.4629 11.3145 46.085 11.8184 45.6279 12.2695C45.3994 12.4922 45.1709 12.6943 44.9424 12.876C44.7139 13.0518 44.4912 13.21 44.2744 13.3506Z"/></svg></div>
+                <div id="pin6" class="pin s" style="left: 355px; top: 520px"><svg width="17" height="17" viewBox="19 0 30 28"><path fill="#fff" d="M21.9678 26.1914C21.3115 25.5352 20.875 24.8057 20.6582 24.0029C20.4414 23.2002 20.459 22.3945 20.7109 21.5859C20.9629 20.7832 21.4639 20.0508 22.2139 19.3887C22.8057 18.8613 23.5029 18.3193 24.3057 17.7627C25.1084 17.2002 25.9609 16.6143 26.8633 16.0049C27.7656 15.3955 28.6621 14.748 29.5527 14.0625C30.4434 13.377 31.2754 12.6533 32.0488 11.8916C32.4531 11.4814 32.7314 11.0391 32.8838 10.5645C33.042 10.0898 33.1328 9.58594 33.1562 9.05273C33.1797 8.51367 33.1973 7.95703 33.209 7.38281C33.2207 6.80859 33.2793 6.2168 33.3848 5.60742C33.4961 4.99805 33.71 4.38281 34.0264 3.76172C34.3486 3.14062 34.8379 2.5166 35.4941 1.88965C36.168 1.25098 36.9297 0.776367 37.7793 0.46582C38.6348 0.155273 39.5166 0.0117188 40.4248 0.0351562C41.3389 0.0585937 42.2236 0.246094 43.0791 0.597656C43.9346 0.949219 44.6963 1.46777 45.3643 2.15332C45.6338 2.42871 45.8594 2.71875 46.041 3.02344C46.2227 3.32227 46.3545 3.58887 46.4365 3.82324L42.0771 5.02734C41.5908 5.16211 41.2598 5.39648 41.084 5.73047C40.9141 6.06445 40.8848 6.44531 40.9961 6.87305L42.9648 13.9922C42.4844 14.1855 42.0127 14.3145 41.5498 14.3789C41.0928 14.4375 40.6445 14.4756 40.2051 14.4932C39.7715 14.5107 39.3438 14.5488 38.9219 14.6074C38.5059 14.6602 38.0986 14.7744 37.7002 14.9502C37.3018 15.126 36.9092 15.4072 36.5225 15.7939C35.9072 16.4092 35.2979 17.0918 34.6943 17.8418C34.0967 18.5859 33.5107 19.3506 32.9365 20.1357C32.3682 20.9209 31.8291 21.6826 31.3193 22.4209C30.8096 23.165 30.3379 23.8418 29.9043 24.4512C29.4707 25.0605 29.0898 25.5557 28.7617 25.9365C28.1172 26.6982 27.3906 27.2051 26.582 27.457C25.7793 27.709 24.9707 27.7236 24.1562 27.501C23.3477 27.2842 22.6182 26.8477 21.9678 26.1914ZM25.3252 24.1611C25.6943 24.1611 26.0078 24.0322 26.2656 23.7744C26.5234 23.5166 26.6523 23.2031 26.6523 22.834C26.6523 22.4707 26.5234 22.1572 26.2656 21.8936C26.0078 21.6357 25.6943 21.5068 25.3252 21.5068C24.9619 21.5068 24.6484 21.6357 24.3848 21.8936C24.127 22.1572 23.998 22.4707 23.998 22.834C23.998 23.2031 24.127 23.5166 24.3848 23.7744C24.6484 24.0322 24.9619 24.1611 25.3252 24.1611ZM36.1533 8.97363L38.7021 8.29688C38.8193 8.26758 38.9072 8.20312 38.9658 8.10352C39.0244 8.00391 39.0361 7.89258 39.001 7.76953C38.9658 7.6582 38.8984 7.57324 38.7988 7.51465C38.7051 7.45605 38.6055 7.44141 38.5 7.4707L35.9248 8.16504C35.8076 8.19434 35.7197 8.26172 35.6611 8.36719C35.6025 8.4668 35.5908 8.56641 35.626 8.66602C35.6611 8.78906 35.7256 8.87988 35.8193 8.93848C35.9189 8.99121 36.0303 9.00293 36.1533 8.97363ZM36.4697 10.292L39.0273 9.61523C39.1387 9.58594 39.2236 9.52148 39.2822 9.42188C39.3467 9.32227 39.3584 9.21094 39.3174 9.08789C39.2881 8.97656 39.2236 8.89453 39.124 8.8418C39.0244 8.7832 38.9248 8.76855 38.8252 8.79785L36.25 9.4834C36.1328 9.5127 36.0449 9.58008 35.9863 9.68555C35.9277 9.78516 35.916 9.88477 35.9512 9.98438C36.0391 10.2598 36.2119 10.3623 36.4697 10.292ZM36.7949 11.6104L39.3701 10.916C39.4756 10.8867 39.5576 10.8223 39.6162 10.7227C39.6748 10.6172 39.6895 10.5088 39.6602 10.3975C39.6309 10.292 39.5664 10.21 39.4668 10.1514C39.373 10.0928 39.2676 10.0811 39.1504 10.1162L36.5752 10.8018C36.4639 10.8311 36.3789 10.8926 36.3203 10.9863C36.2676 11.0801 36.2529 11.1855 36.2764 11.3027C36.3057 11.4258 36.3701 11.5166 36.4697 11.5752C36.5752 11.6279 36.6836 11.6396 36.7949 11.6104ZM44.2744 13.3506L42.9209 8.41113C43.0674 8.44043 43.2168 8.44922 43.3691 8.4375C43.5273 8.42578 43.6943 8.39648 43.8701 8.34961L47.377 7.37402C47.4824 7.89551 47.4795 8.44922 47.3682 9.03516C47.2627 9.62109 47.0605 10.1953 46.7617 10.7578C46.4629 11.3145 46.085 11.8184 45.6279 12.2695C45.3994 12.4922 45.1709 12.6943 44.9424 12.876C44.7139 13.0518 44.4912 13.21 44.2744 13.3506Z"/></svg></div>
+                <div id="route-pill" class="abs">12&nbsp;мин · 4,1&nbsp;км</div>
+                <div id="chips" class="abs">
+                  <div class="chip" id="chip1"><i style="background: #0a84ff"></i>Парковки</div>
+                  <div class="chip" id="chip2"><i style="background: #30d158"></i>Шиномонтаж</div>
+                  <div class="chip" id="chip3"><i style="background: #ff453a"></i>СТО</div>
+                </div>
+                <div id="map-card" class="abs">
+                  <div class="grabber"></div>
+                  <div id="mc-name" class="abs">Шиномонтаж на&nbsp;Лесной</div>
+                  <div id="mc-sub" class="abs">Шиномонтаж · 1,2&nbsp;км</div>
+                  <div id="mc-star" class="circle-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z"/></svg></div>
+                  <div id="mc-route" class="pill-btn white-btn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19L19 5M19 5h-9M19 5v9"/></svg>Маршрут</div>
+                  <div id="mc-call" class="pill-btn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 3.5h2.8l1.4 4-2 1.5a11 11 0 0 0 6.2 6.2l1.5-2 4 1.4v2.8a2 2 0 0 1-2.2 2A16 16 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2z"/></svg>Позвонить</div>
+                  <div id="mc-fav" class="pill-btn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z"/></svg>В&nbsp;избранное</div>
+                </div>
+              </div>
+
+              <!-- Шторка находок -->
+              <div id="sh-find" class="sheet">
+                <div class="grabber"></div>
+                <div class="circle-btn x-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+                <div class="sheet-title">Вот что мы нашли</div>
+                <div class="circle-btn ok-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div>
+                <div id="fc-1" class="fcard"><h3>Стук в&nbsp;подвеске</h3><p>На&nbsp;неровностях слышен стук спереди, возможен износ стоек</p></div>
+                <div id="fc-2" class="fcard"><h3>Свист ремня привода</h3><p>Свист на&nbsp;холодном пуске, ремень навесного оборудования</p></div>
+                <div id="fc-3" class="fcard"><h3>Шум подшипника</h3><p>Гул нарастает с&nbsp;оборотами, похоже на&nbsp;подшипник помпы</p></div>
+                <div id="find-yes" class="pill-btn white-btn">Да, добавить ошибки</div>
+                <div id="find-no" class="pill-btn">Нет, не&nbsp;добавлять</div>
+              </div>
+
+              <!-- Добавление авто -->
+              <div id="sh-add" class="sheet">
+                <div class="grabber"></div>
+                <div class="circle-btn x-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+                <div class="sheet-title">Добавление авто</div>
+                <div id="add-ok" class="circle-btn ok-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div>
+                <div id="seg" class="abs"><div id="seg-pill"></div><span style="left: 0">По&nbsp;номеру</span><span style="left: 185px; color: rgba(235,235,245,0.6)">По&nbsp;названию</span></div>
+                <div id="plate" class="abs">
+                  <div id="plate-main">
+                    <span class="ch"><span class="ph" id="p1">А</span><span class="v" id="k1">А</span></span>
+                    <span class="ch"><span class="ph" id="p2">0</span><span class="v" id="k2">7</span></span>
+                    <span class="ch"><span class="ph" id="p3">0</span><span class="v" id="k3">7</span></span>
+                    <span class="ch"><span class="ph" id="p4">0</span><span class="v" id="k4">7</span></span>
+                    <span class="ch"><span class="ph" id="p5">А</span><span class="v" id="k5">А</span></span>
+                    <span class="ch"><span class="ph" id="p6">А</span><span class="v" id="k6">А</span></span>
+                  </div>
+                  <div id="plate-sep"></div>
+                  <div id="plate-reg">
+                    <div class="row">
+                      <span class="ch"><span class="ph" id="p7">0</span><span class="v" id="k7">7</span></span>
+                      <span class="ch"><span class="ph" id="p8">0</span><span class="v" id="k8">7</span></span>
+                      <span class="ch"><span class="ph" id="p9">0</span><span class="v" id="k9">7</span></span>
+                    </div>
+                    <div class="rus">RUS</div>
+                  </div>
+                </div>
+                <div id="add-hint" class="abs">Модель, поколение и&nbsp;кадр из&nbsp;каталога<br />Beepy найдёт по&nbsp;номеру сам</div>
+              </div>
+
+              <!-- «Это ваш автомобиль?» -->
+              <div id="sh-found" class="sheet">
+                <div class="grabber"></div>
+                <div class="circle-btn x-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+                <div class="sheet-title">Это ваш автомобиль?</div>
+                <div class="circle-btn ok-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div>
+                <div id="found-name" class="abs grad-name">Lexus RX</div>
+                <div id="found-plate" class="plate-pill">А&nbsp;777&nbsp;АА<b>777</b></div>
+                <img id="found-car" class="abs" src="assets/img/lexus-rx.png" alt="" />
+                <div id="found-cap" class="abs">Кадр из&nbsp;каталога&nbsp;— ваше фото его заменит</div>
+                <div id="found-gen" class="abs">Поколение: <b>IV (2015–2022)</b></div>
+                <div id="found-year" class="abs">Год выпуска: <b>2019</b></div>
+                <div id="found-yes" class="pill-btn white-btn">Да, добавить</div>
+                <div id="found-no" class="pill-btn">Это не&nbsp;моя машина</div>
+              </div>
+
+              <!-- Добавление ТО: выбор способа -->
+              <div id="sh-choice" class="sheet">
+                <div class="grabber"></div>
+                <div class="sheet-title" style="top: 30px">Добавление ТО</div>
+                <div class="circle-btn x-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+                <div id="ch-photo" class="abs glass"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17l5-5 4 4 3-3 4 4"/></svg><span>Добавить фото или PDF</span></div>
+                <div id="ch-manual" class="abs glass"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5z"/><path d="M13.5 7l3 3"/></svg><span>Заполнить вручную</span></div>
+              </div>
+
+              <!-- Добавление ТО: форма, заполненная из бланка -->
+              <div id="sh-svc" class="sheet">
+                <div class="grabber"></div>
+                <div class="circle-btn x-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+                <div class="sheet-title">Добавление ТО</div>
+                <div class="circle-btn ok-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></div>
+                <div id="svc-thumb" class="abs">
+                  <i style="top: 14px; width: 60px; background: #8d877c"></i>
+                  <i style="top: 26px; width: 44px"></i>
+                  <i style="top: 42px; width: 74px"></i>
+                  <i style="top: 52px; width: 66px"></i>
+                  <i style="top: 62px; width: 70px"></i>
+                  <i style="top: 72px; width: 58px"></i>
+                </div>
+                <div id="svc-fields" class="abs">
+                  <div class="frow" style="top: 0"><span class="k">Дата</span><span>12&nbsp;сентября 2026</span></div>
+                  <div class="hair" style="top: 52px; opacity: 1"></div>
+                  <div class="frow" style="top: 52px"><span class="k">Пробег</span><span class="nb">86&nbsp;400&nbsp;км</span></div>
+                </div>
+                <div id="svc-works-t" class="abs">Работы</div>
+                <div id="svc-works" class="abs">
+                  <div class="wrow" id="w1" style="top: 0"><span>Замена масла ДВС</span><span class="a">1&nbsp;200&nbsp;₽</span></div>
+                  <div class="hair" id="h1" style="top: 52px"></div>
+                  <div class="wrow" id="w2" style="top: 52px"><span>Масло 5W-30, 5&nbsp;л</span><span class="a">4&nbsp;900&nbsp;₽</span></div>
+                  <div class="hair" id="h2" style="top: 104px"></div>
+                  <div class="wrow" id="w3" style="top: 104px"><span>Фильтр масляный</span><span class="a">850&nbsp;₽</span></div>
+                  <div class="hair" id="h3" style="top: 156px"></div>
+                  <div class="wrow" id="w4" style="top: 156px"><span>Фильтр салонный</span><span class="a">1&nbsp;300&nbsp;₽</span></div>
+                  <div class="hair" id="h4" style="top: 208px"></div>
+                  <div class="wrow" id="w5" style="top: 208px; color: var(--muted)"><span>Итого</span><span class="a" style="color: #fff">8&nbsp;250&nbsp;₽</span></div>
+                </div>
+              </div>
+
+              <!-- Цена авто -->
+              <div id="sh-price" class="sheet">
+                <div class="grabber"></div>
+                <div class="sheet-title">Цена авто</div>
+                <div class="circle-btn x-btn" style="left: auto; right: 16px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+                <div id="pr-val" class="abs">≈&nbsp;0&nbsp;₽</div>
+                <div id="pr-cap" class="abs">средняя по&nbsp;рынку</div>
+                <div id="pr-pen" class="abs"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5z"/></svg></div>
+                <div id="pr-box" class="abs">
+                  <h4>Это средняя цена</h4>
+                  <p>На&nbsp;основе 128 объявлений о&nbsp;продаже похожих авто. Своя цена вводится карандашом&nbsp;— она заменит среднюю.</p>
+                </div>
+              </div>
+
+              <!-- Замок: данные на телефоне -->
+              <div id="lock-dim" class="abs"></div>
+              <div id="lock" class="abs"><svg width="78" height="78" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 10.5V7.8a4.5 4.5 0 0 1 9 0v2.7" stroke="#58f0a8" stroke-width="1.8"/><rect x="5" y="10.5" width="14" height="10" rx="2.6" fill="#58f0a8"/><circle cx="12" cy="15" r="1.4" fill="#0b0b0c"/><path d="M12 16v1.8" stroke="#0b0b0c" stroke-width="1.6"/></svg></div>
+              <div id="lock-cap" class="abs">Хранится на&nbsp;этом iPhone</div>
+              <div id="lock-sub" class="abs">Машины и&nbsp;история&nbsp;ТО</div>
+
+              <!-- Таббар -->
+              <div id="tabbar" class="abs">
+                <div id="tab-pill"></div>
+                <div class="tab" id="tab0" style="left: 4px">
+                  <svg viewBox="16 1 36 28"><path d="M25.29 9.25098C25.2373 9.49707 25.2607 9.68164 25.3604 9.80469C25.4658 9.92773 25.6504 9.9834 25.9141 9.97168C26.4883 9.93652 27.1328 9.9043 27.8477 9.875C28.5684 9.83984 29.4238 9.81348 30.4141 9.7959C31.4102 9.77246 32.6055 9.76074 34 9.76074C35.3945 9.76074 36.5869 9.77246 37.5771 9.7959C38.5732 9.81348 39.4287 9.83984 40.1436 9.875C40.8643 9.9043 41.5117 9.93652 42.0859 9.97168C42.3555 9.9834 42.54 9.92773 42.6396 9.80469C42.7393 9.68164 42.7598 9.49707 42.7012 9.25098C42.6133 8.86426 42.5078 8.46582 42.3848 8.05566C42.2617 7.63965 42.1328 7.25586 41.998 6.9043C41.8691 6.55273 41.749 6.28027 41.6377 6.08691C41.4619 5.77051 41.2598 5.53613 41.0312 5.38379C40.8027 5.23145 40.498 5.12891 40.1172 5.07617C39.7188 5.01172 39.0186 4.96777 38.0166 4.94434C37.0146 4.91504 35.6758 4.90039 34 4.90039C32.3242 4.90039 30.9854 4.91797 29.9834 4.95312C28.9814 4.98242 28.2842 5.02344 27.8916 5.07617C27.5049 5.12305 27.1943 5.22559 26.96 5.38379C26.7314 5.53613 26.5322 5.77051 26.3623 6.08691C26.2568 6.28027 26.1367 6.55566 26.002 6.91309C25.8672 7.26465 25.7354 7.64551 25.6064 8.05566C25.4834 8.46582 25.3779 8.86426 25.29 9.25098ZM25.6592 17.8906C26.1924 17.8906 26.6348 17.7119 26.9863 17.3545C27.3438 16.9971 27.5225 16.5547 27.5225 16.0273C27.5225 15.4941 27.3438 15.0488 26.9863 14.6914C26.6348 14.334 26.1924 14.1553 25.6592 14.1553C25.126 14.1553 24.6807 14.334 24.3232 14.6914C23.9658 15.0488 23.7871 15.4941 23.7871 16.0273C23.7871 16.5547 23.9658 16.9971 24.3232 17.3545C24.6807 17.7119 25.126 17.8906 25.6592 17.8906ZM30.9502 17.4512H37.0498C37.4482 17.4512 37.7734 17.3281 38.0254 17.082C38.2773 16.8301 38.4033 16.5049 38.4033 16.1064C38.4033 15.708 38.2773 15.3828 38.0254 15.1309C37.7734 14.8789 37.4482 14.7529 37.0498 14.7529H30.9502C30.5518 14.7529 30.2266 14.8789 29.9746 15.1309C29.7227 15.3828 29.5967 15.708 29.5967 16.1064C29.5967 16.5049 29.7227 16.8301 29.9746 17.082C30.2266 17.3281 30.5518 17.4512 30.9502 17.4512ZM42.3496 17.8906C42.877 17.8906 43.3193 17.7119 43.6768 17.3545C44.0342 16.9971 44.2129 16.5547 44.2129 16.0273C44.2129 15.4941 44.0342 15.0488 43.6768 14.6914C43.3193 14.334 42.877 14.1553 42.3496 14.1553C41.8164 14.1553 41.3711 14.334 41.0137 14.6914C40.6562 15.0488 40.4775 15.4941 40.4775 16.0273C40.4775 16.5547 40.6562 16.9971 41.0137 17.3545C41.3711 17.7119 41.8164 17.8906 42.3496 17.8906ZM34 21.0986C33.0332 21.0986 32.0137 21.0869 30.9414 21.0635C29.875 21.04 28.8291 21.0078 27.8037 20.9668C26.7783 20.9316 25.8379 20.8877 24.9824 20.835C24.1328 20.7822 23.4385 20.7236 22.8994 20.6592C22.0791 20.5654 21.4434 20.29 20.9922 19.833C20.541 19.376 20.3154 18.7549 20.3154 17.9697V16.0713C20.3154 15.3916 20.3594 14.7998 20.4473 14.2959C20.541 13.792 20.6904 13.3262 20.8955 12.8984C21.1064 12.4707 21.3848 12.0342 21.7305 11.5889L22.75 10.3057C22.8965 9.62598 23.0664 8.95508 23.2598 8.29297C23.4531 7.625 23.6465 7.02734 23.8398 6.5C24.0332 5.9668 24.1943 5.55957 24.3232 5.27832C24.6396 4.59863 25.0938 4.0625 25.6855 3.66992C26.2832 3.27734 26.9688 3.03125 27.7422 2.93164C28.0234 2.89648 28.4658 2.86719 29.0693 2.84375C29.6729 2.81445 30.3965 2.79395 31.2402 2.78223C32.084 2.76465 33.0039 2.75586 34 2.75586C34.9902 2.75586 35.9072 2.76465 36.751 2.78223C37.6006 2.79395 38.3271 2.81445 38.9307 2.84375C39.5342 2.86719 39.9766 2.89648 40.2578 2.93164C41.0371 3.03711 41.7227 3.28613 42.3145 3.67871C42.9062 4.06543 43.3604 4.59863 43.6768 5.27832C43.8115 5.55957 43.9727 5.9668 44.1602 6.5C44.3535 7.02734 44.5469 7.625 44.7402 8.29297C44.9336 8.95508 45.1006 9.62598 45.2412 10.3057L46.2695 11.5889C46.6152 12.0342 46.8906 12.4707 47.0957 12.8984C47.3066 13.3262 47.4561 13.792 47.5439 14.2959C47.6377 14.7998 47.6846 15.3916 47.6846 16.0713V17.9697C47.6846 18.7549 47.459 19.376 47.0078 19.833C46.5566 20.29 45.9209 20.5654 45.1006 20.6592C44.5615 20.7236 43.8643 20.7822 43.0088 20.835C42.1533 20.8877 41.2129 20.9316 40.1875 20.9668C39.1621 21.0078 38.1162 21.04 37.0498 21.0635C35.9834 21.0869 34.9668 21.0986 34 21.0986ZM21.8447 24.3066C21.4111 24.3066 21.0479 24.1602 20.7549 23.8672C20.4619 23.5742 20.3154 23.2139 20.3154 22.7861V17.6709L24.7363 19.9121V22.7861C24.7363 23.2139 24.5898 23.5742 24.2969 23.8672C24.0039 24.1602 23.6406 24.3066 23.207 24.3066H21.8447ZM44.793 24.3066C44.3594 24.3066 43.9961 24.1602 43.7031 23.8672C43.4102 23.5742 43.2637 23.2139 43.2637 22.7861V19.9121L47.6846 17.6709V22.7861C47.6846 23.2139 47.5381 23.5742 47.2451 23.8672C46.9521 24.1602 46.5889 24.3066 46.1553 24.3066H44.793Z"/></svg><span>Машина</span>
+                </div>
+                <div class="tab" id="tab1" style="left: 92px">
+                  <svg viewBox="0 0 28 26"><path d="M2.5 5.2 L9.2 2.4 L9.2 21.6 L2.5 24.4 Z M10.9 2.4 L17.1 5.2 L17.1 24.4 L10.9 21.6 Z M18.8 5.2 L25.5 2.4 L25.5 21.6 L18.8 24.4 Z" stroke-linejoin="round"/></svg><span>Карта</span>
+                </div>
+                <div class="tab" id="tab2" style="left: 180px">
+                  <svg viewBox="16 0 36 28"><path d="M21.9678 26.1914C21.3115 25.5352 20.875 24.8057 20.6582 24.0029C20.4414 23.2002 20.459 22.3945 20.7109 21.5859C20.9629 20.7832 21.4639 20.0508 22.2139 19.3887C22.8057 18.8613 23.5029 18.3193 24.3057 17.7627C25.1084 17.2002 25.9609 16.6143 26.8633 16.0049C27.7656 15.3955 28.6621 14.748 29.5527 14.0625C30.4434 13.377 31.2754 12.6533 32.0488 11.8916C32.4531 11.4814 32.7314 11.0391 32.8838 10.5645C33.042 10.0898 33.1328 9.58594 33.1562 9.05273C33.1797 8.51367 33.1973 7.95703 33.209 7.38281C33.2207 6.80859 33.2793 6.2168 33.3848 5.60742C33.4961 4.99805 33.71 4.38281 34.0264 3.76172C34.3486 3.14062 34.8379 2.5166 35.4941 1.88965C36.168 1.25098 36.9297 0.776367 37.7793 0.46582C38.6348 0.155273 39.5166 0.0117188 40.4248 0.0351562C41.3389 0.0585937 42.2236 0.246094 43.0791 0.597656C43.9346 0.949219 44.6963 1.46777 45.3643 2.15332C45.6338 2.42871 45.8594 2.71875 46.041 3.02344C46.2227 3.32227 46.3545 3.58887 46.4365 3.82324L42.0771 5.02734C41.5908 5.16211 41.2598 5.39648 41.084 5.73047C40.9141 6.06445 40.8848 6.44531 40.9961 6.87305L42.9648 13.9922C42.4844 14.1855 42.0127 14.3145 41.5498 14.3789C41.0928 14.4375 40.6445 14.4756 40.2051 14.4932C39.7715 14.5107 39.3438 14.5488 38.9219 14.6074C38.5059 14.6602 38.0986 14.7744 37.7002 14.9502C37.3018 15.126 36.9092 15.4072 36.5225 15.7939C35.9072 16.4092 35.2979 17.0918 34.6943 17.8418C34.0967 18.5859 33.5107 19.3506 32.9365 20.1357C32.3682 20.9209 31.8291 21.6826 31.3193 22.4209C30.8096 23.165 30.3379 23.8418 29.9043 24.4512C29.4707 25.0605 29.0898 25.5557 28.7617 25.9365C28.1172 26.6982 27.3906 27.2051 26.582 27.457C25.7793 27.709 24.9707 27.7236 24.1562 27.501C23.3477 27.2842 22.6182 26.8477 21.9678 26.1914ZM25.3252 24.1611C25.6943 24.1611 26.0078 24.0322 26.2656 23.7744C26.5234 23.5166 26.6523 23.2031 26.6523 22.834C26.6523 22.4707 26.5234 22.1572 26.2656 21.8936C26.0078 21.6357 25.6943 21.5068 25.3252 21.5068C24.9619 21.5068 24.6484 21.6357 24.3848 21.8936C24.127 22.1572 23.998 22.4707 23.998 22.834C23.998 23.2031 24.127 23.5166 24.3848 23.7744C24.6484 24.0322 24.9619 24.1611 25.3252 24.1611ZM36.1533 8.97363L38.7021 8.29688C38.8193 8.26758 38.9072 8.20312 38.9658 8.10352C39.0244 8.00391 39.0361 7.89258 39.001 7.76953C38.9658 7.6582 38.8984 7.57324 38.7988 7.51465C38.7051 7.45605 38.6055 7.44141 38.5 7.4707L35.9248 8.16504C35.8076 8.19434 35.7197 8.26172 35.6611 8.36719C35.6025 8.4668 35.5908 8.56641 35.626 8.66602C35.6611 8.78906 35.7256 8.87988 35.8193 8.93848C35.9189 8.99121 36.0303 9.00293 36.1533 8.97363ZM36.4697 10.292L39.0273 9.61523C39.1387 9.58594 39.2236 9.52148 39.2822 9.42188C39.3467 9.32227 39.3584 9.21094 39.3174 9.08789C39.2881 8.97656 39.2236 8.89453 39.124 8.8418C39.0244 8.7832 38.9248 8.76855 38.8252 8.79785L36.25 9.4834C36.1328 9.5127 36.0449 9.58008 35.9863 9.68555C35.9277 9.78516 35.916 9.88477 35.9512 9.98438C36.0391 10.2598 36.2119 10.3623 36.4697 10.292ZM36.7949 11.6104L39.3701 10.916C39.4756 10.8867 39.5576 10.8223 39.6162 10.7227C39.6748 10.6172 39.6895 10.5088 39.6602 10.3975C39.6309 10.292 39.5664 10.21 39.4668 10.1514C39.373 10.0928 39.2676 10.0811 39.1504 10.1162L36.5752 10.8018C36.4639 10.8311 36.3789 10.8926 36.3203 10.9863C36.2676 11.0801 36.2529 11.1855 36.2764 11.3027C36.3057 11.4258 36.3701 11.5166 36.4697 11.5752C36.5752 11.6279 36.6836 11.6396 36.7949 11.6104ZM44.2744 13.3506L42.9209 8.41113C43.0674 8.44043 43.2168 8.44922 43.3691 8.4375C43.5273 8.42578 43.6943 8.39648 43.8701 8.34961L47.377 7.37402C47.4824 7.89551 47.4795 8.44922 47.3682 9.03516C47.2627 9.62109 47.0605 10.1953 46.7617 10.7578C46.4629 11.3145 46.085 11.8184 45.6279 12.2695C45.3994 12.4922 45.1709 12.6943 44.9424 12.876C44.7139 13.0518 44.4912 13.21 44.2744 13.3506Z"/></svg><span>Ошибки</span>
+                </div>
+                <div class="tab" id="tab3" style="left: 268px">
+                  <svg viewBox="0 0 28 26"><circle cx="6" cy="13" r="2.6"/><circle cx="14" cy="13" r="2.6"/><circle cx="22" cy="13" r="2.6"/></svg><span>Ещё</span>
+                </div>
+              </div>
+
+              <!-- Уведомление -->
+              <div id="notif" class="abs">
+                <div id="notif-icon" class="abs"><img src="assets/img/orb-base.png" alt="" /></div>
+                <div class="when">сейчас</div>
+                <div class="t">Пора на&nbsp;ТО</div>
+                <div class="b">Lexus RX А&nbsp;777&nbsp;АА&nbsp;777&nbsp;— через 800&nbsp;км необходимо провести ТО</div>
+              </div>
+
+              <!-- Тосты -->
+              <div id="toast1" class="abs toast"><div class="box nb">Ищем машину по&nbsp;номеру…</div></div>
+              <div id="toast2" class="abs toast"><div class="box nb"><svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10" fill="#30d158"/><path d="M5.5 10.3l3 3 6-6.3" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Машина добавлена!</div></div>
+              <div id="toast3" class="abs toast"><div class="box nb"><svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10" fill="#30d158"/><path d="M5.5 10.3l3 3 6-6.3" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>ТО добавлено!</div></div>
+
+              <!-- Статус-бар и «остров» -->
+              <div id="status" class="abs"><div class="time">9:41</div><div class="icons"><svg width="19" height="12" viewBox="0 0 19.2 12.2264" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M19.2 1.14623C19.2 0.513183 18.7224 0 18.1333 0H17.0667C16.4776 0 16 0.513183 16 1.14623V11.0802C16 11.7132 16.4776 12.2264 17.0667 12.2264H18.1333C18.7224 12.2264 19.2 11.7132 19.2 11.0802V1.14623ZM11.7659 2.44528H12.8326C13.4217 2.44528 13.8992 2.97078 13.8992 3.61902V11.0527C13.8992 11.7009 13.4217 12.2264 12.8326 12.2264H11.7659C11.1768 12.2264 10.6992 11.7009 10.6992 11.0527V3.61902C10.6992 2.97078 11.1768 2.44528 11.7659 2.44528ZM7.43411 5.09433H6.36745C5.77834 5.09433 5.30078 5.62652 5.30078 6.28301V11.0377C5.30078 11.6942 5.77834 12.2264 6.36745 12.2264H7.43411C8.02322 12.2264 8.50078 11.6942 8.50078 11.0377V6.28301C8.50078 5.62652 8.02322 5.09433 7.43411 5.09433ZM2.13333 7.53962H1.06667C0.477563 7.53962 0 8.06421 0 8.71132V11.0547C0 11.7018 0.477563 12.2264 1.06667 12.2264H2.13333C2.72244 12.2264 3.2 11.7018 3.2 11.0547V8.71132C3.2 8.06421 2.72244 7.53962 2.13333 7.53962Z" fill="white"/></svg><svg width="17" height="12" viewBox="0 0 17.1417 12.3283" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M8.5713 2.46628C11.0584 2.46639 13.4504 3.38847 15.2529 5.04195C15.3887 5.1696 15.6056 5.16799 15.7393 5.03834L17.0368 3.77487C17.1045 3.70911 17.1422 3.62004 17.1417 3.52735C17.1411 3.43467 17.1023 3.34603 17.0338 3.28104C12.3028 -1.09368 4.83907 -1.09368 0.108056 3.28104C0.039524 3.34598 0.000639766 3.4346 7.82398e-06 3.52728C-0.000624118 3.61996 0.0370483 3.70906 0.104689 3.77487L1.40255 5.03834C1.53615 5.16819 1.75327 5.1698 1.88893 5.04195C3.69167 3.38836 6.08395 2.46628 8.5713 2.46628ZM8.56795 6.68656C9.92527 6.68647 11.2341 7.19821 12.2403 8.12234C12.3763 8.2535 12.5907 8.25065 12.7234 8.11593L14.0106 6.79663C14.0784 6.72742 14.1161 6.63355 14.1151 6.53599C14.1141 6.43844 14.0746 6.34536 14.0054 6.27757C10.9416 3.38672 6.19688 3.38672 3.13305 6.27757C3.06384 6.34536 3.02435 6.43849 3.02345 6.53607C3.02254 6.63365 3.06028 6.72752 3.12822 6.79663L4.41513 8.11593C4.54778 8.25065 4.76215 8.2535 4.89823 8.12234C5.90368 7.19882 7.21152 6.68713 8.56795 6.68656ZM11.0924 9.48011C11.0943 9.58546 11.0572 9.68703 10.9899 9.76084L8.81327 12.2156C8.74946 12.2877 8.66247 12.3283 8.5717 12.3283C8.48093 12.3283 8.39394 12.2877 8.33013 12.2156L6.1531 9.76084C6.08585 9.68697 6.04886 9.58537 6.05085 9.48002C6.05284 9.37467 6.09365 9.27491 6.16364 9.20429C7.55374 7.8904 9.58966 7.8904 10.9798 9.20429C11.0497 9.27497 11.0904 9.37476 11.0924 9.48011Z" fill="white"/></svg><svg width="27" height="13" viewBox="0 0 27.328 13" fill="none" xmlns="http://www.w3.org/2000/svg"><g><rect opacity="0.35" x="0.5" y="0.5" width="24" height="12" rx="3.8" stroke="white"/><path opacity="0.4" d="M26 4.5V8.57547C26.8047 8.2303 27.328 7.42734 27.328 6.53774C27.328 5.64813 26.8047 4.84517 26 4.5" fill="white"/><rect x="2" y="2" width="21" height="9" rx="2.5" fill="white"/></g></svg></div></div>
+              <div id="island" class="abs"></div>
+              <div id="tap" class="abs"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Итог: все семь функций списком -->
+      <section id="recap" class="clip" data-start="34.5" data-duration="3.8" data-track-index="2">
+        <div id="rc-title" class="abs">Что внутри</div>
+        <div id="rc-grid" class="abs">
+          <div class="rc glass" id="rc1"><b>01</b>Диагностика по&nbsp;звуку</div>
+          <div class="rc glass" id="rc2"><b>02</b>Машина по&nbsp;номеру</div>
+          <div class="rc glass" id="rc3"><b>03</b>История ТО</div>
+          <div class="rc glass" id="rc4"><b>04</b>Напоминания</div>
+          <div class="rc glass" id="rc5"><b>05</b>Рыночная цена</div>
+          <div class="rc glass" id="rc6"><b>06</b>Карта</div>
+          <div class="rc glass" id="rc7"><b>07</b>Всё на&nbsp;телефоне</div>
+        </div>
+      </section>
+
+      <!-- Финал -->
+      <section id="outro" class="clip" data-start="37.9" data-duration="4.6" data-track-index="3">
+        <div id="out-logo" class="abs wordmark">Beepy</div>
+        <div id="out-tag" class="abs">Слушает мотор. Помнит&nbsp;ТО.</div>
+        <div id="out-small" class="abs">iOS · данные остаются на&nbsp;телефоне</div>
+      </section>
+
+      <!-- Звук. Музыка — трек vol-1 с 10-й секунды: дроп трека приходится на логотип (38.02) -->
+      <audio id="bgm" src="assets/music/bed.mp3" data-start="0" data-duration="42.5" data-track-index="10" data-volume="0.55"></audio>
+      <audio id="sfx-logo" src="assets/sfx/impactSoft_medium_004.ogg" data-start="0.12" data-duration="0.147" data-track-index="11" data-volume="0.6"></audio>
+      <audio id="sfx-phone" src="assets/sfx/card-slide-3.ogg" data-start="3.7" data-duration="0.598" data-track-index="11" data-volume="0.4"></audio>
+      <audio id="sfx-listen" src="assets/sfx/click_003.ogg" data-start="5.52" data-duration="0.01" data-track-index="11" data-volume="0.9"></audio>
+      <audio id="sfx-stop" src="assets/sfx/click_003.ogg" data-start="7.52" data-duration="0.01" data-track-index="11" data-volume="0.9"></audio>
+      <audio id="sfx-find" src="assets/sfx/impactSoft_medium_001.ogg" data-start="7.8" data-duration="0.183" data-track-index="11" data-volume="0.7"></audio>
+      <audio id="sfx-fc1" src="assets/sfx/card-slide-1.ogg" data-start="8.27" data-duration="0.601" data-track-index="11" data-volume="0.4"></audio>
+      <audio id="sfx-fc2" src="assets/sfx/card-slide-1.ogg" data-start="8.52" data-duration="0.601" data-track-index="12" data-volume="0.4"></audio>
+      <audio id="sfx-fc3" src="assets/sfx/card-slide-1.ogg" data-start="8.77" data-duration="0.601" data-track-index="13" data-volume="0.4"></audio>
+      <audio id="sfx-add" src="assets/sfx/impactSoft_medium_004.ogg" data-start="10.07" data-duration="0.147" data-track-index="11" data-volume="0.6"></audio>
+      <audio id="sfx-key1" src="assets/sfx/keypress-003.wav" data-start="10.52" data-duration="0.25" data-track-index="11" data-volume="0.55"></audio>
+      <audio id="sfx-key2" src="assets/sfx/keypress-007.wav" data-start="10.645" data-duration="0.25" data-track-index="12" data-volume="0.55"></audio>
+      <audio id="sfx-key3" src="assets/sfx/keypress-012.wav" data-start="10.77" data-duration="0.25" data-track-index="13" data-volume="0.55"></audio>
+      <audio id="sfx-key4" src="assets/sfx/keypress-003.wav" data-start="10.895" data-duration="0.25" data-track-index="11" data-volume="0.55"></audio>
+      <audio id="sfx-key5" src="assets/sfx/keypress-007.wav" data-start="11.02" data-duration="0.25" data-track-index="12" data-volume="0.55"></audio>
+      <audio id="sfx-key6" src="assets/sfx/keypress-012.wav" data-start="11.145" data-duration="0.25" data-track-index="13" data-volume="0.55"></audio>
+      <audio id="sfx-key7" src="assets/sfx/keypress-003.wav" data-start="11.27" data-duration="0.25" data-track-index="11" data-volume="0.55"></audio>
+      <audio id="sfx-key8" src="assets/sfx/keypress-007.wav" data-start="11.395" data-duration="0.25" data-track-index="12" data-volume="0.55"></audio>
+      <audio id="sfx-key9" src="assets/sfx/keypress-012.wav" data-start="11.52" data-duration="0.25" data-track-index="13" data-volume="0.55"></audio>
+      <audio id="sfx-ok1" src="assets/sfx/click_003.ogg" data-start="12.02" data-duration="0.01" data-track-index="11" data-volume="0.9"></audio>
+      <audio id="sfx-found" src="assets/sfx/impactSoft_medium_001.ogg" data-start="12.55" data-duration="0.183" data-track-index="11" data-volume="0.7"></audio>
+      <audio id="sfx-yes" src="assets/sfx/click_003.ogg" data-start="13.52" data-duration="0.01" data-track-index="11" data-volume="0.9"></audio>
+      <audio id="sfx-toast2" src="assets/sfx/impactGlass_light_001.ogg" data-start="14.04" data-duration="0.21" data-track-index="11" data-volume="0.55"></audio>
+      <audio id="sfx-card" src="assets/sfx/click_003.ogg" data-start="15.02" data-duration="0.01" data-track-index="11" data-volume="0.9"></audio>
+      <audio id="sfx-choice" src="assets/sfx/impactSoft_medium_004.ogg" data-start="15.12" data-duration="0.147" data-track-index="11" data-volume="0.6"></audio>
+      <audio id="sfx-photo" src="assets/sfx/click_003.ogg" data-start="15.77" data-duration="0.01" data-track-index="11" data-volume="0.9"></audio>
+      <audio id="sfx-receipt" src="assets/sfx/card-place-2.ogg" data-start="16.04" data-duration="0.459" data-track-index="11" data-volume="0.6"></audio>
+      <audio id="sfx-shutter" src="assets/sfx/switch3.ogg" data-start="16.33" data-duration="0.367" data-track-index="12" data-volume="0.6"></audio>
+      <audio id="sfx-row1" src="assets/sfx/select_008.ogg" data-start="16.93" data-duration="0.047" data-track-index="11" data-volume="0.4"></audio>
+      <audio id="sfx-row2" src="assets/sfx/select_008.ogg" data-start="17.06" data-duration="0.047" data-track-index="11" data-volume="0.4"></audio>
+      <audio id="sfx-row3" src="assets/sfx/select_008.ogg" data-start="17.18" data-duration="0.047" data-track-index="11" data-volume="0.4"></audio>
+      <audio id="sfx-row4" src="assets/sfx/select_008.ogg" data-start="17.31" data-duration="0.047" data-track-index="11" data-volume="0.4"></audio>
+      <audio id="sfx-row5" src="assets/sfx/select_008.ogg" data-start="17.52" data-duration="0.047" data-track-index="11" data-volume="0.4"></audio>
+      <audio id="sfx-ok2" src="assets/sfx/click_003.ogg" data-start="18.27" data-duration="0.01" data-track-index="11" data-volume="0.9"></audio>
+      <audio id="sfx-toast3" src="assets/sfx/impactGlass_light_001.ogg" data-start="18.54" data-duration="0.21" data-track-index="11" data-volume="0.55"></audio>
+      <audio id="sfx-notif" src="assets/sfx/bong_001.ogg" data-start="21.52" data-duration="0.123" data-track-index="11" data-volume="0.8"></audio>
+      <audio id="sfx-notif2" src="assets/sfx/impactGlass_light_001.ogg" data-start="21.54" data-duration="0.21" data-track-index="12" data-volume="0.5"></audio>
+      <audio id="sfx-tile" src="assets/sfx/click_003.ogg" data-start="24.03" data-duration="0.01" data-track-index="11" data-volume="0.9"></audio>
+      <audio id="sfx-price" src="assets/sfx/impactSoft_medium_004.ogg" data-start="24.14" data-duration="0.147" data-track-index="11" data-volume="0.6"></audio>
+      <audio id="sfx-tab" src="assets/sfx/switch3.ogg" data-start="28.0" data-duration="0.367" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="sfx-pin1" src="assets/sfx/drop_002.ogg" data-start="28.56" data-duration="0.191" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="sfx-pin2" src="assets/sfx/drop_002.ogg" data-start="28.81" data-duration="0.191" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="sfx-pin3" src="assets/sfx/drop_002.ogg" data-start="29.06" data-duration="0.191" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="sfx-pin" src="assets/sfx/click_003.ogg" data-start="29.52" data-duration="0.01" data-track-index="11" data-volume="0.9"></audio>
+      <audio id="sfx-mcard" src="assets/sfx/impactSoft_medium_001.ogg" data-start="29.62" data-duration="0.183" data-track-index="11" data-volume="0.6"></audio>
+      <audio id="sfx-route" src="assets/sfx/click_003.ogg" data-start="30.52" data-duration="0.01" data-track-index="11" data-volume="0.9"></audio>
+      <audio id="sfx-lock" src="assets/sfx/impactGlass_light_001.ogg" data-start="32.32" data-duration="0.21" data-track-index="11" data-volume="0.6"></audio>
+      <audio id="sfx-out" src="assets/sfx/card-slide-3.ogg" data-start="34.3" data-duration="0.598" data-track-index="11" data-volume="0.35"></audio>
+      <audio id="sfx-rc1" src="assets/sfx/card-slide-1.ogg" data-start="34.77" data-duration="0.601" data-track-index="12" data-volume="0.35"></audio>
+      <audio id="sfx-rc2" src="assets/sfx/card-slide-1.ogg" data-start="35.02" data-duration="0.601" data-track-index="11" data-volume="0.35"></audio>
+      <audio id="sfx-rc3" src="assets/sfx/card-slide-1.ogg" data-start="35.27" data-duration="0.601" data-track-index="13" data-volume="0.35"></audio>
+      <audio id="sfx-rc4" src="assets/sfx/card-slide-1.ogg" data-start="35.52" data-duration="0.601" data-track-index="12" data-volume="0.35"></audio>
+      <audio id="sfx-rc5" src="assets/sfx/card-slide-1.ogg" data-start="35.77" data-duration="0.601" data-track-index="11" data-volume="0.35"></audio>
+      <audio id="sfx-rc6" src="assets/sfx/card-slide-1.ogg" data-start="36.02" data-duration="0.601" data-track-index="13" data-volume="0.35"></audio>
+      <audio id="sfx-rc7" src="assets/sfx/card-slide-1.ogg" data-start="36.27" data-duration="0.601" data-track-index="12" data-volume="0.35"></audio>
+      <audio id="sfx-bell" src="assets/sfx/impactBell_heavy_000.ogg" data-start="38.02" data-duration="1.48" data-track-index="11" data-volume="0.8"></audio>
+    </div>
+
+    <script>
+      // Все времена — секунды от начала ролика. Музыка: трек vol-1 с 10-й
+      // секунды, 120 BPM, доли на 0.02 + 0.5·k (4.02, 4.52 … 38.02). Сцены
+      // встают на доли, дроп трека — на финальный логотип (38.02).
+      //
+      // Экраны в телефоне собраны по макету Figma 9GXgWezTGI6TjklsnuBns2
+      // (главная 46225:7788, «Ошибки» 46096:2551, шторки) и по строкам кода:
+      // тексты находок, уведомления, цены и карты взяты из приложения.
+      const tl = gsap.timeline({ paused: true });
+      const E = "power3.out";
+      const IN = "power2.in";
+      const NB = " ";
+      const grp = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, NB);
+
+      // ---------- Начальные положения ----------
+      gsap.set("#sh-find", { y: 820 });
+      gsap.set("#sh-add", { y: 820 });
+      gsap.set("#sh-found", { y: 790 });
+      gsap.set("#sh-choice", { y: 480 });
+      gsap.set("#sh-svc", { y: 820 });
+      gsap.set("#sh-price", { y: 500 });
+      gsap.set("#notif", { y: -170 });
+      gsap.set("#map-card", { y: 340 });
+      gsap.set("#tab-pill", { x: 176 });
+      gsap.set("#tab2", { color: "#409cff" });
+      const ROUTE = 260;
+      gsap.set("#route", { strokeDasharray: ROUTE, strokeDashoffset: ROUTE });
+
+      // ---------- Помощники ----------
+      // Касание пальцем: кольцо в точке нажатия, координаты — в точках iPhone.
+      function tap(x, y, t) {
+        tl.set("#tap", { x: x, y: y }, t - 0.14);
+        tl.fromTo("#tap", { scale: 0.5, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.12, ease: "power2.out", immediateRender: false }, t - 0.14);
+        tl.to("#tap", { scale: 1.6, opacity: 0, duration: 0.35, ease: "power2.out" }, t);
+      }
+      function press(sel, t) {
+        tl.to(sel, { scale: 0.96, duration: 0.08, ease: "power1.in" }, t - 0.06);
+        tl.to(sel, { scale: 1, duration: 0.28, ease: "back.out(2)" }, t + 0.04);
+      }
+      function ftIn(n, t) {
+        tl.fromTo("#ft" + n + " .num", { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: E }, t);
+        tl.fromTo("#ft" + n + " h2", { y: 28, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: E }, t + 0.06);
+        tl.fromTo("#ft" + n + " p", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: E }, t + 0.18);
+        tl.to("#sg" + n, { scaleX: 1, duration: 0.6, ease: "power2.out" }, t);
+        if (n > 1) tl.to("#rn" + (n - 1), { opacity: 0, duration: 0.12 }, t - 0.06);
+        tl.to("#rn" + n, { opacity: 1, duration: 0.18 }, t);
+      }
+      function ftOut(n, t) {
+        tl.to(["#ft" + n + " .num", "#ft" + n + " h2", "#ft" + n + " p"], { y: -14, opacity: 0, duration: 0.3, ease: IN, stagger: 0.03 }, t);
+      }
+      function tabTo(i, t) {
+        tl.to("#tab-pill", { x: 88 * i, duration: 0.35, ease: "power2.inOut" }, t - 0.1);
+        for (let k = 0; k < 4; k++) {
+          tl.to("#tab" + k, { color: k === i ? "#409cff" : "#ffffff", duration: 0.2 }, t);
+        }
+      }
+      function toast(sel, t, hold) {
+        tl.fromTo(sel, { y: -16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: E }, t);
+        tl.to(sel, { y: -16, opacity: 0, duration: 0.25, ease: IN }, t + hold);
+      }
+
+      // ---------- Музыка: вход и уход ----------
+      tl.fromTo("#bgm", { volume: 0 }, { volume: 0.55, duration: 0.5, ease: "none" }, 0);
+      tl.to("#bgm", { volume: 0, duration: 1.5, ease: "power1.in" }, 41.0);
+
+      // ---------- Вступление ----------
+      tl.fromTo("#in-logo", { scale: 0.9, y: 20, opacity: 0 }, { scale: 1, y: 0, opacity: 1, duration: 0.9, ease: E }, 0.1);
+      tl.fromTo("#in-tag", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: E }, 1.02);
+      tl.to(["#in-logo", "#in-tag"], { y: -24, opacity: 0, duration: 0.45, ease: IN, stagger: 0.05 }, 3.3);
+
+      // ---------- Сцена: телефон, метка, дорожка ----------
+      tl.fromTo("#spot", { opacity: 0 }, { opacity: 1, duration: 1.0, ease: "none" }, 3.5);
+      tl.fromTo("#phone", { x: 180, scale: 0.94, opacity: 0 }, { x: 0, scale: 1, opacity: 1, duration: 0.8, ease: E }, 3.6);
+      tl.fromTo("#mark", { y: -10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: E }, 3.8);
+      tl.fromTo(["#rail", "#rail-count"], { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "none" }, 4.02);
+
+      // ---------- 01. Диагностика по звуку (4.02–10.02) ----------
+      ftIn(1, 4.02);
+      tl.fromTo("#aura", { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "none" }, 4.0);
+      tap(201, 749, 5.52);
+      press("#iss-btn", 5.52);
+      tl.to("#iss-listen", { opacity: 0, duration: 0.15 }, 5.52);
+      tl.to("#iss-stop", { opacity: 1, duration: 0.2 }, 5.58);
+      tl.to("#iss-orb", { scale: 1.08, duration: 0.8, ease: "power2.out" }, 5.55);
+      tl.to("#iss-glow", { scale: 1.25, duration: 0.8, ease: "power2.out" }, 5.55);
+      tap(201, 749, 7.52);
+      press("#iss-btn", 7.52);
+      tl.to("#sh-find", { y: 0, duration: 0.5, ease: E }, 7.77);
+      // Под шторкой во весь экран прежний экран не виден — гасим его,
+      // чтобы проверка не считала текст под шторкой наложением.
+      tl.set("#issues", { opacity: 0 }, 8.3);
+      tl.fromTo("#fc-1", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: E }, 8.27);
+      tl.fromTo("#fc-2", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: E }, 8.52);
+      tl.fromTo("#fc-3", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: E }, 8.77);
+      tl.fromTo(["#find-yes", "#find-no"], { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: E, stagger: 0.08 }, 9.02);
+      tl.to("#aura", { opacity: 0, duration: 0.6, ease: "none" }, 9.5);
+      ftOut(1, 9.72);
+
+      // ---------- 02. Машина по госномеру (10.02–14.02) ----------
+      tl.to("#sh-find", { y: 820, duration: 0.4, ease: IN }, 9.8);
+      tabTo(0, 10.02);
+      tl.to("#sh-add", { y: 0, duration: 0.5, ease: E }, 10.05);
+      ftIn(2, 10.02);
+      for (let i = 1; i <= 9; i++) {
+        const t = 10.52 + 0.125 * (i - 1);
+        tl.to("#p" + i, { opacity: 0, duration: 0.1 }, t);
+        tl.fromTo("#k" + i, { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.24, ease: "back.out(2)" }, t);
+      }
+      tap(364, 100, 12.02);
+      press("#add-ok", 12.02);
+      toast("#toast1", 12.06, 0.42);
+      tl.to("#sh-found", { y: 0, duration: 0.5, ease: E }, 12.52);
+      tl.fromTo("#found-car", { x: 60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: E }, 12.72);
+      tl.set("#sh-add", { opacity: 0 }, 13.05);
+      tap(201, 721, 13.52);
+      press("#found-yes", 13.52);
+      ftOut(2, 13.72);
+
+      // ---------- 03. История обслуживания (14.02–20.02) ----------
+      tl.set("#main", { opacity: 1 }, 13.66);
+      tl.to("#sh-found", { y: 790, duration: 0.4, ease: IN }, 13.66);
+      tl.to("#sh-add", { y: 820, duration: 0.4, ease: IN }, 13.72);
+      tl.fromTo("#main-car", { x: 50, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: E }, 13.85);
+      tl.fromTo(["#main-name", "#main-plate"], { y: -10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: E, stagger: 0.06 }, 13.8);
+      toast("#toast2", 14.02, 0.95);
+      ftIn(3, 14.02);
+      tap(201, 604, 15.02);
+      press("#card", 15.02);
+      tl.to("#sh-choice", { y: 0, duration: 0.45, ease: E }, 15.1);
+      tap(201, 631, 15.77);
+      press("#ch-photo", 15.77);
+      tl.to("#sh-choice", { y: 480, duration: 0.35, ease: IN }, 16.02);
+      // Телефон отъезжает влево, освобождая место бланку в «кадре камеры»
+      tl.to("#phone", { x: -150, duration: 0.55, ease: "power2.inOut" }, 15.85);
+      tl.to("#phone", { x: 0, duration: 0.55, ease: "power2.inOut" }, 18.4);
+      // Заказ-наряд «в кадре камеры» справа от телефона
+      tl.fromTo("#receipt", { x: 140, rotation: 7, opacity: 0 }, { x: 0, rotation: 0, opacity: 1, duration: 0.6, ease: E }, 16.02);
+      tl.fromTo(["#c1", "#c2", "#c3", "#c4"], { scale: 1.25, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, ease: E }, 16.3);
+      tl.fromTo("#scan", { y: 0, opacity: 0 }, { opacity: 1, duration: 0.1 }, 16.35);
+      tl.to("#scan", { y: 470, duration: 1.8, ease: "none" }, 16.35);
+      tl.to("#scan", { opacity: 0, duration: 0.15 }, 18.05);
+      tl.to("#sh-svc", { y: 0, duration: 0.5, ease: E }, 16.45);
+      // Строка бланка подсвечивается, когда её проходит луч, и тут же
+      // появляется в форме: работа и сумма распознаны.
+      const rowT = [16.93, 17.06, 17.18, 17.31];
+      rowT.forEach((t, i) => {
+        tl.fromTo("#rr" + (i + 1) + " .hl", { opacity: 0 }, { opacity: 1, duration: 0.12 }, t);
+        tl.to("#rr" + (i + 1) + " .hl", { opacity: 0, duration: 0.5 }, t + 0.5);
+        tl.fromTo("#w" + (i + 1), { x: 16, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: E }, t);
+        tl.to("#h" + (i + 1), { opacity: 1, duration: 0.2 }, t + 0.1);
+      });
+      tl.fromTo("#w5", { x: 16, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: E }, 17.52);
+      tap(364, 100, 18.27);
+      tl.to("#sh-svc", { y: 820, duration: 0.4, ease: IN }, 18.3);
+      tl.to(["#receipt", "#c1", "#c2", "#c3", "#c4"], { x: 60, opacity: 0, duration: 0.4, ease: IN }, 18.3);
+      tl.to("#card-add", { opacity: 0, duration: 0.2 }, 18.45);
+      tl.to("#card-to", { opacity: 1, duration: 0.3 }, 18.55);
+      toast("#toast3", 18.52, 0.95);
+      tl.set(["#hist-title", "#hist-sum", "#hist-item"], { opacity: 1 }, 18.85);
+      tl.to("#main-scroll", { y: -318, duration: 0.7, ease: "power2.inOut" }, 18.9);
+      ftOut(3, 19.72);
+
+      // ---------- 04. Напоминание о ТО (20.02–24.03) ----------
+      tl.to("#main-scroll", { y: 0, duration: 0.5, ease: "power2.inOut" }, 19.75);
+      tl.set(["#hist-title", "#hist-sum", "#hist-item"], { opacity: 0 }, 20.3);
+      ftIn(4, 20.02);
+      // Пробег растёт, до ТО всё меньше: полоса зелёная → жёлтая (< 5 000)
+      // → красная (< 1 000), как ServiceMath.urgency.
+      const km = { rest: 10000, odo: 86400 };
+      const kmEl = document.getElementById("to-km");
+      const odoEl = document.getElementById("odo-v");
+      tl.to(km, {
+        rest: 800, odo: 95600, duration: 1.3, ease: "none",
+        onUpdate: () => {
+          kmEl.textContent = grp(km.rest) + NB + "км";
+          odoEl.textContent = grp(km.odo) + NB + "км";
+        },
+      }, 20.3);
+      tl.to("#to-bar", { width: 300, duration: 1.3, ease: "none" }, 20.3);
+      tl.to("#to-bar", { backgroundColor: "#ffd60a", duration: 0.15 }, 21.0);
+      tl.to("#to-bar", { backgroundColor: "#ff453a", duration: 0.15 }, 21.55);
+      tl.to("#to-km", { color: "#ff453a", duration: 0.15 }, 21.55);
+      tl.to("#notif", { y: 0, duration: 0.55, ease: "back.out(1.4)" }, 21.52);
+      tl.set("#status", { opacity: 0 }, 21.75);
+      tl.set("#status", { opacity: 1 }, 23.6);
+      tl.to("#phone", { scale: 1.03, duration: 1.2, ease: "power2.out" }, 21.45);
+      tl.to("#notif", { y: -170, duration: 0.35, ease: IN }, 23.5);
+      tl.to("#phone", { scale: 1, duration: 0.5, ease: "power2.inOut" }, 23.5);
+      ftOut(4, 23.72);
+
+      // ---------- 05. Рыночная цена (24.03–28.02) ----------
+      ftIn(5, 24.03);
+      tap(104, 741, 24.03);
+      press("#tile-price", 24.03);
+      tl.to("#sh-price", { y: 0, duration: 0.5, ease: E }, 24.12);
+      const price = { v: 0 };
+      const priceEl = document.getElementById("pr-val");
+      tl.to(price, {
+        v: 3900000, duration: 0.95, ease: "power2.out",
+        onUpdate: () => { priceEl.textContent = "≈" + NB + grp(Math.round(price.v / 1000) * 1000) + NB + "₽"; },
+      }, 24.55);
+      tl.set([".tile"], { opacity: 0 }, 24.65);
+      tl.set([".tile"], { opacity: 1 }, 27.5);
+      tl.to("#pr-cap", { opacity: 1, duration: 0.3 }, 25.3);
+      tl.fromTo("#pr-pen", { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(2)" }, 25.45);
+      tl.fromTo("#pr-box", { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: E }, 25.6);
+      tl.to("#sh-price", { y: 500, duration: 0.4, ease: IN }, 27.55);
+      ftOut(5, 27.72);
+
+      // ---------- 06. Карта (28.02–32.02) ----------
+      tl.to("#main", { opacity: 0, duration: 0.3 }, 27.85);
+      tl.to("#map", { opacity: 1, duration: 0.35 }, 27.9);
+      tabTo(1, 28.02);
+      ftIn(6, 28.02);
+      [["#chip1", ["#pin1", "#pin2"], 28.52], ["#chip2", ["#pin3", "#pin4"], 28.77], ["#chip3", ["#pin5", "#pin6"], 29.02]].forEach(([chip, pins, t]) => {
+        tl.to(chip, { color: "#ffffff", backgroundColor: "rgba(72, 72, 74, 0.95)", duration: 0.2 }, t);
+        tl.to(chip + " i", { opacity: 1, duration: 0.2 }, t);
+        tl.fromTo(pins, { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2.2)", stagger: 0.06 }, t + 0.04);
+      });
+      tap(298, 292, 29.52);
+      tl.to("#pin3", { scale: 1.25, duration: 0.25, ease: "back.out(2)" }, 29.52);
+      tl.to("#map-card", { y: 0, duration: 0.5, ease: E }, 29.6);
+      tap(201, 681, 30.52);
+      press("#mc-route", 30.52);
+      tl.to("#route", { strokeDashoffset: 0, duration: 0.7, ease: "power2.inOut" }, 30.55);
+      tl.fromTo("#route-pill", { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(2)" }, 31.02);
+      ftOut(6, 31.72);
+
+      // ---------- 07. Всё на телефоне (32.02–34.5) ----------
+      tl.to("#map", { opacity: 0, duration: 0.3 }, 31.8);
+      tl.to("#main", { opacity: 1, duration: 0.3 }, 31.85);
+      tabTo(0, 32.02);
+      ftIn(7, 32.02);
+      tl.to("#lock-dim", { opacity: 1, duration: 0.4 }, 32.2);
+      tl.fromTo("#lock", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.55, ease: "back.out(1.6)" }, 32.3);
+      tl.fromTo(["#lock-cap", "#lock-sub"], { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: E, stagger: 0.12 }, 32.6);
+      ftOut(7, 34.3);
+      tl.to("#phone", { x: 160, opacity: 0, duration: 0.55, ease: IN }, 34.3);
+      tl.to(["#mark", "#rail", "#rail-count", "#spot"], { opacity: 0, duration: 0.4 }, 34.4);
+
+      // ---------- Итог: все семь функций (34.77–38.02) ----------
+      // Плашки встают по долям, последняя — на 36.27; целиком список стоит
+      // больше секунды, прежде чем уступить логотипу.
+      tl.fromTo("#rc-title", { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: E }, 34.62);
+      for (let i = 1; i <= 7; i++) {
+        tl.fromTo("#rc" + i, { y: 30, scale: 0.96, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.4, ease: E }, 34.77 + 0.25 * (i - 1));
+      }
+      tl.to(["#rc-title", ".rc"], { y: -16, opacity: 0, duration: 0.3, ease: IN, stagger: 0.015 }, 37.62);
+
+      // ---------- Финал (38.02–42.5) ----------
+      tl.fromTo("#out-logo", { scale: 0.92, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.7, ease: E }, 38.02);
+      tl.fromTo("#out-tag", { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: E }, 38.52);
+      tl.fromTo("#out-small", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: E }, 39.02);
+
+      // ---------- Аудио-реактив: шар и сияние за телефоном дышат по музыке ----------
+      // Данные извлечены заранее (assets/audio-data.js, 30 fps) и сэмплируются
+      // покадрово через tl.call; без Web Audio и случайностей.
+      const AD = window.AUDIO_DATA;
+      if (AD && AD.frames) {
+        const glow = document.getElementById("iss-glow");
+        const aura = document.getElementById("aura");
+        for (let f = 0; f < AD.totalFrames; f++) {
+          const t = f / AD.fps;
+          if (t < 3.9 || t > 9.9) continue;
+          const v = AD.frames[f].rms || 0;
+          const listening = t >= 5.55 ? 1 : 0;
+          tl.call((val, on) => {
+            glow.style.opacity = String(0.22 + val * (0.35 + on * 0.45));
+            aura.style.transform = "scale(" + (1 + val * 0.06 * (1 + on)).toFixed(3) + ")";
+          }, [v, listening], t);
+        }
+      }
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
