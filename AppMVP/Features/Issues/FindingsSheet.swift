@@ -376,28 +376,27 @@ struct FindingsSheet: View {
         .clipShape(RoundedRectangle(cornerRadius: Layout.carPanelRadius, style: .continuous))
     }
 
-    /// Page Control как на главной (`CarMainView.pageControl`): капсула на
-    /// стекле, точки 8 с шагом 8, неактивная гаснет до Fills/Primary. Нажать
-    /// на точку или вести пальцем по капсуле — машина под пальцем выбирается,
-    /// карусель докручивается к ней через `scrollPosition`. Замечание
-    /// пользователя 26.09.2026: «нажимать на пейдж контролы как в главном».
+    /// Точки под номером — прежний вид: 6 pt, без подложки (пользователь
+    /// вернул их 26.09.2026 после капсулы как на главной). Поведение — как у
+    /// Page Control на главной: нажать на точку или вести пальцем по ряду —
+    /// машина под пальцем выбирается, карусель докручивается к ней через
+    /// `scrollPosition`. Видимый ряд маленький, поэтому зона касания
+    /// раздвинута `contentShape` на 19 во все стороны — до 44 по высоте
+    /// (HIG); раскладку это не трогает, как у «Записаться» на главной.
     private var carPageControl: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             ForEach(cars.indices, id: \.self) { index in
                 Circle()
-                    .fill(index == selectedIndex ? Color.white : Figma.fillsPrimary)
-                    .frame(width: 8, height: 8)
+                    .fill(index == selectedIndex ? Figma.labelsPrimary : Figma.labelsTertiary)
+                    .frame(width: 6, height: 6)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .liquidGlass(in: Capsule()) { Capsule().fill(Color.white.opacity(0.07)) }
-        // Скраб по капсуле. GeometryReader — в overlay капсулы: снаружи он
+        // Скраб по ряду. GeometryReader — в overlay ряда: снаружи он
         // растянул бы область, и координаты бы врали (так же на главной).
         .overlay {
             GeometryReader { g in
                 Color.clear
-                    .contentShape(Capsule())
+                    .contentShape(Rectangle().inset(by: -19))
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in

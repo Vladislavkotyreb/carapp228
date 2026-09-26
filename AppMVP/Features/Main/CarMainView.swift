@@ -1407,18 +1407,29 @@ struct CarMainView: View {
     /// не подменяется, а перетекает.
     private func darkCard(progress p: Double, height: CGFloat) -> some View {
         ZStack {
+            // В раскладку попадают только видимые страницы. ZStack меряется по
+            // самому высокому ребёнку, погашенному в ноль тоже: с появлением
+            // строки «Записаться» карточка машины без неё (зелёная зона)
+            // вырастала в покое до высоты чужой, красной (замечание
+            // пользователя 26.09.2026). В покое видна одна страница — высоту
+            // задаёт её содержимое; в свайпе — две соседние, как и было.
             ForEach(cars) { car in
-                Group {
-                    if car.services.isEmpty {
-                        addLabel("Добавить ТО")
-                    } else {
-                        serviceProgressContent(for: car)
+                let w = weight(of: index(of: car))
+                if w > 0 {
+                    Group {
+                        if car.services.isEmpty {
+                            addLabel("Добавить ТО")
+                        } else {
+                            serviceProgressContent(for: car)
+                        }
                     }
+                    .opacity(w)
                 }
-                .opacity(weight(of: index(of: car)))
             }
 
-            addLabel("Добавить авто").opacity(weight(of: addPageIndex))
+            if weight(of: addPageIndex) > 0 {
+                addLabel("Добавить авто").opacity(weight(of: addPageIndex))
+            }
         }
         .padding(24)
         .frame(maxWidth: .infinity)
