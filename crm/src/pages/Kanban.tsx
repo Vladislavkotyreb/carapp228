@@ -8,6 +8,7 @@ import { Avatar } from "@/components/bits";
 import { dateTime } from "@/data/format";
 import { BOARD_COLUMNS, lanes, needsAttention, type GroupBy, type Lane } from "@/data/stats";
 import { useStore } from "@/data/store";
+import { isOnShift } from "@/data/payroll";
 import { SOURCE_LABEL, STATUS_LABEL, type RequestStatus, type ServiceRequest } from "@/data/types";
 import { RequestDetail } from "@/pages/Requests";
 
@@ -116,7 +117,7 @@ export function KanbanBoard({ requests }: { requests: ServiceRequest[] }) {
                   (people.has(e.id) ? "ring-2 ring-[#6B97FF]" : "")
                 }
               >
-                <Avatar name={e.name} muted={!e.onShift} size={28} />
+                <Avatar name={e.name} muted={!isOnShift(e)} size={28} />
               </button>
             </Tooltip>
           ))}

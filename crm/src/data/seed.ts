@@ -1,4 +1,5 @@
-import type { Employee, ServiceRequest } from "./types";
+import { dayKey } from "./payroll";
+import type { Employee, RoleDef, ServiceRequest } from "./types";
 
 // Тестовые данные наброска. Время — относительно момента первого запуска,
 // чтобы «12 мин назад» оставалось правдой при любом открытии.
@@ -11,12 +12,39 @@ const inDays = (d: number, hour: number) => {
   return t.toISOString();
 };
 
+export const seedRoles: RoleDef[] = [
+  { id: "master", name: "Мастер-приёмщик" },
+  { id: "diagnost", name: "Диагност" },
+  { id: "mechanic", name: "Механик" },
+  { id: "electrician", name: "Автоэлектрик" },
+];
+
+/** Табель с начала месяца по сегодня: будни — пятидневка, `shift` — график
+ *  «два через два» со сдвигом. Сегодняшний день входит — это «на смене». */
+function workDays(schedule: "5/2" | "2/2", shift = 0, skipToday = false): string[] {
+  const now = new Date();
+  const days: string[] = [];
+  for (let d = 1; d <= now.getDate(); d++) {
+    const date = new Date(now.getFullYear(), now.getMonth(), d);
+    const wd = date.getDay();
+    const works = schedule === "5/2" ? wd !== 0 && wd !== 6 : (d + shift) % 4 < 2;
+    if (works) days.push(dayKey(date));
+  }
+  const today = dayKey(now);
+  return skipToday ? days.filter((k) => k !== today) : days.includes(today) ? days : [...days, today];
+}
+
 export const seedEmployees: Employee[] = [
-  { id: "e1", name: "Ольга Смирнова", role: "master", phone: "+7 916 204-11-83", onShift: true },
-  { id: "e2", name: "Артём Кузнецов", role: "diagnost", phone: "+7 925 330-47-12", onShift: true },
-  { id: "e3", name: "Игорь Павлов", role: "mechanic", phone: "+7 903 118-90-05", onShift: true },
-  { id: "e4", name: "Руслан Галиев", role: "mechanic", phone: "+7 977 562-38-44", onShift: false },
-  { id: "e5", name: "Денис Орлов", role: "electrician", phone: "+7 999 741-02-67", onShift: true },
+  { id: "e1", name: "Ольга Смирнова", roleId: "master", phone: "+7 916 204-11-83",
+    pay: { kind: "monthly", salary: 65_000 }, workDays: workDays("5/2") },
+  { id: "e2", name: "Артём Кузнецов", roleId: "diagnost", phone: "+7 925 330-47-12",
+    pay: { kind: "monthly", salary: 80_000 }, workDays: workDays("5/2") },
+  { id: "e3", name: "Игорь Павлов", roleId: "mechanic", phone: "+7 903 118-90-05",
+    pay: { kind: "daily", rate: 3_500 }, workDays: workDays("2/2", 0) },
+  { id: "e4", name: "Руслан Галиев", roleId: "mechanic", phone: "+7 977 562-38-44",
+    pay: { kind: "daily", rate: 3_200 }, workDays: workDays("2/2", 2, true) },
+  { id: "e5", name: "Денис Орлов", roleId: "electrician", phone: "+7 999 741-02-67",
+    pay: { kind: "daily", rate: 4_000 }, workDays: workDays("5/2") },
 ];
 
 export const seedRequests: ServiceRequest[] = [

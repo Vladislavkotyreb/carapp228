@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useReducer, type ReactNode } from "react";
-import { seedEmployees, seedRequests } from "./seed";
-import type { Employee, RequestStatus, Role, ServiceRequest } from "./types";
+import { todayKey } from "./payroll";
+import { seedEmployees, seedRequests, seedRoles } from "./seed";
+import type { Employee, Pay, RequestStatus, RoleDef, ServiceRequest } from "./types";
 
 // Хранилище наброска. Данные живут в браузере (localStorage): сервера нет,
 // а персональные данные клиентов по 152-ФЗ должны лежать на сервере в РФ —
@@ -9,6 +10,7 @@ import type { Employee, RequestStatus, Role, ServiceRequest } from "./types";
 interface State {
   requests: ServiceRequest[];
   employees: Employee[];
+  roles: RoleDef[];
 }
 
 type Action =
@@ -20,8 +22,16 @@ type Action =
    *  `assigneeId: undefined` — дорожка не про людей, исполнитель не меняется;
    *  `null` — дорожка «Без исполнителя». */
   | { type: "move"; id: string; status: RequestStatus; assigneeId?: string | null }
-  | { type: "addEmployee"; name: string; role: Role; phone: string }
+  | { type: "addEmployee"; name: string; roleId: string; phone: string; pay: Pay }
+  | { type: "updateEmployee"; id: string; roleId: string; pay: Pay }
+  /** Отметить или снять день в табеле. «На смене» — тот же переключатель
+   *  для сегодняшнего дня. */
+  | { type: "toggleDay"; id: string; day: string }
   | { type: "toggleShift"; id: string }
+  | { type: "addRole"; name: string }
+  | { type: "renameRole"; id: string; name: string }
+  /** Удалить можно только пустую роль: у сотрудника роль обязательна. */
+  | { type: "deleteRole"; id: string }
   | { type: "reset" };
 
 function reducer(state: State, action: Action): State {
@@ -56,23 +66,57 @@ function reducer(state: State, action: Action): State {
         ...state,
         employees: [
           ...state.employees,
-          { id: `e${Date.now()}`, name: action.name, role: action.role, phone: action.phone, onShift: true },
+          {
+            id: `e${Date.now()}`,
+            name: action.name,
+            roleId: action.roleId,
+            phone: action.phone,
+            pay: action.pay,
+            // Добавили — значит, вышел: сегодня отмечен в табеле.
+            workDays: [todayKey()],
+          },
         ],
       };
-    case "toggleShift":
+    case "updateEmployee":
       return {
         ...state,
-        employees: state.employees.map((e) => (e.id === action.id ? { ...e, onShift: !e.onShift } : e)),
+        employees: state.employees.map((e) =>
+          e.id === action.id ? { ...e, roleId: action.roleId, pay: action.pay } : e,
+        ),
       };
+    case "toggleDay":
+      return { ...state, employees: state.employees.map((e) => (e.id === action.id ? toggle(e, action.day) : e)) };
+    case "toggleShift":
+      return { ...state, employees: state.employees.map((e) => (e.id === action.id ? toggle(e, todayKey()) : e)) };
+    case "addRole": {
+      const name = action.name.trim();
+      if (!name || state.roles.some((r) => r.name.toLowerCase() === name.toLowerCase())) return state;
+      return { ...state, roles: [...state.roles, { id: `r${Date.now()}`, name }] };
+    }
+    case "renameRole": {
+      const name = action.name.trim();
+      if (!name) return state;
+      return { ...state, roles: state.roles.map((r) => (r.id === action.id ? { ...r, name } : r)) };
+    }
+    case "deleteRole":
+      if (state.employees.some((e) => e.roleId === action.id)) return state;
+      return { ...state, roles: state.roles.filter((r) => r.id !== action.id) };
     case "reset":
       return initial();
   }
 }
 
-const KEY = "beepy-crm-v1";
+// v2: у сотрудника роль по id, оплата и табель. Данные v1 этого не знают,
+// и читать их значило бы получить сотрудников без ставки и роли.
+const KEY = "beepy-crm-v2";
+
+function toggle(e: Employee, day: string): Employee {
+  const has = e.workDays.includes(day);
+  return { ...e, workDays: has ? e.workDays.filter((d) => d !== day) : [...e.workDays, day].sort() };
+}
 
 function initial(): State {
-  return { requests: seedRequests, employees: seedEmployees };
+  return { requests: seedRequests, employees: seedEmployees, roles: seedRoles };
 }
 
 function load(): State {

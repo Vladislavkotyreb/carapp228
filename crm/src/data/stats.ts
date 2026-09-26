@@ -1,4 +1,4 @@
-import { OPEN_STATUSES, type Employee, type RequestSource, type RequestStatus, type ServiceRequest } from "./types";
+import { OPEN_STATUSES, type Employee, type RequestSource, type RequestStatus, type RoleDef, type ServiceRequest } from "./types";
 
 // Всё, что считает дашборд, — чистые функции над списком заявок. Вью только
 // рисует: логика в разметке — логика, которую никто не проверит.
@@ -120,4 +120,10 @@ export function lanes(requests: ServiceRequest[], employees: Employee[], by: Gro
   return nobody.length > 0
     ? [...people, { id: "nobody", label: "Без исполнителя", assigneeId: null, requests: nobody }]
     : people;
+}
+
+/** Имя роли по id. Роль могли удалить только пустой, но старые данные
+ *  бывают любыми — пусть лучше «Без роли», чем падение. */
+export function roleName(roles: RoleDef[], id: string): string {
+  return roles.find((r) => r.id === id)?.name ?? "Без роли";
 }

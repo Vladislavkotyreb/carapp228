@@ -4,16 +4,13 @@ import SwiftUI
 /// Заголовок здесь Subheadline/Emphasized (15pt), а не Body: с 17pt
 /// карточка вырастала до 104 вместо заявленных в макете 102. Описание
 /// ровно в две строки — в макете под него отведено 36pt, то есть 2 × 18.
-/// `showAdvice` выключен по умолчанию намеренно. Тёмная карточка на экране
-/// прибита к ноде макета `46093:2421` — 370×102, и третья строка выносит её
-/// за эту высоту: заголовок в 17pt уже давал 104 вместо 102 и это ловилось
-/// сверкой. В шторке находок высота считается по содержимому, там совет
-/// и живёт — заодно это то место, где человек решает, добавлять ли находку.
+/// Тёмная карточка на экране прибита к ноде макета `46093:2421` — 370×102.
+/// Совет по расходникам здесь больше не живёт: с 26.09.2026 он — лента
+/// «Что можно купить» в шторке находок (`FindingsSheet.findingCard`).
 struct IssueCardBody: View {
     let issue: EngineIssue
     let title: Color
     let detail: Color
-    var showAdvice = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -31,31 +28,6 @@ struct IssueCardBody: View {
                 .foregroundStyle(detail)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
-
-            // Совет по расходникам — только там, где включён `showAdvice`,
-            // то есть в шторке находок. На тёмной карточке экрана его нет:
-            // она прибита к ноде макета 46093:2421, 370×102, третья строка
-            // выносит её за высоту. Решение пользователя от 2026-09-11.
-            if showAdvice, let advice = issue.advice {
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "cart")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Figma.accentsYellow)
-                        // Значок держит базовую линию первой строки текста:
-                        // без этого он висит по центру всего блока.
-                        .frame(height: 18)
-
-                    Text(advice)
-                        .font(.system(size: 13))
-                        .tracking(-0.08)
-                        .figmaLineHeight(18, fontSize: 13)
-                        .lineLimit(3)
-                        .foregroundStyle(detail)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.top, 2)
-            }
         }
         .padding(20)
         // Высота карточки объявлена в макете: 102. Сложением строк она не
@@ -67,16 +39,68 @@ struct IssueCardBody: View {
 }
 
 /// Шторка «Вот что мы нашли» (нода `46102:3369`) — вынесена из `IssuesScreen`
-/// 25.09.2026 как есть, чтобы тот же флоу открывался и с главной (кнопка
-/// «Послушать мотор»). Вёрстка не менялась: она сверена с макетом.
+/// 25.09.2026, чтобы тот же флоу открывался и с главной.
+///
+/// 26.09.2026 переделана по просьбе пользователя: сверху вопрос «Прикрепить
+/// к машине?», включённый открывает карусель машин — на какой прокрутка
+/// остановилась, та и выбрана. Находка — название, «что это может быть» и
+/// лента того, что можно купить. Тулбар, кнопки и геометрия шторки — прежние.
 struct FindingsSheet: View {
+    /// Машина для карусели — значения, а не модель: шторке не нужна база,
+    /// а переходник `Car → CarChoice` лежит ниже, во вью-слое.
+    struct CarChoice: Identifiable {
+        let id: PersistentIdentifier
+        let name: String
+        /// Номер, уже разбитый на группы. Пустой — машина без номера.
+        let plate: String
+        let photo: Data?
+        let catalogSlug: String?
+    }
+
     let findings: [EngineIssue]
     /// Разбор не услышал мотора — шторка в пустом состоянии.
     let nothingHeard: Diagnosis.HeardKind?
+    /// Машины пользователя. Пусто — вопроса о прикреплении нет вовсе.
+    let cars: [CarChoice]
     let onClose: () -> Void
-    let onApprove: () -> Void
+    /// Сохранить находки. `nil` — не прикреплять ни к одной машине.
+    let onApprove: (PersistentIdentifier?) -> Void
     /// «Записать ещё раз» из пустого состояния.
     let onRetry: () -> Void
+
+    /// Прикреплять ли к машине. Включено сразу, когда слушали с экрана машины:
+    /// там вопрос уже решён тем, откуда нажали «Послушать».
+    @State private var attach: Bool
+    /// Машина, на которой остановилась карусель. Пишется прокруткой
+    /// (`scrollPosition`) только при смене карточки, не на каждом кадре.
+    @State private var selectedCar: PersistentIdentifier?
+    @Environment(\.openURL) private var openURL
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init(findings: [EngineIssue], nothingHeard: Diagnosis.HeardKind?,
+         cars: [CarChoice], preselected: PersistentIdentifier?, attachByDefault: Bool,
+         onClose: @escaping () -> Void,
+         onApprove: @escaping (PersistentIdentifier?) -> Void,
+         onRetry: @escaping () -> Void) {
+        self.findings = findings
+        self.nothingHeard = nothingHeard
+        self.cars = cars
+        self.onClose = onClose
+        self.onApprove = onApprove
+        self.onRetry = onRetry
+        _attach = State(initialValue: attachByDefault && !cars.isEmpty)
+        let start = cars.first { $0.id == preselected }?.id ?? cars.first?.id
+        _selectedCar = State(initialValue: start)
+    }
+
+    private func approve() {
+        onApprove(attach ? selectedCar : nil)
+    }
+
+    private var selectedChoice: CarChoice? {
+        guard attach else { return nil }
+        return cars.first { $0.id == selectedCar }
+    }
 
     /// Скругление карточки находки — то же 34, что у тёмной карточки экрана.
     private static let cardShape = RoundedRectangle(cornerRadius: 34, style: .continuous)
@@ -109,6 +133,28 @@ struct FindingsSheet: View {
         /// Высота растворения контента к низу. По рендеру макета оно начинается
         /// примерно на 708 и заканчивается на 804 при низе шторки 874.
         static let fadeHeight: CGFloat = 166
+    }
+
+    /// Геометрия новых блоков 26.09.2026. Контейнер «Прикрепить» сверен с
+    /// макетом пользователя; остальное подобрано на экране 390 pt.
+    private enum Layout {
+        /// Вопрос и карусель — один контейнер (макет пользователя 26.09.2026,
+        /// Figma `46312:20`): поля 12, между строкой и подложкой 12.
+        static let attachPadding: CGFloat = 12
+        static let attachGap: CGFloat = 12
+        /// Подложка внутри контейнера, радиус 12. Поля ленты: в макете машина
+        /// 274 в подложке 346, то есть по 36 с краёв.
+        static let carMargin: CGFloat = 36
+        static let carSpacing: CGFloat = 12
+        static let carPhotoHeight: CGFloat = 124
+        static let carPanelRadius: CGFloat = 12
+        static let carPanelPadding: CGFloat = 16
+        static let rowRadius: CGFloat = 24
+        /// Карточка расходника: две строки названия и «Найти». 156, а не
+        /// 136: «трансмиссионное» в 13 semibold не влезало в строку.
+        static let itemWidth: CGFloat = 156
+        static let itemRadius: CGFloat = 20
+        static let iconSize: CGFloat = 32
     }
 
     var body: some View {
@@ -236,15 +282,224 @@ struct FindingsSheet: View {
     private var findingsScroll: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
+                if !cars.isEmpty {
+                    attachSection
+                }
                 ForEach(findings) { issue in
-                    IssueCardBody(issue: issue, title: Figma.labelsPrimary,
-                                  detail: Figma.graysGray,
-                                  showAdvice: true)
-                        .background(cardSurface)
+                    findingCard(issue)
                 }
             }
-            .padding(.horizontal, 16)
         }
+    }
+
+    // MARK: - Прикрепить к машине
+
+    /// Вопрос-переключатель и под ним, когда включён, карусель машин.
+    /// Один контейнер на вопрос и выбор (макет пользователя, блок `46312:20`
+    /// в Figma, правка 26.09.2026): строка «иконка — вопрос — переключатель»,
+    /// а под ней, когда включено, чёрная подложка с машинами. Включили —
+    /// контейнер дорастает вниз, подложка проявляется изнутри него: клип по
+    /// форме контейнера прячет её, пока высота растёт. Подписи под вопросом
+    /// больше нет — выбранную машину и так видно.
+    private var attachSection: some View {
+        VStack(spacing: Layout.attachGap) {
+            HStack(spacing: 12) {
+                Image(systemName: "car.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Figma.labelsPrimary)
+                    .frame(width: Layout.iconSize + 4, height: Layout.iconSize + 4)
+                    .background(Circle().fill(Figma.fillsTertiary))
+
+                Text("Прикрепить к\u{00A0}машине?")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Figma.labelsPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Toggle("Прикрепить к машине", isOn: $attach.animation(revealAnimation))
+                    .labelsHidden()
+                    .tint(Figma.accentsGreen)
+            }
+
+            if attach {
+                carCarousel
+                    .transition(reduceMotion
+                        ? .opacity
+                        : .asymmetric(
+                            insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .top)),
+                            removal: .opacity))
+            }
+        }
+        .padding(Layout.attachPadding)
+        .frame(maxWidth: .infinity, alignment: .top)
+        .background(RoundedRectangle(cornerRadius: Layout.rowRadius, style: .continuous)
+            .fill(Figma.fillsTertiary))
+        .clipShape(RoundedRectangle(cornerRadius: Layout.rowRadius, style: .continuous))
+        .padding(.horizontal, 16)
+    }
+
+    /// Рост контейнера и проявление подложки. Плавная кривая без отскока:
+    /// пружина с отскоком дёргала бы список находок под контейнером.
+    private var revealAnimation: Animation {
+        reduceMotion ? .easeInOut(duration: 0.2) : .smooth(duration: 0.38)
+    }
+
+    /// Карусель машин. Выбор — там, где прокрутка остановилась: `viewAligned`
+    /// докручивает до карточки, `scrollPosition` отдаёт её id. Масштаб и
+    /// прозрачность соседей считает `scrollTransition` — позиция прокрутки
+    /// в состояние вью не попадает (docs/TRAPS.md, съеденный скролл).
+    private var carCarousel: some View {
+        VStack(spacing: 12) {
+            carScroll
+            // Точки — единственный явный знак, что машин несколько: соседи
+            // у краёв подложки видны чёрным полем своего кадра, не машиной.
+            if cars.count > 1 {
+                HStack(spacing: 6) {
+                    ForEach(cars) { choice in
+                        Circle()
+                            .fill(choice.id == selectedCar ? Figma.labelsPrimary : Figma.labelsTertiary)
+                            .frame(width: 6, height: 6)
+                    }
+                }
+                .animation(Motion.selection, value: selectedCar)
+                .accessibilityHidden(true)
+            }
+        }
+        .padding(.vertical, Layout.carPanelPadding)
+        // Подложка чёрная, как фон главной: кадры каталога студийные на
+        // чёрном и сливаются с ней — машины стоят без рамок.
+        .background(Color.black)
+        .clipShape(RoundedRectangle(cornerRadius: Layout.carPanelRadius, style: .continuous))
+    }
+
+    private var carScroll: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: Layout.carSpacing) {
+                ForEach(cars) { choice in
+                    CarChoiceItem(choice: choice, isSelected: choice.id == selectedCar,
+                                  photoHeight: Layout.carPhotoHeight)
+                        .containerRelativeFrame(.horizontal)
+                        .scrollTransition(.interactive, axis: .horizontal) { content, phase in
+                            content
+                                .scaleEffect(phase.isIdentity ? 1 : 0.86)
+                                .opacity(phase.isIdentity ? 1 : 0.4)
+                        }
+                        .onTapGesture {
+                            withAnimation(Motion.selection) { selectedCar = choice.id }
+                        }
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .contentMargins(.horizontal, Layout.carMargin, for: .scrollContent)
+        .scrollTargetBehavior(.viewAligned)
+        // Без `anchor: .center`: вместе с полями он ставил карточку на
+        // половину ширины за вычетом полей — первая уезжала вправо на 67 pt
+        // (кадр 26.09). `viewAligned` и так держит её у поля, поля симметричны.
+        .scrollPosition(id: $selectedCar)
+        .sensoryFeedback(.selection, trigger: selectedCar)
+    }
+
+    // MARK: - Находка
+
+    /// Находка: название, что это может быть, что можно купить. У вердикта
+    /// и у сообщений об ошибке кода детали нет — остаются название и подпись.
+    private func findingCard(_ issue: EngineIssue) -> some View {
+        let items = issue.part.map(PartAdvice.parts) ?? []
+        return VStack(alignment: .leading, spacing: 0) {
+            Text(issue.title)
+                .font(.system(size: 17, weight: .semibold))
+                .tracking(-0.43)
+                .foregroundStyle(Figma.labelsPrimary)
+                .padding(.horizontal, 20)
+
+            Text(issue.detail)
+                .font(.system(size: 13))
+                .tracking(-0.08)
+                .figmaLineHeight(18, fontSize: 13)
+                .foregroundStyle(Figma.graysGray)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4)
+                .padding(.horizontal, 20)
+
+            if let meaning = issue.part.flatMap(PartAdvice.meaning) {
+                sectionLabel("Что это может быть")
+                Text(meaning)
+                    .font(.system(size: 15))
+                    .tracking(-0.23)
+                    .figmaLineHeight(20, fontSize: 15)
+                    .foregroundStyle(Figma.labelsPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 20)
+            }
+
+            if !items.isEmpty {
+                sectionLabel("Что можно купить")
+                // Лента во всю ширину карточки: первая карточка на поле
+                // текста, последняя уходит под край — видно, что листается.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(items, id: \.self) { item in
+                            buyCard(item)
+                        }
+                    }
+                }
+                .contentMargins(.horizontal, 20, for: .scrollContent)
+            }
+        }
+        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(cardSurface)
+        .padding(.horizontal, 16)
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Figma.labelsSecondary)
+            .padding(.top, 16)
+            .padding(.bottom, 6)
+            .padding(.horizontal, 20)
+    }
+
+    /// Карточка расходника. «Найти» — поиск в Яндекс Маркете, с названием
+    /// машины, если результаты прикреплены к ней. Номер в запрос не идёт.
+    private func buyCard(_ item: String) -> some View {
+        Button {
+            if let url = PartAdvice.searchURL(item: item, carName: selectedChoice?.name) {
+                openURL(url)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                Image(systemName: PartAdvice.symbol(forItem: item))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Figma.accentsYellow)
+                    .frame(width: Layout.iconSize, height: Layout.iconSize)
+                    .background(Circle().fill(Figma.fillsTertiary))
+
+                Text(item)
+                    .font(.system(size: 13, weight: .semibold))
+                    .tracking(-0.08)
+                    .figmaLineHeight(18, fontSize: 13, weight: .semibold)
+                    .foregroundStyle(Figma.labelsPrimary)
+                    .lineLimit(2, reservesSpace: true)
+                    .multilineTextAlignment(.leading)
+
+                HStack(spacing: 4) {
+                    Text("Найти")
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .font(.system(size: 13))
+                .foregroundStyle(Figma.graysGray)
+            }
+            .padding(12)
+            .frame(width: Layout.itemWidth, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: Layout.itemRadius, style: .continuous)
+                .fill(Figma.fillsTertiary))
+            .contentShape(RoundedRectangle(cornerRadius: Layout.itemRadius, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(item) — найти в\u{00A0}Яндекс Маркете")
     }
 
     /// Карточка находки на тёмной шторке. Светлую держала тень, тёмную
@@ -258,7 +513,7 @@ struct FindingsSheet: View {
 
     private var findingsButtons: some View {
         VStack(spacing: 12) {
-            GlassProminentButton(title: "Да, добавить ошибки", action: onApprove)
+            GlassProminentButton(title: "Да, добавить ошибки", action: approve)
             GlassButton(title: "Нет, не добавлять", action: onClose)
         }
         .padding(.horizontal, 16)
@@ -296,7 +551,7 @@ struct FindingsSheet: View {
 
                 if nothingHeard == nil {
                     // Белая галочка-акцент, как у остальных шторок.
-                    Button(action: onApprove) {
+                    Button(action: approve) {
                         Image(systemName: "checkmark")
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundStyle(.black)
@@ -312,6 +567,90 @@ struct FindingsSheet: View {
         .frame(height: Findings.toolbarHeight)
         .padding(.horizontal, 16)
         .padding(.top, Findings.toolbarTop)
+    }
+}
+
+/// Машина в карусели шторки находок: кадр, название, номер — без карточки,
+/// прямо на чёрной подложке. Выбранную выделяет не рамка, а сама карусель:
+/// соседи уменьшены и приглушены (`scrollTransition`).
+///
+/// Шрифтовая пара — узкий SF Pro, как у номера и подписей на главной:
+/// название Bold, номер Medium (правка пользователя 26.09.2026).
+private struct CarChoiceItem: View {
+    let choice: FindingsSheet.CarChoice
+    let isSelected: Bool
+    let photoHeight: CGFloat
+
+    @State private var image: UIImage?
+    @State private var isCatalog = false
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                if let image {
+                    if isCatalog {
+                        // Кадр каталога студийный, на чёрном: целиком, не обрезая.
+                        Image(uiImage: image).resizable().scaledToFit()
+                    } else {
+                        // Своё фото — не прямоугольник-карточка, а растворённое
+                        // к краям пятно: иначе рамка вернулась бы через кадр.
+                        Image(uiImage: image).resizable().scaledToFill()
+                            .mask(RadialGradient(colors: [.black, .black, .clear],
+                                                 center: .center, startRadius: 0,
+                                                 endRadius: photoHeight * 1.1))
+                    }
+                } else {
+                    Image(systemName: "car.side.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(Figma.labelsTertiary)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: photoHeight)
+            .clipped()
+            .allowsHitTesting(false)
+
+            VStack(spacing: 2) {
+                Text(choice.name)
+                    .font(.system(size: 20, weight: .bold).width(.condensed))
+                    .foregroundStyle(Figma.labelsPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text(choice.plate.isEmpty ? "Без номера" : choice.plate)
+                    .font(.system(size: 15, weight: .medium).width(.condensed))
+                    .tracking(0.4)
+                    .foregroundStyle(Figma.graysGray)
+                    .lineLimit(1)
+            }
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .task(id: choice.id) { await load() }
+    }
+
+    private func load() async {
+        if let data = choice.photo, let decoded = await ImageLoader.decode([data]).first {
+            image = decoded
+            isCatalog = false
+        } else if let slug = choice.catalogSlug,
+                  let url = Bundle.main.url(forResource: slug, withExtension: "heic",
+                                            subdirectory: "CarCatalog") {
+            image = UIImage(contentsOfFile: url.path)
+            isCatalog = true
+        }
+    }
+}
+
+extension FindingsSheet.CarChoice {
+    /// Переходник из модели — во вью-слое, как требует `Core/Pure`.
+    init(_ car: Car) {
+        self.init(id: car.persistentModelID,
+                  name: car.name,
+                  plate: car.plate.isEmpty ? "" : PlateFormat.format(car.plate),
+                  photo: car.photo,
+                  catalogSlug: CarCatalog.slug(name: car.name, generation: car.generation,
+                                               plate: car.plate))
     }
 }
 
@@ -332,6 +671,14 @@ enum DiagnosisCards {
     /// Разбор записи целиком: локальная модель, сервер запасным путём,
     /// ошибка — карточкой. Без записи или без моделей — заглушка.
     static func run(recording: URL?) async -> Outcome {
+        #if DEBUG
+        // Съёмка состояний: микрофон симулятора слышит тишину, и разбор
+        // честно отвечает «ничего тревожного» — находок с деталями не увидеть.
+        // `SIMCTL_CHILD_BEEPY_STUB_DIAGNOSIS=1 xcrun simctl launch …`
+        if ProcessInfo.processInfo.environment["BEEPY_STUB_DIAGNOSIS"] == "1" {
+            return Outcome(cards: IssuesStub.findings, nothingHeard: nil)
+        }
+        #endif
         guard canDiagnose, let recording else {
             return Outcome(cards: IssuesStub.findings, nothingHeard: nil)
         }
@@ -414,7 +761,8 @@ enum DiagnosisCards {
             let where_ = zone == part ? "" : zone + " · "
             return EngineIssue(title: part,
                                detail: where_ + "модель ставит сюда " + percent(cause.p),
-                               advice: PartAdvice.line(cause.part))
+                               advice: PartAdvice.line(cause.part),
+                               part: cause.part)
         }
 
         if ranked.isEmpty {

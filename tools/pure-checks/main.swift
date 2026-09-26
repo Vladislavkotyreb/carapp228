@@ -891,6 +891,34 @@ group("ListeningSummary") {
             .hasSuffix("Beepy слушал мотор 1 октября — явных неисправностей не нашёл."), true)
 }
 
+// ---------------------------------------------------------------- PartAdvice
+
+group("PartAdvice: что это может быть и что купить") {
+    // У каждой детали, для которой есть что купить, есть и объяснение:
+    // иначе в шторке находка выйдет без второй строки.
+    let parts = ["engine_internal", "rod_knock", "valvetrain", "low_oil", "fuel_ignition",
+                 "fuel_pump", "belt", "alternator", "water_pump", "ac_compressor", "exhaust",
+                 "turbo", "cv_joint", "cv_axle", "differential", "suspension", "mounts",
+                 "power_steering", "brakes", "wheel_bearing", "bad_wheal_bearing",
+                 "wheel_tire", "tires", "transmission", "cooling_other"]
+    check("объяснение есть у всех деталей с расходниками",
+          parts.filter { !PartAdvice.parts($0).isEmpty && PartAdvice.meaning($0) == nil }, [])
+    check("неизвестная деталь — без объяснения", PartAdvice.meaning("none"), nil)
+    check("масло — капля", PartAdvice.symbol(forItem: "Масло моторное"), "drop.fill")
+    check("фильтр раньше масла не ловится", PartAdvice.symbol(forItem: "Масляный фильтр"),
+          "line.3.horizontal.decrease")
+    check("незнакомое — гаечный ключ", PartAdvice.symbol(forItem: "Что-то"), "wrench.and.screwdriver.fill")
+    check("поиск с машиной",
+          PartAdvice.searchURL(item: "Ступица в\u{00A0}сборе", carName: "Kia Rio")?.absoluteString,
+          "https://market.yandex.ru/search?text=%D0%A1%D1%82%D1%83%D0%BF%D0%B8%D1%86%D0%B0%20%D0%B2%20%D1%81%D0%B1%D0%BE%D1%80%D0%B5%20Kia%20Rio")
+    check("поиск без машины — только деталь",
+          PartAdvice.searchURL(item: "Помпа", carName: nil)?.absoluteString,
+          "https://market.yandex.ru/search?text=%D0%9F%D0%BE%D0%BC%D0%BF%D0%B0")
+    check("пустое название машины не даёт хвостового пробела",
+          PartAdvice.searchURL(item: "Помпа", carName: "  ")?.absoluteString,
+          "https://market.yandex.ru/search?text=%D0%9F%D0%BE%D0%BC%D0%BF%D0%B0")
+}
+
 print("")
 print("Состояний в каталоге: \(UIStateCatalog.all.count), "
       + "из них без ноды макета: \(UIStateCatalog.withoutNode.count).")

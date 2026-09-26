@@ -26,6 +26,8 @@ struct IssuesScreen: View {
     /// История прослушиваний из базы. Свежие сверху — так же, как записи ТО.
     /// Раньше жила в `@State` и исчезала при перезапуске приложения.
     @Query(sort: \EngineCheck.date, order: .reverse) private var history: [EngineCheck]
+    /// Машины для карусели «Прикрепить к машине?» в шторке находок.
+    @Query(sort: \Car.createdAt) private var cars: [Car]
     @Environment(\.modelContext) private var modelContext
 
     /// Что раздел сейчас делает. Одно значение вместо `isRecording`
@@ -90,7 +92,10 @@ struct IssuesScreen: View {
                 RecordingPanel(level: meter.level) { listenButton() }
                     .frame(width: RecordingLayout.panelSize.width,
                            height: RecordingLayout.panelSize.height, alignment: .top)
-                    .offset(x: RecordingLayout.panelOffset.x, y: RecordingLayout.panelOffset.y)
+                    // По центру ширины, а не 16 от левого края: на экране 402 это те же
+                    // 16 с обеих сторон, а на 390 панель прижималась вправо (кадр 26.09).
+                    .frame(maxWidth: .infinity)
+                    .offset(y: RecordingLayout.panelOffset.y)
                     .transition(.scale(scale: 0.12,
                                        anchor: .init(x: 0.5, y: 0.92))
                         .combined(with: .opacity))
@@ -111,7 +116,12 @@ struct IssuesScreen: View {
         // залипала так же — «Стоп» на остановленном метре.
         .onDisappear { meter.stop(); analysisTask?.cancel(); activity = .idle }
         .bottomSheet(isPresented: $showFindings) {
+            // Из «Ошибок» вопрос открыт: слушать могли и чужую машину, и
+            // вовсе без неё. Карусель стоит на машине с главной.
             FindingsSheet(findings: findings, nothingHeard: nothingHeard,
+                          cars: cars.map(FindingsSheet.CarChoice.init),
+                          preselected: car?.persistentModelID,
+                          attachByDefault: false,
                           onClose: { showFindings = false },
                           onApprove: approveFindings,
                           onRetry: {
@@ -367,8 +377,9 @@ struct IssuesScreen: View {
 
     /// Подтверждённые находки уходят в базу. Порядок сохраняется номером:
     /// разбор ранжированный, а связь SwiftData порядок не гарантирует.
-    private func approveFindings() {
-        EngineCheck.record(findings, car: car, in: modelContext)
+    private func approveFindings(carID: PersistentIdentifier?) {
+        let target = cars.first { $0.persistentModelID == carID }
+        EngineCheck.record(findings, car: target, in: modelContext)
         showFindings = false
     }
 }
@@ -382,6 +393,10 @@ struct EngineIssue: Identifiable {
     /// Что проверить и что обычно меняют — `PartAdvice`. Есть только у карточек
     /// с названной деталью: у вердикта и у сообщений об ошибке советовать нечего.
     var advice: String? = nil
+    /// Код детали из разбора (`PartAdvice`, `DiagnosisVocabulary`). По нему
+    /// шторка находок достаёт «что это может быть» и что можно купить. У
+    /// вердикта и сообщений об ошибке кода нет — там это просто карточка.
+    var part: String? = nil
 }
 
 /// Заглушка. Настоящего разбора звука двигателя нет: он требует модели на
@@ -394,16 +409,22 @@ enum IssuesStub {
     /// чтобы список не выглядел сломанным повтором.
     static let findings: [EngineIssue] = [
         EngineIssue(title: "Проблемы с трансмиссией",
-                    detail: "Проблемы с переключением передач, слышен скрежещущий звук"),
+                    detail: "Проблемы с переключением передач, слышен скрежещущий звук",
+                    part: "transmission"),
         EngineIssue(title: "Проверка системы охлаждения",
-                    detail: "Температура двигателя выше нормы, возможны утечки"),
+                    detail: "Температура двигателя выше нормы, возможны утечки",
+                    part: "cooling_other"),
         EngineIssue(title: "Стук в подвеске",
-                    detail: "На неровностях слышен стук спереди, возможен износ стоек"),
+                    detail: "На неровностях слышен стук спереди, возможен износ стоек",
+                    part: "suspension"),
         EngineIssue(title: "Свист ремня привода",
-                    detail: "Свист на холодном пуске, ремень навесного оборудования"),
+                    detail: "Свист на холодном пуске, ремень навесного оборудования",
+                    part: "belt"),
         EngineIssue(title: "Неровный холостой ход",
-                    detail: "Обороты плавают на прогретом двигателе, возможен подсос воздуха"),
+                    detail: "Обороты плавают на прогретом двигателе, возможен подсос воздуха",
+                    part: "fuel_ignition"),
         EngineIssue(title: "Шум подшипника",
-                    detail: "Гул нарастает с оборотами, похоже на подшипник помпы")
+                    detail: "Гул нарастает с оборотами, похоже на подшипник помпы",
+                    part: "water_pump")
     ]
 }

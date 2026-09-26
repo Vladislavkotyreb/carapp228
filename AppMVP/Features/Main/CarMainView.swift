@@ -382,6 +382,11 @@ struct CarMainView: View {
                     },
                     onListen: { sheet = .listening }
                 )
+                // Состояние шторки (приложить ли прослушивание) задаётся при
+                // создании, а вью живёт между показами: без `id` переключатель
+                // помнил «выключено» с открытия, когда прослушивания ещё не было
+                // (кадр 26.09). Новое прослушивание или другая машина — новая шторка.
+                .id("\(car.persistentModelID.hashValue)-\(car.lastCheck?.date.timeIntervalSince1970 ?? 0)")
             }
         }
         // Быстрое прослушивание — та же модалка записи, что в «Ошибках»
@@ -396,12 +401,18 @@ struct CarMainView: View {
         }
         .bottomSheet(isPresented: presenting(.findings)) {
             if let outcome = quickOutcome {
+                // Слушали с экрана машины — прикрепление включено и стоит на
+                // ней; в карусели можно перелистнуть на другую или выключить.
                 FindingsSheet(
                     findings: outcome.cards,
                     nothingHeard: outcome.nothingHeard,
+                    cars: cars.map(FindingsSheet.CarChoice.init),
+                    preselected: car?.persistentModelID,
+                    attachByDefault: true,
                     onClose: { sheet = .closed },
-                    onApprove: {
-                        EngineCheck.record(outcome.cards, car: car, in: modelContext)
+                    onApprove: { carID in
+                        let target = cars.first { $0.persistentModelID == carID }
+                        EngineCheck.record(outcome.cards, car: target, in: modelContext)
                         sheet = .closed
                         presentToast("Прослушивание сохранено")
                         addedServiceTick += 1

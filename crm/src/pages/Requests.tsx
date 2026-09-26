@@ -20,9 +20,10 @@ import { TabItem, Tabs, TabsList } from "@/components/ui/tabs";
 import { Avatar, Meter, PageHeader, SectionTitle, SourceBadge, StatusBadge } from "@/components/bits";
 import { ago, count, dateTime, km, percent, tel } from "@/data/format";
 import { useStore } from "@/data/store";
+import { roleName } from "@/data/stats";
+import { isOnShift } from "@/data/payroll";
 import { KanbanBoard } from "@/pages/Kanban";
 import {
-  ROLE_LABEL,
   STATUS_LABEL,
   type Employee,
   type RequestSource,
@@ -214,10 +215,10 @@ function RequestRow({ request: r, assignee }: { request: ServiceRequest; assigne
 export function RequestDetail({ request: r }: { request: ServiceRequest }) {
   const { state, dispatch } = useStore();
   // Сначала те, кто на смене: назначать на того, кого нет, — отложить заявку.
-  const people = [...state.employees].sort((a, b) => Number(b.onShift) - Number(a.onShift));
+  const people = [...state.employees].sort((a, b) => Number(isOnShift(b)) - Number(isOnShift(a)));
   const items = people.map((e) => ({
     value: e.id,
-    label: `${e.name} — ${ROLE_LABEL[e.role]}${e.onShift ? "" : " (не на смене)"}`,
+    label: `${e.name} — ${roleName(state.roles, e.roleId)}${isOnShift(e) ? "" : " (не на смене)"}`,
   }));
 
   return (

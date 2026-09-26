@@ -51,15 +51,29 @@ export interface ServiceRequest {
   assigneeId?: string;
 }
 
-export type Role = "master" | "diagnost" | "mechanic" | "electrician";
+/** Роль — данные, а не зашитый список: у каждого сервиса свои должности
+ *  (шиномонтажник, кузовщик, мойщик). Стандартные четыре — только посев. */
+export interface RoleDef {
+  id: string;
+  name: string;
+}
+
+/** Как платим. Сумма типов, а не два необязательных поля: у сотрудника
+ *  либо ставка за смену, либо оклад — «и то и другое» выразить нельзя. */
+export type Pay =
+  | { kind: "daily"; rate: number }
+  | { kind: "monthly"; salary: number };
 
 export interface Employee {
   id: string;
   name: string;
-  role: Role;
+  roleId: string;
   phone: string;
-  /** На смене сейчас — на такого и назначают. */
-  onShift: boolean;
+  pay: Pay;
+  /** Табель: отработанные дни, `ГГГГ-ММ-ДД`. «На смене» — это отметка
+   *  сегодняшнего дня здесь же, а не отдельный флаг: два источника правды
+   *  о том, работает ли человек сегодня, разошлись бы. */
+  workDays: string[];
 }
 
 export const STATUS_LABEL: Record<RequestStatus, string> = {
@@ -83,11 +97,9 @@ export const SOURCE_LABEL: Record<RequestSource, string> = {
   site: "Сайт",
 };
 
-export const ROLE_LABEL: Record<Role, string> = {
-  master: "Мастер-приёмщик",
-  diagnost: "Диагност",
-  mechanic: "Механик",
-  electrician: "Автоэлектрик",
+export const PAY_KIND_LABEL: Record<Pay["kind"], string> = {
+  daily: "Ставка за смену",
+  monthly: "Месячный оклад",
 };
 
 /** Открытые статусы — те, что ещё занимают сотрудника. */

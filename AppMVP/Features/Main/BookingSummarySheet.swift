@@ -60,7 +60,7 @@ struct BookingSummarySheet: View {
                 row(symbol: "car.fill", tint: .white, title: model.carTitle, subtitle: model.carSubtitle)
                 checkRow
                 if let service = model.lastService {
-                    row(symbol: "wrench.and.screwdriver.fill", tint: Figma.accentsGreen,
+                    row(symbol: "wrench.and.screwdriver.fill", tint: .white,
                         title: service.title, subtitle: service.subtitle)
                 }
             }
@@ -70,7 +70,7 @@ struct BookingSummarySheet: View {
 
                 ShareLink(item: attachCheck ? model.messageWithCheck : model.messageWithoutCheck) {
                     Label("Отправить сводку", systemImage: "square.and.arrow.up")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 15))
                         .foregroundStyle(Figma.labelsPrimary)
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .contentShape(Rectangle())
@@ -201,12 +201,15 @@ struct BookingSummarySheet: View {
                 .foregroundStyle(Figma.labelsSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button(action: onListen) {
+                // Вторичная кнопка: серая заливка и обычное начертание
+                // (правка пользователя 26.09.2026 — жёлтая спорила с «Найти
+                // сервис», хотя действие второстепенное).
                 Text("Послушать")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Figma.accentsYellow)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Figma.labelsPrimary)
                     .padding(.horizontal, 12)
                     .frame(height: 32)
-                    .background(Figma.accentsYellow.opacity(0.18), in: Capsule())
+                    .background(Figma.fillsTertiary, in: Capsule())
                     // Видно 32, нажимается 44 — HIG.
                     .contentShape(Rectangle().inset(by: -6))
             }

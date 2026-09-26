@@ -152,7 +152,10 @@ struct QuickListenOverlay: View {
                 }
                 .frame(width: RecordingLayout.panelSize.width,
                        height: RecordingLayout.panelSize.height, alignment: .top)
-                .offset(x: RecordingLayout.panelOffset.x, y: RecordingLayout.panelOffset.y)
+                // По центру ширины, а не 16 от левого края: на экране 402 это те же
+                // 16 с обеих сторон, а на 390 панель прижималась вправо (кадр 26.09).
+                .frame(maxWidth: .infinity)
+                .offset(y: RecordingLayout.panelOffset.y)
                 .transition(.scale(scale: 0.12, anchor: Self.growAnchor)
                     .combined(with: .opacity))
             }

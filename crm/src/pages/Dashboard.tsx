@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, Meter, PageHeader, SectionTitle, SourceBadge } from "@/components/bits";
 import { ago, count } from "@/data/format";
 import { useStore } from "@/data/store";
+import { roleName } from "@/data/stats";
 import { bySource, isOpen, kpi, load, topSystems } from "@/data/stats";
-import { ROLE_LABEL, SOURCE_LABEL, type RequestSource } from "@/data/types";
+import { SOURCE_LABEL, type RequestSource } from "@/data/types";
+import { isOnShift } from "@/data/payroll";
 
 /** Дашборд: что требует внимания сейчас, откуда идут люди и кто чем занят.
  *  Сверху — то, на что надо отреагировать, ниже — то, на что посмотреть. */
@@ -99,12 +101,12 @@ export function DashboardPage({ onOpenRequest }: { onOpenRequest: (id: string) =
           <div className="flex flex-col gap-3 rounded-xl border border-border p-4">
             {loads.map(({ employee, open }) => (
               <div key={employee.id} className="flex items-center gap-3">
-                <Avatar name={employee.name} muted={!employee.onShift} />
+                <Avatar name={employee.name} muted={!isOnShift(employee)} />
                 <span className="flex w-44 min-w-0 flex-col">
                   <span className="truncate text-[13px]">{employee.name}</span>
                   <span className="truncate text-[11px] text-muted-foreground">
-                    {ROLE_LABEL[employee.role]}
-                    {employee.onShift ? "" : " · не на смене"}
+                    {roleName(state.roles, employee.roleId)}
+                    {isOnShift(employee) ? "" : " · не на смене"}
                   </span>
                 </span>
                 <Meter share={open / maxLoad} />
