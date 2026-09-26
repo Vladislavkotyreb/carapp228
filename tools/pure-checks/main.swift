@@ -769,6 +769,156 @@ group("PhoneFormat") {
           "8\u{00A0}800\u{00A0}555-35-35")
 }
 
+// ----------------------------------------------------------- BusinessContacts
+
+group("BusinessContacts") {
+    check("t.me — Telegram, даже с тегом social",
+          BusinessContacts.link(href: "https://t.me/servis", tag: "social")?.channel, .telegram)
+    check("поддомен WhatsApp узнаётся",
+          BusinessContacts.link(href: "https://api.whatsapp.com/send?phone=7", tag: "social")?.channel,
+          .whatsapp)
+    check("мобильный ВКонтакте узнаётся",
+          BusinessContacts.link(href: "https://m.vk.com/servis", tag: nil)?.channel, .vk)
+    check("чужой домен с похожим хвостом — не ВКонтакте",
+          BusinessContacts.link(href: "https://notvk.com/x", tag: "social"), nil)
+    check("схема viber открывает приложение",
+          BusinessContacts.link(href: "viber://chat?number=79991234567", tag: nil)?.channel, .viber)
+    check("self — сайт", BusinessContacts.link(href: "https://servis.ru", tag: "self")?.channel,
+          .website)
+    check("booking — онлайн-запись",
+          BusinessContacts.link(href: "https://n123.yclients.com", tag: "booking")?.channel, .booking)
+    check("атрибуция не показывается",
+          BusinessContacts.link(href: "https://yandex.ru/maps/org/1", tag: "attribution"), nil)
+    check("адресу без схемы дописывается https",
+          BusinessContacts.link(href: "www.servis.ru", tag: "self")?.url.absoluteString,
+          "https://www.servis.ru")
+    check("javascript: не открываем",
+          BusinessContacts.link(href: "javascript:alert(1)", tag: "self"), nil)
+
+    let links = BusinessContacts.links(from: [
+        (href: "https://servis.ru", tag: "self"),
+        (href: "https://t.me/first", tag: "social"),
+        (href: "https://t.me/second", tag: "social"),
+        (href: "https://instagram.com/servis", tag: "social"),
+        (href: "https://n1.yclients.com", tag: "booking")
+    ])
+    check("по одной ссылке на канал, в порядке кнопок",
+          links.map(\.channel), [.booking, .telegram, .website])
+    check("первая ссылка канала побеждает",
+          links.first { $0.channel == .telegram }?.url.absoluteString, "https://t.me/first")
+}
+
+// ------------------------------------------------------------ Запись на сервис
+
+group("Запись на сервис") {
+    check("зелёная зона — рано", ServiceMath.suggestsBooking(kmLeft: 5_001), false)
+    check("жёлтая с первого километра", ServiceMath.suggestsBooking(kmLeft: 5_000), true)
+    check("красная — тем более", ServiceMath.suggestsBooking(kmLeft: 0), true)
+    check("в зелёной подписи нет", ServiceMath.bookingHint(kmLeft: 7_000), nil)
+    check("жёлтая называет свой порог", ServiceMath.bookingHint(kmLeft: 3_200),
+          "Осталось меньше 5\u{00A0}000\u{00A0}км")
+    check("красная — свой", ServiceMath.bookingHint(kmLeft: 400),
+          "Осталось меньше 1\u{00A0}000\u{00A0}км")
+    check("просрочено — без числа", ServiceMath.bookingHint(kmLeft: 0), "ТО пора пройти")
+
+    let here = GeoPoint(latitude: 55.75, longitude: 37.61)
+    check("ближайшая по расстоянию, а не первая в выдаче",
+          MapGeo.nearest(to: here, among: [GeoPoint(latitude: 55.80, longitude: 37.61),
+                                           GeoPoint(latitude: 55.751, longitude: 37.61)]), 1)
+    check("точек нет — ближайшей нет", MapGeo.nearest(to: here, among: []), nil)
+}
+
+// ---------------------------------------------------------- ListeningSummary
+
+group("ListeningSummary") {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: "Europe/Moscow")!
+    let noon = cal.date(from: DateComponents(year: 2026, month: 9, day: 25, hour: 12))!
+    let lateYesterday = cal.date(from: DateComponents(year: 2026, month: 9, day: 24, hour: 23))!
+    let twelfth = cal.date(from: DateComponents(year: 2026, month: 9, day: 12, hour: 9))!
+
+    check("вчера вечером — это вчера, а не сегодня",
+          ListeningSummary.daysSince(lateYesterday, now: noon, calendar: cal), 1)
+    check("12-е против 25-го — 13 дней", ListeningSummary.daysSince(twelfth, now: noon, calendar: cal), 13)
+    check("будущая дата не даёт минуса", ListeningSummary.daysSince(noon, now: twelfth, calendar: cal), 0)
+
+    check("две недели — ещё свежее", ListeningSummary.isStale(days: 14), false)
+    check("пятнадцать дней — устарело", ListeningSummary.isStale(days: 15), true)
+
+    check("сегодня", ListeningSummary.title(days: 0), "Слушали сегодня")
+    check("вчера", ListeningSummary.title(days: 1), "Слушали вчера")
+    check("3 дня", ListeningSummary.title(days: 3), "Слушали 3\u{00A0}дня назад")
+    check("11 дней", ListeningSummary.title(days: 11), "Слушали 11\u{00A0}дней назад")
+    check("21 день", ListeningSummary.title(days: 21), "Слушали 21\u{00A0}день назад")
+    check("не слушали", ListeningSummary.title(days: nil), "Мотор ещё не слушали")
+
+    check("дата по-русски в родительном", ListeningSummary.dayMonth(twelfth, calendar: cal), "12 сентября")
+    check("подпись с пробегом и находкой",
+          ListeningSummary.subtitle(date: "12 сентября", mileage: 56_400, topFinding: "Ремень привода"),
+          "12 сентября · 56\u{00A0}400\u{00A0}км · Ремень привода")
+    check("без пробега — без пустого места",
+          ListeningSummary.subtitle(date: "12 сентября", mileage: nil, topFinding: nil), "12 сентября")
+
+    check("проехали после ТО",
+          ListeningSummary.kmAfterService(checkMileage: 56_400, lastServiceMileage: 50_000), 6_400)
+    check("пробег прослушивания меньше ТО — не считаем",
+          ListeningSummary.kmAfterService(checkMileage: 49_000, lastServiceMileage: 50_000), nil)
+
+    check("находка в середине фразы — со строчной",
+          ListeningSummary.inSentence("Ремень привода"), "ремень привода")
+    check("аббревиатура остаётся", ListeningSummary.inSentence("ДВС троит"), "ДВС троит")
+
+    let full = ListeningSummary.message(
+        carName: "Kia Rio", plate: "В 777 ОР 777", odometer: 56_800,
+        lastService: .init(date: "25 июня", mileage: 50_000),
+        check: .init(date: "12 сентября", mileage: 56_400,
+                     findings: ["Ремень привода", "Подшипник генератора"]))
+    check("сводка для сервиса целиком", full, """
+    Здравствуйте! Хочу записаться на ТО.
+    Kia Rio, В 777 ОР 777, пробег 56\u{00A0}800\u{00A0}км.
+    Последнее ТО — 25 июня, на 50\u{00A0}000\u{00A0}км.
+    Beepy слушал мотор 12 сентября на 56\u{00A0}400\u{00A0}км — похоже на: ремень привода, подшипник генератора.
+    """)
+    let bare = ListeningSummary.message(carName: "Lada Vesta", plate: "", odometer: 12_000,
+                                        lastService: nil, check: nil)
+    check("без номера, ТО и прослушивания — только машина и пробег", bare, """
+    Здравствуйте! Хочу записаться на ТО.
+    Lada Vesta, пробег 12\u{00A0}000\u{00A0}км.
+    """)
+    check("чистое прослушивание так и называется",
+          ListeningSummary.message(carName: "Kia Rio", plate: "", odometer: 1, lastService: nil,
+                                   check: .init(date: "1 октября", mileage: nil, findings: []))
+            .hasSuffix("Beepy слушал мотор 1 октября — явных неисправностей не нашёл."), true)
+}
+
+// ---------------------------------------------------------------- PartAdvice
+
+group("PartAdvice: что это может быть и что купить") {
+    // У каждой детали, для которой есть что купить, есть и объяснение:
+    // иначе в шторке находка выйдет без второй строки.
+    let parts = ["engine_internal", "rod_knock", "valvetrain", "low_oil", "fuel_ignition",
+                 "fuel_pump", "belt", "alternator", "water_pump", "ac_compressor", "exhaust",
+                 "turbo", "cv_joint", "cv_axle", "differential", "suspension", "mounts",
+                 "power_steering", "brakes", "wheel_bearing", "bad_wheal_bearing",
+                 "wheel_tire", "tires", "transmission", "cooling_other"]
+    check("объяснение есть у всех деталей с расходниками",
+          parts.filter { !PartAdvice.parts($0).isEmpty && PartAdvice.meaning($0) == nil }, [])
+    check("неизвестная деталь — без объяснения", PartAdvice.meaning("none"), nil)
+    check("масло — капля", PartAdvice.symbol(forItem: "Масло моторное"), "drop.fill")
+    check("фильтр раньше масла не ловится", PartAdvice.symbol(forItem: "Масляный фильтр"),
+          "line.3.horizontal.decrease")
+    check("незнакомое — гаечный ключ", PartAdvice.symbol(forItem: "Что-то"), "wrench.and.screwdriver.fill")
+    check("поиск с машиной",
+          PartAdvice.searchURL(item: "Ступица в\u{00A0}сборе", carName: "Kia Rio")?.absoluteString,
+          "https://market.yandex.ru/search?text=%D0%A1%D1%82%D1%83%D0%BF%D0%B8%D1%86%D0%B0%20%D0%B2%20%D1%81%D0%B1%D0%BE%D1%80%D0%B5%20Kia%20Rio")
+    check("поиск без машины — только деталь",
+          PartAdvice.searchURL(item: "Помпа", carName: nil)?.absoluteString,
+          "https://market.yandex.ru/search?text=%D0%9F%D0%BE%D0%BC%D0%BF%D0%B0")
+    check("пустое название машины не даёт хвостового пробела",
+          PartAdvice.searchURL(item: "Помпа", carName: "  ")?.absoluteString,
+          "https://market.yandex.ru/search?text=%D0%9F%D0%BE%D0%BC%D0%BF%D0%B0")
+}
+
 print("")
 print("Состояний в каталоге: \(UIStateCatalog.all.count), "
       + "из них без ноды макета: \(UIStateCatalog.withoutNode.count).")

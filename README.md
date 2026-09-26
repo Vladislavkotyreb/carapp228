@@ -1,4 +1,4 @@
-# Canary — iOS-приложение
+# Beepy — iOS-приложение
 
 SwiftUI, таргет iOS 17.0. Дизайн ведётся в Figma
 (файл `9GXgWezTGI6TjklsnuBns2`) и воспроизводится попиксельно.
@@ -11,7 +11,7 @@ SwiftUI, таргет iOS 17.0. Дизайн ведётся в Figma
 ## Быстрый старт
 
 ```bash
-open Canary.xcodeproj
+open Beepy.xcodeproj
 ```
 
 Схема `AppMVP`, ⌘R на симуляторе. Для запуска на своём iPhone —
@@ -59,12 +59,12 @@ docs/                     — устройство проекта и проце�
 
 ## Про проект Xcode
 
-`Canary.xcodeproj/project.pbxproj` ведётся **вручную**: XcodeGen не
+`Beepy.xcodeproj/project.pbxproj` ведётся **вручную**: XcodeGen не
 установлен, `project.yml` оставлен только для справки и уже разошёлся с
 реальным проектом. Новый `.swift`-файл нужно прописать в четырёх местах —
 `PBXBuildFile`, `PBXFileReference`, `children` группы и `PBXSourcesBuildPhase`.
-После правки — `plutil -lint Canary.xcodeproj/project.pbxproj`.
+После правки — `plutil -lint Beepy.xcodeproj/project.pbxproj`.
 
 ## Bundle ID
 
-`com.vladislavkotyrev.appmvp`, на устройстве приложение подписано как **Canary**.
+`com.vladislavkotyrev.appmvp`, на устройстве приложение подписано как **Beepy**.

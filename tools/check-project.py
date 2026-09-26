@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Проверка целостности Canary.xcodeproj/project.pbxproj.
+"""Проверка целостности Beepy.xcodeproj/project.pbxproj.
 
 Проект ведётся вручную, и Xcode на битом проекте падает сообщениями, которые
 не намекают на причину: коллизия ID однажды дала `unrecognized selector`.
@@ -9,7 +9,7 @@
 """
 import collections, json, os, subprocess, sys, tempfile
 
-PBX = "Canary.xcodeproj/project.pbxproj"
+PBX = "Beepy.xcodeproj/project.pbxproj"
 SRC = "AppMVP"
 
 def main() -> int:

@@ -31,6 +31,13 @@ final class Car {
     @Relationship(deleteRule: .cascade, inverse: \ServiceRecord.car)
     var services: [ServiceRecord]
 
+    /// Прослушивания мотора этой машины. Удалили машину — её прослушивания
+    /// уходят вместе с ней: без машины они ничего не рассказывают сервису.
+    /// Прослушивания, сохранённые до 25.09.2026, машины не знают и в этот
+    /// список не попадают — они остаются в общей истории «Ошибок».
+    @Relationship(deleteRule: .cascade, inverse: \EngineCheck.car)
+    var checks: [EngineCheck]
+
     init(
         plate: String,
         name: String,
@@ -50,6 +57,7 @@ final class Car {
         self.photo = photo
         self.createdAt = createdAt
         self.services = []
+        self.checks = []
     }
 }
 
@@ -57,5 +65,10 @@ extension Car {
     /// История ТО от свежих к старым — в этом порядке карточки идут в макете.
     var sortedServices: [ServiceRecord] {
         services.sorted { $0.date > $1.date }
+    }
+
+    /// Последнее прослушивание этой машины или `nil`, если её не слушали.
+    var lastCheck: EngineCheck? {
+        checks.max { $0.date < $1.date }
     }
 }

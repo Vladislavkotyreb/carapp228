@@ -40,6 +40,15 @@ enum MapGeo {
         return 2 * earthRadius * asin(min(1, sqrt(a)))
     }
 
+    /// Номер ближайшей к `origin` точки или `nil`, если точек нет.
+    ///
+    /// Считаем сами, а не берём первую из выдачи: Яндекс сортирует по
+    /// релевантности, и первым там стоит известная сеть, а не сервис за углом.
+    static func nearest(to origin: GeoPoint, among points: [GeoPoint]) -> Int? {
+        points.indices.min { meters(from: origin, to: points[$0])
+                             < meters(from: origin, to: points[$1]) }
+    }
+
     /// Подпись расстояния в строке списка: «350 м», «1,2 км», «15 км».
     ///
     /// Точность падает с расстоянием намеренно: до соседнего дома важны

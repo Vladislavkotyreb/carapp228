@@ -13,6 +13,8 @@
 		CA0000010000000000000001 /* ServiceMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000001 /* ServiceMath.swift */; };
 		CA0000010000000000000002 /* NumberFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000002 /* NumberFormat.swift */; };
 		CA0000010000000000000005 /* MapGeo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000005 /* MapGeo.swift */; };
+		CA000001000000000000000F /* ListeningSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000F /* ListeningSummary.swift */; };
+		CA000001000000000000000E /* BusinessContacts.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000E /* BusinessContacts.swift */; };
 		CA000001000000000000000C /* ServiceReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000C /* ServiceReminder.swift */; };
 		CA000001000000000000000B /* MorphingNumberField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000B /* MorphingNumberField.swift */; };
 		CA000001000000000000000A /* PlateInputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000A /* PlateInputField.swift */; };
@@ -52,6 +54,7 @@
 		AA0000010000000000000020 /* CarMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000020 /* CarMainView.swift */; };
 		AA0000010000000000000021 /* AddServiceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000021 /* AddServiceSheet.swift */; };
 		AA0000010000000000000022 /* AddServiceChoiceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000022 /* AddServiceChoiceSheet.swift */; };
+		CA0000010000000000000010 /* BookingSummarySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000010 /* BookingSummarySheet.swift */; };
 		9B000001000000000000007C /* PriceInfoSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C000001000000000000007C /* PriceInfoSheet.swift */; };
 		AA0000010000000000000023 /* AddCarSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000023 /* AddCarSheet.swift */; };
 		AA0000010000000000000024 /* LiquidGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000024 /* LiquidGlass.swift */; };
@@ -64,6 +67,8 @@
 		8A0000010000000000000001 /* AudioLevelMeter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000010000000000000001 /* AudioLevelMeter.swift */; };
 		8A0000010000000000000002 /* SoundOrb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000010000000000000002 /* SoundOrb.swift */; };
 		8A0000010000000000000003 /* IssuesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000010000000000000003 /* IssuesScreen.swift */; };
+		CA0000010000000000000012 /* RecordingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000012 /* RecordingPanel.swift */; };
+		CA0000010000000000000011 /* FindingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000011 /* FindingsSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -73,6 +78,8 @@
 		CB0000010000000000000001 /* ServiceMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceMath.swift; sourceTree = "<group>"; };
 		CB0000010000000000000002 /* NumberFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberFormat.swift; sourceTree = "<group>"; };
 		CB0000010000000000000005 /* MapGeo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapGeo.swift; sourceTree = "<group>"; };
+		CB000001000000000000000F /* ListeningSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningSummary.swift; sourceTree = "<group>"; };
+		CB000001000000000000000E /* BusinessContacts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusinessContacts.swift; sourceTree = "<group>"; };
 		CB000001000000000000000C /* ServiceReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceReminder.swift; sourceTree = "<group>"; };
 		CB000001000000000000000B /* MorphingNumberField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorphingNumberField.swift; sourceTree = "<group>"; };
 		CB000001000000000000000A /* PlateInputField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateInputField.swift; sourceTree = "<group>"; };
@@ -112,12 +119,13 @@
 		BB0000010000000000000020 /* CarMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarMainView.swift; sourceTree = "<group>"; };
 		BB0000010000000000000021 /* AddServiceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddServiceSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000022 /* AddServiceChoiceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddServiceChoiceSheet.swift; sourceTree = "<group>"; };
+		CB0000010000000000000010 /* BookingSummarySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingSummarySheet.swift; sourceTree = "<group>"; };
 		9C000001000000000000007C /* PriceInfoSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceInfoSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000023 /* AddCarSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCarSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000024 /* LiquidGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlass.swift; sourceTree = "<group>"; };
 		BB0000010000000000000025 /* BottomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000026 /* PlateFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateFormat.swift; sourceTree = "<group>"; };
-		BB0000010000000000000099 /* Canary.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Canary.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB0000010000000000000099 /* Beepy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Beepy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB00000100000000000000A1 /* ServiceRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceRecord.swift; sourceTree = "<group>"; };
 		BB00000100000000000000B1 /* VehicleLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleLookup.swift; sourceTree = "<group>"; };
 		BB00000100000000000000B2 /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
@@ -125,6 +133,8 @@
 		8B0000010000000000000001 /* AudioLevelMeter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelMeter.swift; sourceTree = "<group>"; };
 		8B0000010000000000000002 /* SoundOrb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundOrb.swift; sourceTree = "<group>"; };
 		8B0000010000000000000003 /* IssuesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssuesScreen.swift; sourceTree = "<group>"; };
+		CB0000010000000000000012 /* RecordingPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingPanel.swift; sourceTree = "<group>"; };
+		CB0000010000000000000011 /* FindingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindingsSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -147,6 +157,8 @@
 				CB0000010000000000000003 /* UIState.swift */,
 				CB0000010000000000000004 /* UIStateCatalog.swift */,
 				CB0000010000000000000005 /* MapGeo.swift */,
+				CB000001000000000000000F /* ListeningSummary.swift */,
+				CB000001000000000000000E /* BusinessContacts.swift */,
 				CB0000010000000000000006 /* MarketPrice.swift */,
 				CB0000010000000000000007 /* ServiceDocParse.swift */,
 				CB0000010000000000000008 /* CarCatalog.swift */,
@@ -306,6 +318,7 @@
 				BB0000010000000000000020 /* CarMainView.swift */,
 				BB0000010000000000000021 /* AddServiceSheet.swift */,
 				BB0000010000000000000022 /* AddServiceChoiceSheet.swift */,
+				CB0000010000000000000010 /* BookingSummarySheet.swift */,
 				9C000001000000000000007C /* PriceInfoSheet.swift */,
 				BB0000010000000000000023 /* AddCarSheet.swift */,
 			);
@@ -315,7 +328,7 @@
 		EE0000010000000000000099 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				BB0000010000000000000099 /* Canary.app */,
+				BB0000010000000000000099 /* Beepy.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -341,6 +354,8 @@
 			children = (
 				8B0000010000000000000002 /* SoundOrb.swift */,
 				8B0000010000000000000003 /* IssuesScreen.swift */,
+				CB0000010000000000000012 /* RecordingPanel.swift */,
+				CB0000010000000000000011 /* FindingsSheet.swift */,
 			);
 			path = Issues;
 			sourceTree = "<group>";
@@ -348,9 +363,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		FF0000010000000000000001 /* Canary */ = {
+		FF0000010000000000000001 /* Beepy */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = FF0000010000000000000002 /* Build configuration list for PBXNativeTarget "Canary" */;
+			buildConfigurationList = FF0000010000000000000002 /* Build configuration list for PBXNativeTarget "Beepy" */;
 			buildPhases = (
 				DD0000010000000000000001 /* Sources */,
 				DD0000010000000000000003 /* Frameworks */,
@@ -358,12 +373,12 @@
 			);
 			buildRules = (
 			);
-			name = Canary;
+			name = Beepy;
 			packageProductDependencies = (
 				9A0000010000000000000002 /* YandexMapsMobileFull */,
 			);
 			productName = AppMVP;
-			productReference = BB0000010000000000000099 /* Canary.app */;
+			productReference = BB0000010000000000000099 /* Beepy.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -381,7 +396,7 @@
 					};
 				};
 			};
-			buildConfigurationList = GG0000010000000000000002 /* Build configuration list for PBXProject "Canary" */;
+			buildConfigurationList = GG0000010000000000000002 /* Build configuration list for PBXProject "Beepy" */;
 			developmentRegion = ru;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -398,7 +413,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				FF0000010000000000000001 /* Canary */,
+				FF0000010000000000000001 /* Beepy */,
 			);
 		};
 /* End PBXProject section */
@@ -425,6 +440,8 @@
 				CA0000010000000000000001 /* ServiceMath.swift in Sources */,
 				CA0000010000000000000002 /* NumberFormat.swift in Sources */,
 				CA0000010000000000000005 /* MapGeo.swift in Sources */,
+				CA000001000000000000000F /* ListeningSummary.swift in Sources */,
+				CA000001000000000000000E /* BusinessContacts.swift in Sources */,
 				CA0000010000000000000006 /* MarketPrice.swift in Sources */,
 				CA0000010000000000000008 /* CarCatalog.swift in Sources */,
 				CA000001000000000000000A /* PlateInputField.swift in Sources */,
@@ -451,6 +468,7 @@
 				AA0000010000000000000020 /* CarMainView.swift in Sources */,
 				AA0000010000000000000021 /* AddServiceSheet.swift in Sources */,
 				AA0000010000000000000022 /* AddServiceChoiceSheet.swift in Sources */,
+				CA0000010000000000000010 /* BookingSummarySheet.swift in Sources */,
 				9B000001000000000000007C /* PriceInfoSheet.swift in Sources */,
 				AA0000010000000000000023 /* AddCarSheet.swift in Sources */,
 				AA0000010000000000000024 /* LiquidGlass.swift in Sources */,
@@ -460,6 +478,8 @@
 				AA00000100000000000000B2 /* ImageLoader.swift in Sources */,
 				AA00000100000000000000B3 /* MotionRim.swift in Sources */,
 				8A0000010000000000000003 /* IssuesScreen.swift in Sources */,
+				CA0000010000000000000012 /* RecordingPanel.swift in Sources */,
+				CA0000010000000000000011 /* FindingsSheet.swift in Sources */,
 				8A0000010000000000000002 /* SoundOrb.swift in Sources */,
 				8A0000010000000000000001 /* AudioLevelMeter.swift in Sources */,
 				9B0000010000000000000002 /* MapScreen.swift in Sources */,
@@ -476,7 +496,7 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		II0000010000000000000001 /* Debug configuration for PBXProject "Canary" */ = {
+		II0000010000000000000001 /* Debug configuration for PBXProject "Beepy" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -530,7 +550,7 @@
 			};
 			name = Debug;
 		};
-		II0000010000000000000002 /* Release configuration for PBXProject "Canary" */ = {
+		II0000010000000000000002 /* Release configuration for PBXProject "Beepy" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -577,7 +597,7 @@
 			};
 			name = Release;
 		};
-		II0000010000000000000003 /* Debug configuration for PBXNativeTarget "Canary" */ = {
+		II0000010000000000000003 /* Debug configuration for PBXNativeTarget "Beepy" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -587,7 +607,7 @@
 				DEVELOPMENT_TEAM = 5BK4R35RB8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Canary;
+				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
 				INFOPLIST_FILE = AppMVP/Resources/Info.plist;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Чтобы отправить запись двигателя на сервер разбора в вашей сети";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вашу позицию на карте";
@@ -609,7 +629,7 @@
 			};
 			name = Debug;
 		};
-		II0000010000000000000004 /* Release configuration for PBXNativeTarget "Canary" */ = {
+		II0000010000000000000004 /* Release configuration for PBXNativeTarget "Beepy" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -618,7 +638,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Canary;
+				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
 				INFOPLIST_FILE = AppMVP/Resources/Info.plist;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Чтобы отправить запись двигателя на сервер разбора в вашей сети";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вашу позицию на карте";
@@ -643,19 +663,19 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		FF0000010000000000000002 /* Build configuration list for PBXNativeTarget "Canary" */ = {
+		FF0000010000000000000002 /* Build configuration list for PBXNativeTarget "Beepy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				II0000010000000000000003 /* Debug configuration for PBXNativeTarget "Canary" */,
-				II0000010000000000000004 /* Release configuration for PBXNativeTarget "Canary" */,
+				II0000010000000000000003 /* Debug configuration for PBXNativeTarget "Beepy" */,
+				II0000010000000000000004 /* Release configuration for PBXNativeTarget "Beepy" */,
 			);
 			defaultConfigurationName = Release;
 		};
-		GG0000010000000000000002 /* Build configuration list for PBXProject "Canary" */ = {
+		GG0000010000000000000002 /* Build configuration list for PBXProject "Beepy" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				II0000010000000000000001 /* Debug configuration for PBXProject "Canary" */,
-				II0000010000000000000002 /* Release configuration for PBXProject "Canary" */,
+				II0000010000000000000001 /* Debug configuration for PBXProject "Beepy" */,
+				II0000010000000000000002 /* Release configuration for PBXProject "Beepy" */,
 			);
 			defaultConfigurationName = Release;
 		};

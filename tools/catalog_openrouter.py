@@ -168,7 +168,7 @@ def reference_png(slug: str) -> bytes | None:
     heic = os.path.join(ASSETS, slug + ".heic")
     if not os.path.exists(heic):
         return None
-    out = os.path.join("/tmp", f"canary-ref-{slug}.png")
+    out = os.path.join("/tmp", f"beepy-ref-{slug}.png")
     try:
         subprocess.run(["sips", "-s", "format", "png", heic, "--out", out],
                        check=True, capture_output=True)
@@ -286,7 +286,7 @@ def generate(car: dict, key: str, model: str,
     cost = float((answer.get("usage") or {}).get("cost") or 0)
     images = ((answer.get("choices") or [{}])[0].get("message") or {}).get("images") or []
     if not images:
-        dump = os.path.join("/tmp", f"canary-openrouter-{car['slug']}.json")
+        dump = os.path.join("/tmp", f"beepy-openrouter-{car['slug']}.json")
         with open(dump, "w", encoding="utf-8") as f:
             json.dump(answer, f, ensure_ascii=False, indent=2)
         raise SystemExit(
