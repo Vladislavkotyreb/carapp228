@@ -71,9 +71,14 @@ struct FindingsSheet: View {
     /// Прикреплять ли к машине. Включено сразу, когда слушали с экрана машины:
     /// там вопрос уже решён тем, откуда нажали «Послушать».
     @State private var attach: Bool
-    /// Машина, на которой остановилась карусель. Пишется прокруткой
-    /// (`scrollPosition`) только при смене карточки, не на каждом кадре.
-    @State private var selectedCar: PersistentIdentifier?
+    /// Номер машины в `cars`, на которой остановилась карусель. Пишется
+    /// прокруткой (`scrollPosition`) только при смене машины, не на каждом
+    /// кадре. Номер, а не `PersistentIdentifier`: у только что добавленной
+    /// машины идентификатор временный, автосохранение меняет его на
+    /// постоянный — и сохранённый в состоянии id переставал совпадать ни с
+    /// одной машиной (все точки гасли, кадр 26.09.2026). Id берётся из
+    /// свежего `cars` в момент сохранения.
+    @State private var selectedIndex: Int?
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -89,17 +94,17 @@ struct FindingsSheet: View {
         self.onApprove = onApprove
         self.onRetry = onRetry
         _attach = State(initialValue: attachByDefault && !cars.isEmpty)
-        let start = cars.first { $0.id == preselected }?.id ?? cars.first?.id
-        _selectedCar = State(initialValue: start)
+        let start = cars.firstIndex { $0.id == preselected } ?? (cars.isEmpty ? nil : 0)
+        _selectedIndex = State(initialValue: start)
     }
 
     private func approve() {
-        onApprove(attach ? selectedCar : nil)
+        onApprove(selectedChoice?.id)
     }
 
     private var selectedChoice: CarChoice? {
-        guard attach else { return nil }
-        return cars.first { $0.id == selectedCar }
+        guard attach, let index = selectedIndex, cars.indices.contains(index) else { return nil }
+        return cars[index]
     }
 
     /// Скругление карточки находки — то же 34, что у тёмной карточки экрана.
@@ -322,11 +327,7 @@ struct FindingsSheet: View {
 
             if attach {
                 carCarousel
-                    .transition(reduceMotion
-                        ? .opacity
-                        : .asymmetric(
-                            insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .top)),
-                            removal: .opacity))
+                    .transition(carTransition)
             }
         }
         .padding(Layout.attachPadding)
@@ -337,10 +338,22 @@ struct FindingsSheet: View {
         .padding(.horizontal, 16)
     }
 
-    /// Рост контейнера и проявление подложки. Плавная кривая без отскока:
-    /// пружина с отскоком дёргала бы список находок под контейнером.
+    /// Рост контейнера. Плавная кривая без отскока и подольше (0,38 → 0,55
+    /// по замечанию «анимацию плавнее», 26.09.2026): пружина с отскоком
+    /// дёргала бы список находок под контейнером.
     private var revealAnimation: Animation {
-        reduceMotion ? .easeInOut(duration: 0.2) : .smooth(duration: 0.38)
+        reduceMotion ? .easeInOut(duration: 0.2) : .smooth(duration: 0.55)
+    }
+
+    /// Подложка не спорит с ростом контейнера: проявляется, когда он уже
+    /// пошёл вниз (задержка 0,12), и гаснет быстрее, чем он сжимается, —
+    /// иначе при закрытии край клипа резал ещё видимые машины.
+    private var carTransition: AnyTransition {
+        guard !reduceMotion else { return .opacity }
+        return .asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.97, anchor: .top))
+                .animation(.smooth(duration: 0.5).delay(0.12)),
+            removal: .opacity.animation(.easeOut(duration: 0.18)))
     }
 
     /// Карусель машин. Выбор — там, где прокрутка остановилась: `viewAligned`
@@ -353,15 +366,7 @@ struct FindingsSheet: View {
             // Точки — единственный явный знак, что машин несколько: соседи
             // у краёв подложки видны чёрным полем своего кадра, не машиной.
             if cars.count > 1 {
-                HStack(spacing: 6) {
-                    ForEach(cars) { choice in
-                        Circle()
-                            .fill(choice.id == selectedCar ? Figma.labelsPrimary : Figma.labelsTertiary)
-                            .frame(width: 6, height: 6)
-                    }
-                }
-                .animation(Motion.selection, value: selectedCar)
-                .accessibilityHidden(true)
+                carPageControl
             }
         }
         .padding(.vertical, Layout.carPanelPadding)
@@ -371,11 +376,67 @@ struct FindingsSheet: View {
         .clipShape(RoundedRectangle(cornerRadius: Layout.carPanelRadius, style: .continuous))
     }
 
+    /// Page Control как на главной (`CarMainView.pageControl`): капсула на
+    /// стекле, точки 8 с шагом 8, неактивная гаснет до Fills/Primary. Нажать
+    /// на точку или вести пальцем по капсуле — машина под пальцем выбирается,
+    /// карусель докручивается к ней через `scrollPosition`. Замечание
+    /// пользователя 26.09.2026: «нажимать на пейдж контролы как в главном».
+    private var carPageControl: some View {
+        HStack(spacing: 8) {
+            ForEach(cars.indices, id: \.self) { index in
+                Circle()
+                    .fill(index == selectedIndex ? Color.white : Figma.fillsPrimary)
+                    .frame(width: 8, height: 8)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .liquidGlass(in: Capsule()) { Capsule().fill(Color.white.opacity(0.07)) }
+        // Скраб по капсуле. GeometryReader — в overlay капсулы: снаружи он
+        // растянул бы область, и координаты бы врали (так же на главной).
+        .overlay {
+            GeometryReader { g in
+                Color.clear
+                    .contentShape(Capsule())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                guard let index = scrubCar(x: value.location.x, width: g.size.width),
+                                      index != selectedIndex else { return }
+                                withAnimation(.easeOut(duration: 0.2)) { selectedIndex = index }
+                            }
+                            .onEnded { value in
+                                guard let index = scrubCar(x: value.location.x, width: g.size.width)
+                                else { return }
+                                withAnimation(Motion.selection) { selectedIndex = index }
+                            }
+                    )
+            }
+        }
+        .animation(Motion.selection, value: selectedIndex)
+        .accessibilityElement()
+        .accessibilityLabel("Машина")
+        .accessibilityValue(selectedChoice?.name ?? "")
+        .accessibilityAdjustableAction { direction in
+            guard let current = selectedIndex else { return }
+            let next = direction == .increment ? current + 1 : current - 1
+            guard cars.indices.contains(next) else { return }
+            withAnimation(Motion.selection) { selectedIndex = next }
+        }
+    }
+
+    /// Машина под пальцем при скрабе по индикатору; nil — капсулы нет.
+    private func scrubCar(x: CGFloat, width: CGFloat) -> Int? {
+        guard width > 0, !cars.isEmpty else { return nil }
+        let raw = Int(x / width * CGFloat(cars.count))
+        return min(cars.count - 1, max(0, raw))
+    }
+
     private var carScroll: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: Layout.carSpacing) {
-                ForEach(cars) { choice in
-                    CarChoiceItem(choice: choice, isSelected: choice.id == selectedCar,
+                ForEach(Array(cars.enumerated()), id: \.offset) { index, choice in
+                    CarChoiceItem(choice: choice, isSelected: index == selectedIndex,
                                   photoHeight: Layout.carPhotoHeight)
                         .containerRelativeFrame(.horizontal)
                         .scrollTransition(.interactive, axis: .horizontal) { content, phase in
@@ -384,7 +445,7 @@ struct FindingsSheet: View {
                                 .opacity(phase.isIdentity ? 1 : 0.4)
                         }
                         .onTapGesture {
-                            withAnimation(Motion.selection) { selectedCar = choice.id }
+                            withAnimation(Motion.selection) { selectedIndex = index }
                         }
                 }
             }
@@ -395,8 +456,8 @@ struct FindingsSheet: View {
         // Без `anchor: .center`: вместе с полями он ставил карточку на
         // половину ширины за вычетом полей — первая уезжала вправо на 67 pt
         // (кадр 26.09). `viewAligned` и так держит её у поля, поля симметричны.
-        .scrollPosition(id: $selectedCar)
-        .sensoryFeedback(.selection, trigger: selectedCar)
+        .scrollPosition(id: $selectedIndex)
+        .sensoryFeedback(.selection, trigger: selectedIndex)
     }
 
     // MARK: - Находка
@@ -583,6 +644,14 @@ private struct CarChoiceItem: View {
 
     @State private var image: UIImage?
     @State private var isCatalog = false
+    /// Загрузка кончилась ничем: ни своего фото, ни кадра каталога.
+    @State private var failed = false
+
+    /// Кадра не будет заведомо — показываем машину под тканью сразу, без
+    /// пустоты на время загрузки.
+    private var hasNoPicture: Bool {
+        failed || (choice.photo == nil && choice.catalogSlug == nil)
+    }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -599,10 +668,10 @@ private struct CarChoiceItem: View {
                                                  center: .center, startRadius: 0,
                                                  endRadius: photoHeight * 1.1))
                     }
-                } else {
-                    Image(systemName: "car.side.fill")
-                        .font(.system(size: 40))
-                        .foregroundStyle(Figma.labelsTertiary)
+                } else if hasNoPicture {
+                    // Та же машина под тканью, что на главной у машины без
+                    // кадра (`CarPhoto`), — замечание пользователя 26.09.2026.
+                    Image("CarPhoto").resizable().scaledToFit()
                 }
             }
             .frame(maxWidth: .infinity)
@@ -639,6 +708,7 @@ private struct CarChoiceItem: View {
             image = UIImage(contentsOfFile: url.path)
             isCatalog = true
         }
+        failed = image == nil
     }
 }
 
