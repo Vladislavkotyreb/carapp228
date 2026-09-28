@@ -1,7 +1,17 @@
 import { createContext, useContext, useEffect, useReducer, type ReactNode } from "react";
-import { todayKey } from "./payroll";
-import { seedEmployees, seedRequests, seedRoles } from "./seed";
-import type { Employee, Pay, RequestStatus, RoleDef, ServiceRequest } from "./types";
+import { round, stockLevels } from "./inventory";
+import { todayKey } from "./staff";
+import { seedEmployees, seedMoves, seedRequests, seedRoles, seedStock } from "./seed";
+import { OPEN_STATUSES } from "./types";
+import type {
+  Employee,
+  PartLine,
+  RequestStatus,
+  RoleDef,
+  ServiceRequest,
+  StockItem,
+  StockMove,
+} from "./types";
 
 // Хранилище наброска. Данные живут в браузере (localStorage): сервера нет,
 // а персональные данные клиентов по 152-ФЗ должны лежать на сервере в РФ —
@@ -11,6 +21,8 @@ interface State {
   requests: ServiceRequest[];
   employees: Employee[];
   roles: RoleDef[];
+  stock: StockItem[];
+  moves: StockMove[];
 }
 
 type Action =
@@ -22,16 +34,26 @@ type Action =
    *  `assigneeId: undefined` — дорожка не про людей, исполнитель не меняется;
    *  `null` — дорожка «Без исполнителя». */
   | { type: "move"; id: string; status: RequestStatus; assigneeId?: string | null }
-  | { type: "addEmployee"; name: string; roleId: string; phone: string; pay: Pay }
-  | { type: "updateEmployee"; id: string; roleId: string; pay: Pay }
-  /** Отметить или снять день в табеле. «На смене» — тот же переключатель
-   *  для сегодняшнего дня. */
-  | { type: "toggleDay"; id: string; day: string }
+  | { type: "addEmployee"; name: string; roleId: string; phone: string }
+  | { type: "updateEmployee"; id: string; roleId: string }
   | { type: "toggleShift"; id: string }
+  /** Деактивация вместо удаления: открытые заявки остаются без исполнителя,
+   *  закрытые сохраняют имя. */
+  | { type: "deactivate"; id: string }
+  | { type: "reactivate"; id: string }
   | { type: "addRole"; name: string }
   | { type: "renameRole"; id: string; name: string }
   /** Удалить можно только пустую роль: у сотрудника роль обязательна. */
   | { type: "deleteRole"; id: string }
+  /** Приход: вручную или сканом упаковки. */
+  | { type: "receive"; itemId: string; qty: number }
+  /** Пересчёт: сколько лежит на самом деле. Движение — разница с учётом. */
+  | { type: "count"; itemId: string; actual: number }
+  | { type: "addItem"; item: StockItem }
+  /** Черновик расхода по заявке. Списанный не правится. */
+  | { type: "setParts"; requestId: string; lines: PartLine[] }
+  | { type: "writeOff"; requestId: string }
+  | { type: "undoWriteOff"; requestId: string }
   | { type: "reset" };
 
 function reducer(state: State, action: Action): State {
@@ -71,8 +93,7 @@ function reducer(state: State, action: Action): State {
             name: action.name,
             roleId: action.roleId,
             phone: action.phone,
-            pay: action.pay,
-            // Добавили — значит, вышел: сегодня отмечен в табеле.
+            // Добавили — значит, вышел: сегодня на смене.
             workDays: [todayKey()],
           },
         ],
@@ -81,13 +102,26 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         employees: state.employees.map((e) =>
-          e.id === action.id ? { ...e, roleId: action.roleId, pay: action.pay } : e,
+          e.id === action.id ? { ...e, roleId: action.roleId } : e,
         ),
       };
-    case "toggleDay":
-      return { ...state, employees: state.employees.map((e) => (e.id === action.id ? toggle(e, action.day) : e)) };
     case "toggleShift":
       return { ...state, employees: state.employees.map((e) => (e.id === action.id ? toggle(e, todayKey()) : e)) };
+    case "deactivate":
+      return {
+        ...state,
+        employees: state.employees.map((e) =>
+          e.id === action.id ? { ...e, deactivatedAt: new Date().toISOString() } : e,
+        ),
+        requests: state.requests.map((r) =>
+          r.assigneeId === action.id && OPEN_STATUSES.includes(r.status) ? { ...r, assigneeId: undefined } : r,
+        ),
+      };
+    case "reactivate":
+      return {
+        ...state,
+        employees: state.employees.map((e) => (e.id === action.id ? { ...e, deactivatedAt: undefined } : e)),
+      };
     case "addRole": {
       const name = action.name.trim();
       if (!name || state.roles.some((r) => r.name.toLowerCase() === name.toLowerCase())) return state;
@@ -101,14 +135,66 @@ function reducer(state: State, action: Action): State {
     case "deleteRole":
       if (state.employees.some((e) => e.roleId === action.id)) return state;
       return { ...state, roles: state.roles.filter((r) => r.id !== action.id) };
+    case "receive":
+      if (action.qty <= 0) return state;
+      return { ...state, moves: [...state.moves, move(action.itemId, action.qty, { kind: "receipt" })] };
+    case "count": {
+      const have = stockLevels(state.moves).get(action.itemId) ?? 0;
+      const delta = round(action.actual - have);
+      if (delta === 0) return state;
+      return { ...state, moves: [...state.moves, move(action.itemId, delta, { kind: "count" })] };
+    }
+    case "addItem":
+      return { ...state, stock: [...state.stock, action.item] };
+    case "setParts":
+      return {
+        ...state,
+        requests: state.requests.map((r) =>
+          r.id === action.requestId && !r.partsWrittenOffAt
+            ? { ...r, parts: action.lines.filter((l) => l.qty > 0) }
+            : r,
+        ),
+      };
+    case "writeOff": {
+      const r = state.requests.find((x) => x.id === action.requestId);
+      if (!r || r.partsWrittenOffAt || !r.parts?.length) return state;
+      const reason = { kind: "writeoff", requestId: r.id } as const;
+      return {
+        ...state,
+        moves: [...state.moves, ...r.parts.map((l) => move(l.itemId, -l.qty, reason))],
+        requests: state.requests.map((x) =>
+          x.id === r.id ? { ...x, partsWrittenOffAt: new Date().toISOString() } : x,
+        ),
+      };
+    }
+    case "undoWriteOff": {
+      const r = state.requests.find((x) => x.id === action.requestId);
+      if (!r?.partsWrittenOffAt || !r.parts?.length) return state;
+      const reason = { kind: "return", requestId: r.id } as const;
+      return {
+        ...state,
+        moves: [...state.moves, ...r.parts.map((l) => move(l.itemId, l.qty, reason))],
+        requests: state.requests.map((x) => (x.id === r.id ? { ...x, partsWrittenOffAt: undefined } : x)),
+      };
+    }
     case "reset":
       return initial();
   }
 }
 
-// v2: у сотрудника роль по id, оплата и табель. Данные v1 этого не знают,
-// и читать их значило бы получить сотрудников без ставки и роли.
-const KEY = "beepy-crm-v2";
+// v3: склад и расход по заявкам. v2 склада не знает — по нему начинаем с
+// посева, иначе раздел открылся бы пустым без единой позиции.
+// v2: у сотрудника роль по id.
+const KEY = "beepy-crm-v3";
+
+let moveSeq = 0;
+
+/** Движение по складу с отметкой времени. Id — время и счётчик: два
+ *  движения одного списания создаются в одну миллисекунду. */
+function move(itemId: string, delta: number, reason: StockMove["reason"]): StockMove {
+  moveSeq += 1;
+  return { id: `m${Date.now()}-${moveSeq}`, itemId, delta: round(delta), at: new Date().toISOString(), reason };
+}
 
 function toggle(e: Employee, day: string): Employee {
   const has = e.workDays.includes(day);
@@ -116,7 +202,7 @@ function toggle(e: Employee, day: string): Employee {
 }
 
 function initial(): State {
-  return { requests: seedRequests, employees: seedEmployees, roles: seedRoles };
+  return { requests: seedRequests, employees: seedEmployees, roles: seedRoles, stock: seedStock, moves: seedMoves };
 }
 
 function load(): State {

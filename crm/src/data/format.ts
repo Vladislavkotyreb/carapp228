@@ -62,3 +62,10 @@ export function initials(name: string): string {
     .join("")
     .toUpperCase();
 }
+
+/** «4,7 л», «12 шт»: дробь через запятую, разряды и единица — неразрывно. */
+export function qty(value: number, unit: string): string {
+  const [int, frac] = Math.abs(value).toFixed(2).replace(/\.?0+$/, "").split(".");
+  const sign = value < 0 ? "−" : "";
+  return `${sign}${grouped(Number(int))}${frac ? `,${frac}` : ""}${NBSP}${unit}`;
+}

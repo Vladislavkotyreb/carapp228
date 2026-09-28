@@ -2471,8 +2471,12 @@ private extension View {
     /// Кнопки тулбара остаются настоящим стеклом: их две, они висят поверх
     /// уезжающего контента, и преломление там осмысленно — в отличие от
     /// карточек на чёрном фоне.
+    ///
+    /// Тонировка полупрозрачная: сплошной #1A1A1A глушил стекло целиком, и на
+    /// iPhone (iOS 27) кнопки при прокрутке выглядели просто тёмными кругами
+    /// (вопрос пользователя 27.09.2026). Фолбэк без стекла — прежний.
     func darkGlassChip<S: Shape>(in shape: S) -> some View {
-        liquidGlass(in: shape, tint: Figma.darkCard) {
+        liquidGlass(in: shape, tint: Figma.darkCard.opacity(0.35)) {
             shape.fill(Figma.darkCard)
                 .overlay(shape.stroke(Color.white.opacity(0.10), lineWidth: 0.5))
         }

@@ -1,35 +1,14 @@
 import { useMemo, useState } from "react";
-import { CalendarClock, Columns3, List, Phone, Search } from "lucide-react";
-import {
-  AccordionContent,
-  AccordionGroup,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "@/components/ui/combobox";
+import { Columns3, Globe, List, Search, Smartphone } from "lucide-react";
 import { InputField, InputGroup } from "@/components/ui/input-group";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { TabItem, Tabs, TabsList } from "@/components/ui/tabs";
-import { Avatar, Meter, PageHeader, SectionTitle, SourceBadge, StatusBadge } from "@/components/bits";
-import { ago, count, dateTime, km, percent, tel } from "@/data/format";
+import { Avatar, PageHeader, StatusBadge } from "@/components/bits";
+import { ago, count } from "@/data/format";
 import { useStore } from "@/data/store";
-import { roleName } from "@/data/stats";
-import { isOnShift } from "@/data/payroll";
 import { KanbanBoard } from "@/pages/Kanban";
-import {
-  STATUS_LABEL,
-  type Employee,
-  type RequestSource,
-  type RequestStatus,
-  type ServiceRequest,
-} from "@/data/types";
+import { RequestPanel } from "@/pages/RequestPanel";
+import type { Employee, RequestSource, RequestStatus, ServiceRequest } from "@/data/types";
 
 type StatusFilter = "all" | "new" | "work" | "done" | "cancelled";
 
@@ -40,8 +19,6 @@ const FILTERS: { value: StatusFilter; label: string; match: (s: RequestStatus) =
   { value: "done", label: "Готово", match: (s) => s === "done" },
   { value: "cancelled", label: "Отменённые", match: (s) => s === "cancelled" },
 ];
-
-const STATUSES = Object.keys(STATUS_LABEL) as RequestStatus[];
 
 type View = "list" | "board";
 const VIEW_KEY = "beepy-crm-requests-view";
@@ -54,16 +31,24 @@ function readView(): View {
   }
 }
 
-/** Заявки сервиса. Список — аккордеон: строка отвечает на «кто, с чем,
- *  откуда, у кого», раскрытие — на «что именно и что с этим делать». */
-/** `initiallyOpen` — заявка, которую раскрыть при входе (переход с дашборда).
- *  Дальше раскрытием владеет сама группа: управляемое `value` она в этой
- *  версии не слушает — щелчки раскрывали строку мимо `onValueChange`. */
+/** Заявки сервиса. Список — таблица с явными границами: строка отвечает на
+ *  «кто, на чём, с чем, у кого». Клик открывает заявку панелью справа
+ *  (`RequestPanel`). Аккордеон в строке заменён 28.09.2026: раскрытая
+ *  заявка сливалась с соседними, и было непонятно, что к чему относится.
+ *  `initiallyOpen` — заявка, которую открыть при входе (дашборд, ⌘K). */
 export function RequestsPage({ initiallyOpen }: { initiallyOpen: string }) {
   const { state } = useStore();
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [source, setSource] = useState<"any" | RequestSource>("any");
   const [query, setQuery] = useState("");
+  const [openId, setOpenId] = useState<string | null>(initiallyOpen || null);
+  // Новая заявка на открытие пришла снаружи (⌘K при уже открытых заявках) —
+  // открываем её. Без эффекта: так значение есть в том же кадре.
+  const [seen, setSeen] = useState(initiallyOpen);
+  if (initiallyOpen !== seen) {
+    setSeen(initiallyOpen);
+    setOpenId(initiallyOpen || null);
+  }
   // Вид запоминается: приёмка обычно живёт в одном из двух весь день.
   const [view, setViewState] = useState<View>(readView);
   const setView = (v: View) => {
@@ -94,6 +79,7 @@ export function RequestsPage({ initiallyOpen }: { initiallyOpen: string }) {
   }, [state.requests, filter, source, query, view]);
 
   const employee = (id?: string) => state.employees.find((e) => e.id === id);
+  const opened = state.requests.find((r) => r.id === openId);
 
   return (
     <div className="flex flex-col gap-5">
@@ -112,6 +98,8 @@ export function RequestsPage({ initiallyOpen }: { initiallyOpen: string }) {
 
       <div className="flex flex-wrap items-center gap-3">
         {view === "list" && (
+          // На телефоне пять статусов не влезают — ряд прокручивается вбок.
+          <div className="-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 scrollbar-hide md:mx-0 md:max-w-none md:px-0">
           <Tabs value={filter} onValueChange={(v) => setFilter(v as StatusFilter)}>
             <TabsList>
               {FILTERS.map((f) => (
@@ -119,6 +107,7 @@ export function RequestsPage({ initiallyOpen }: { initiallyOpen: string }) {
               ))}
             </TabsList>
           </Tabs>
+          </div>
         )}
 
         <div className="ml-auto flex items-center gap-2">
@@ -147,172 +136,120 @@ export function RequestsPage({ initiallyOpen }: { initiallyOpen: string }) {
       </div>
 
       {view === "board" ? (
-        <KanbanBoard requests={visible} />
+        <KanbanBoard requests={visible} onOpen={setOpenId} />
       ) : visible.length === 0 ? (
         <p className="py-16 text-center text-[13px] text-muted-foreground">Под эти фильтры заявок нет</p>
       ) : (
-        <AccordionGroup
-          type="single"
-          collapsible
-          key={initiallyOpen}
-          defaultValue={initiallyOpen}
-          highlight="trigger"
-          // По умолчанию группа шириной w-72 — под боковую панель, а не под список.
-          className="w-full"
-        >
-          {visible.map((r, i) => (
-            <AccordionItem key={r.id} value={r.id} index={i}>
-              {/* Триггер кладёт содержимое в inline-grid с колонкой по ширине
-                  содержимого — и колонка «клиент · проблема» схлопывалась в
-                  ноль. Растягиваем её снаружи, не правя библиотеку. */}
-              <AccordionTrigger className="[&>span:first-child]:grid-cols-[minmax(0,1fr)]">
-                <RequestRow request={r} assignee={employee(r.assigneeId)} />
-              </AccordionTrigger>
-              <AccordionContent>
-                <RequestDetail request={r} />
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </AccordionGroup>
+        <RequestTable requests={visible} selectedId={openId} onOpen={setOpenId} employee={employee} />
       )}
+
+      {opened && <RequestPanel request={opened} onClose={() => setOpenId(null)} />}
     </div>
   );
 }
 
-/** Строка заявки внутри триггера. Только текст: в кнопке-триггере не может
- *  быть других кнопок, все действия — в раскрытии. */
-function RequestRow({ request: r, assignee }: { request: ServiceRequest; assignee?: Employee }) {
+type Col = { title: string; className: string };
+
+const COLS: Col[] = [
+  { title: "№", className: "w-[76px]" },
+  { title: "Клиент и машина", className: "w-[220px]" },
+  { title: "С чем приехал", className: "min-w-[240px]" },
+  { title: "Откуда", className: "w-[130px]" },
+  { title: "Статус", className: "w-[140px]" },
+  { title: "Исполнитель", className: "w-[160px]" },
+  { title: "Пришла", className: "w-[110px] text-right" },
+];
+
+/** Таблица заявок: рамка, шапка на подложке, границы между строками и
+ *  колонками. Вся строка — кнопка: клик или Enter открывает заявку. На
+ *  узком экране таблица прокручивается вбок, колонки не сжимаются в кашу. */
+function RequestTable({
+  requests,
+  selectedId,
+  onOpen,
+  employee,
+}: {
+  requests: ServiceRequest[];
+  selectedId: string | null;
+  onOpen: (id: string) => void;
+  employee: (id?: string) => Employee | undefined;
+}) {
+  const cell = "border-r border-border px-3 last:border-r-0";
   return (
-    <span className="grid w-full grid-cols-[84px_minmax(0,1fr)_104px_120px_150px] items-center gap-4 text-left">
-      <span className="flex flex-col">
-        <span className="text-[13px] font-medium tabular-nums">№{r.number}</span>
-        <span className="text-[11px] text-muted-foreground">{ago(r.createdAt)}</span>
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate text-[13px] font-medium">
-          {r.client.name} · {r.car.name}
-        </span>
-        <span className="truncate text-[12px] text-muted-foreground">{r.summary}</span>
-      </span>
-      <SourceBadge source={r.payload.source} />
-      <span>
-        <StatusBadge status={r.status} />
-      </span>
-      <span className="flex min-w-0 items-center gap-2">
-        {assignee ? (
-          <>
-            <Avatar name={assignee.name} />
-            <span className="truncate text-[12px]">{assignee.name.split(" ")[0]}</span>
-          </>
-        ) : (
-          <span className="text-[12px] text-muted-foreground">Не назначен</span>
-        )}
-      </span>
-    </span>
-  );
-}
-
-export function RequestDetail({ request: r }: { request: ServiceRequest }) {
-  const { state, dispatch } = useStore();
-  // Сначала те, кто на смене: назначать на того, кого нет, — отложить заявку.
-  const people = [...state.employees].sort((a, b) => Number(isOnShift(b)) - Number(isOnShift(a)));
-  const items = people.map((e) => ({
-    value: e.id,
-    label: `${e.name} — ${roleName(state.roles, e.roleId)}${isOnShift(e) ? "" : " (не на смене)"}`,
-  }));
-
-  return (
-    <div className="grid gap-6 pb-2 pt-1 md:grid-cols-[minmax(0,1fr)_280px]">
-      <section className="flex flex-col gap-3">
-        {r.payload.source === "app" ? (
-          <>
-            <SectionTitle>Итоги прослушивания в Beepy</SectionTitle>
-            <ul className="flex flex-col gap-3">
-              {r.payload.findings.map((f) => (
-                <li key={f.title} className="flex flex-col gap-1.5">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-[13px] font-medium">
-                      {f.title}
-                      <span className="font-normal text-muted-foreground"> · {f.system}</span>
-                    </span>
-                    <span className="text-[12px] tabular-nums text-muted-foreground">{percent(f.confidence)}</span>
-                  </div>
-                  <Meter share={f.confidence} tone={f.confidence >= 0.7 ? "bg-amber-500" : "bg-muted-foreground"} />
-                  <p className="text-[12px] text-muted-foreground">{f.advice}</p>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <>
-            <SectionTitle>Запись с сайта</SectionTitle>
-            <p className="text-[13px] leading-relaxed">{r.payload.comment}</p>
-            {r.payload.preferredAt && (
-              <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                <CalendarClock className="size-3.5" aria-hidden />
-                Удобно: {dateTime(r.payload.preferredAt)}
-              </p>
-            )}
-          </>
-        )}
-      </section>
-
-      <aside className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <SectionTitle>Клиент</SectionTitle>
-          <span className="text-[13px] font-medium">{r.client.name}</span>
-          <a href={tel(r.client.phone)} className="inline-flex items-center gap-1.5 text-[13px] hover:underline">
-            <Phone className="size-3.5" aria-hidden />
-            {r.client.phone}
-          </a>
-          <span className="text-[12px] text-muted-foreground">
-            {[r.car.name, r.car.plate, r.car.mileage ? km(r.car.mileage) : undefined].filter(Boolean).join(" · ")}
-          </span>
-          <span className="text-[12px] text-muted-foreground">Пришла {dateTime(r.createdAt)}</span>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <SectionTitle>Исполнитель</SectionTitle>
-          <Combobox
-            items={items}
-            value={r.assigneeId ?? ""}
-            onValueChange={(v) => dispatch({ type: "assign", id: r.id, employeeId: v || undefined })}
-            size="compact"
-          >
-            <ComboboxInput placeholder="Назначить сотрудника" clearable />
-            <ComboboxContent>
-              <ComboboxList>
-                {(item) =>
-                  typeof item === "string" ? null : (
-                    <ComboboxItem key={item.value} value={item.value}>
-                      {item.label}
-                    </ComboboxItem>
-                  )
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-full min-w-[980px] border-collapse text-[13px]">
+        <thead>
+          <tr className="border-b border-border bg-muted/60">
+            {COLS.map((c) => (
+              <th
+                key={c.title}
+                scope="col"
+                className={`${cell} ${c.className} h-9 text-left text-[12px] font-medium text-muted-foreground`}
+              >
+                {c.title}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {requests.map((r) => {
+            const who = employee(r.assigneeId);
+            const selected = r.id === selectedId;
+            const SourceIcon = r.payload.source === "app" ? Smartphone : Globe;
+            return (
+              <tr
+                key={r.id}
+                tabIndex={0}
+                aria-selected={selected}
+                onClick={() => onOpen(r.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onOpen(r.id);
+                  }
+                }}
+                className={
+                  "h-12 cursor-pointer border-b border-border outline-none transition-colors last:border-b-0 hover:bg-hover focus-visible:bg-hover " +
+                  (selected ? "bg-primary/10 shadow-[inset_2px_0_0_var(--primary)]" : "")
                 }
-              </ComboboxList>
-              <ComboboxEmpty>Никого не нашли</ComboboxEmpty>
-            </ComboboxContent>
-          </Combobox>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <SectionTitle>Статус</SectionTitle>
-          <Select
-            value={r.status}
-            onValueChange={(v) => dispatch({ type: "setStatus", id: r.id, status: v as RequestStatus })}
-            size="compact"
-          >
-            <SelectTrigger />
-            <SelectContent>
-              {STATUSES.map((s, i) => (
-                <SelectItem key={s} index={i} value={s}>
-                  {STATUS_LABEL[s]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </aside>
+              >
+                <td className={`${cell} font-medium tabular-nums`}>№{r.number}</td>
+                <td className={cell}>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium">{r.client.name}</span>
+                    <span className="truncate text-[12px] text-muted-foreground">
+                      {[r.car.name, r.car.plate].filter(Boolean).join(" · ")}
+                    </span>
+                  </span>
+                </td>
+                <td className={`${cell} max-w-0`}>
+                  <span className="block truncate">{r.summary}</span>
+                </td>
+                <td className={cell}>
+                  <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                    <SourceIcon className="size-3.5" aria-hidden />
+                    {r.payload.source === "app" ? "Приложение" : "Сайт"}
+                  </span>
+                </td>
+                <td className={cell}>
+                  <StatusBadge status={r.status} />
+                </td>
+                <td className={cell}>
+                  {who ? (
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Avatar name={who.name} size={20} muted={Boolean(who.deactivatedAt)} />
+                      <span className="truncate text-[12px]">{who.name.split(" ")[0]}</span>
+                    </span>
+                  ) : (
+                    <span className="text-[12px] text-amber-600 dark:text-amber-400">Не назначен</span>
+                  )}
+                </td>
+                <td className={`${cell} text-right text-[12px] text-muted-foreground`}>{ago(r.createdAt)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

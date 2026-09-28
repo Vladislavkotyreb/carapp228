@@ -1,5 +1,5 @@
-import { dayKey } from "./payroll";
-import type { Employee, RoleDef, ServiceRequest } from "./types";
+import { dayKey } from "./staff";
+import type { Employee, PartLine, RoleDef, ServiceRequest, StockItem, StockMove } from "./types";
 
 // Тестовые данные наброска. Время — относительно момента первого запуска,
 // чтобы «12 мин назад» оставалось правдой при любом открытии.
@@ -19,7 +19,7 @@ export const seedRoles: RoleDef[] = [
   { id: "electrician", name: "Автоэлектрик" },
 ];
 
-/** Табель с начала месяца по сегодня: будни — пятидневка, `shift` — график
+/** Дни на смене с начала месяца по сегодня: будни — пятидневка, `shift` — график
  *  «два через два» со сдвигом. Сегодняшний день входит — это «на смене». */
 function workDays(schedule: "5/2" | "2/2", shift = 0, skipToday = false): string[] {
   const now = new Date();
@@ -36,15 +36,15 @@ function workDays(schedule: "5/2" | "2/2", shift = 0, skipToday = false): string
 
 export const seedEmployees: Employee[] = [
   { id: "e1", name: "Ольга Смирнова", roleId: "master", phone: "+7 916 204-11-83",
-    pay: { kind: "monthly", salary: 65_000 }, workDays: workDays("5/2") },
+    workDays: workDays("5/2") },
   { id: "e2", name: "Артём Кузнецов", roleId: "diagnost", phone: "+7 925 330-47-12",
-    pay: { kind: "monthly", salary: 80_000 }, workDays: workDays("5/2") },
+    workDays: workDays("5/2") },
   { id: "e3", name: "Игорь Павлов", roleId: "mechanic", phone: "+7 903 118-90-05",
-    pay: { kind: "daily", rate: 3_500 }, workDays: workDays("2/2", 0) },
+    workDays: workDays("2/2", 0) },
   { id: "e4", name: "Руслан Галиев", roleId: "mechanic", phone: "+7 977 562-38-44",
-    pay: { kind: "daily", rate: 3_200 }, workDays: workDays("2/2", 2, true) },
+    workDays: workDays("2/2", 2, true) },
   { id: "e5", name: "Денис Орлов", roleId: "electrician", phone: "+7 999 741-02-67",
-    pay: { kind: "daily", rate: 4_000 }, workDays: workDays("5/2") },
+    workDays: workDays("5/2") },
 ];
 
 export const seedRequests: ServiceRequest[] = [
@@ -175,6 +175,8 @@ export const seedRequests: ServiceRequest[] = [
     payload: { source: "site", comment: "Масло + все фильтры, своё масло не привезу." },
     status: "done",
     assigneeId: "e4",
+    parts: loganService(),
+    partsWrittenOffAt: minutesAgo(60 * 70),
   },
   {
     id: "r1041",
@@ -196,4 +198,78 @@ export const seedRequests: ServiceRequest[] = [
     },
     status: "cancelled",
   },
+];
+
+// --------------------------------------------------------------------- Склад
+// Штрихкоды и артикулы тестовые: похожи на настоящие по виду, но ни на что
+// не указывают. Фильтры у каждой марки свои — `fits` из названия машины.
+
+export const seedStock: StockItem[] = [
+  { id: "oil-5w30", name: "Масло моторное 5W-30, канистра 4\u00A0л", sku: "MO-530-4", barcodes: ["4607000000017"],
+    unit: "l", pack: 4, min: 12, price: 780, role: "engine_oil", marked: true },
+  { id: "oil-5w40", name: "Масло моторное 5W-40, бочка 208\u00A0л", sku: "MO-540-208", barcodes: ["4607000000024"],
+    unit: "l", pack: 208, min: 20, price: 520, marked: true },
+  { id: "flt-kia", name: "Фильтр масляный Hyundai/Kia", sku: "26300-35505", barcodes: ["8800000000011"],
+    unit: "pcs", min: 3, price: 420, role: "oil_filter", fits: ["Kia", "Hyundai"] },
+  { id: "flt-vag", name: "Фильтр масляный VAG", sku: "04E115561H", barcodes: ["4000000000028"],
+    unit: "pcs", min: 2, price: 690, role: "oil_filter", fits: ["Volkswagen", "Skoda", "Audi"] },
+  { id: "flt-lada", name: "Фильтр масляный Lada", sku: "21080-1012005", barcodes: ["4600000000035"],
+    unit: "pcs", min: 3, price: 260, role: "oil_filter", fits: ["Lada"] },
+  { id: "flt-renault", name: "Фильтр масляный Renault", sku: "8200768913", barcodes: ["3600000000042"],
+    unit: "pcs", min: 2, price: 380, role: "oil_filter", fits: ["Renault"] },
+  { id: "flt-toyota", name: "Фильтр масляный Toyota", sku: "04152-YZZA6", barcodes: ["4900000000059"],
+    unit: "pcs", min: 2, price: 640, role: "oil_filter", fits: ["Toyota"] },
+  { id: "washer", name: "Шайба сливной пробки, медь 14\u00A0мм", sku: "W-CU-14", barcodes: ["4607000000062"],
+    unit: "pcs", min: 20, price: 25, role: "drain_washer" },
+  { id: "air-kia", name: "Фильтр воздушный Hyundai/Kia", sku: "28113-1R100", barcodes: ["8800000000073"],
+    unit: "pcs", min: 2, price: 510, role: "air_filter", fits: ["Kia", "Hyundai"] },
+  { id: "cabin-kia", name: "Фильтр салонный Hyundai/Kia", sku: "97133-4L000", barcodes: ["8800000000080"],
+    unit: "pcs", min: 2, price: 590, role: "cabin_filter", fits: ["Kia", "Hyundai"] },
+  { id: "air-renault", name: "Фильтр воздушный Renault", sku: "8200431051", barcodes: ["3600000000097"],
+    unit: "pcs", min: 2, price: 450, role: "air_filter", fits: ["Renault"] },
+  { id: "cabin-renault", name: "Фильтр салонный Renault", sku: "272772835R", barcodes: ["3600000000103"],
+    unit: "pcs", min: 2, price: 480, role: "cabin_filter", fits: ["Renault"] },
+  { id: "pads-kia", name: "Колодки передние Kia Rio / Hyundai Solaris", sku: "58101-4LA00", barcodes: ["8800000000110"],
+    unit: "pcs", min: 2, price: 2350, role: "brake_pads_front", fits: ["Kia Rio", "Hyundai Solaris"] },
+  { id: "antifreeze", name: "Антифриз G12+, канистра 5\u00A0л", sku: "AF-G12-5", barcodes: ["4607000000127"],
+    unit: "l", pack: 5, min: 10, price: 190, role: "antifreeze", marked: true },
+  { id: "brake-fluid", name: "Тормозная жидкость DOT-4, 1\u00A0л", sku: "BF-DOT4-1", barcodes: ["4607000000134"],
+    unit: "l", pack: 1, min: 3, price: 420, role: "brake_fluid", marked: true },
+];
+
+function loganService(): PartLine[] {
+  return [
+    { itemId: "oil-5w30", qty: 4.8 },
+    { itemId: "flt-renault", qty: 1 },
+    { itemId: "washer", qty: 1 },
+    { itemId: "air-renault", qty: 1 },
+    { itemId: "cabin-renault", qty: 1 },
+  ];
+}
+
+/** Приходы за прошлые две недели и списание по готовой заявке №1042 —
+ *  чтобы журнал движения был не пустым и остаток объяснялся из него. */
+const RECEIPTS: [string, number, number][] = [
+  // позиция, сколько, дней назад
+  ["oil-5w30", 16, 12], ["oil-5w40", 208, 20], ["flt-kia", 2, 12], ["flt-vag", 4, 12],
+  ["flt-lada", 6, 9], ["flt-renault", 3, 9], ["flt-toyota", 2, 9], ["washer", 50, 20],
+  ["air-kia", 3, 12], ["cabin-kia", 1, 12], ["air-renault", 2, 9], ["cabin-renault", 2, 9],
+  ["pads-kia", 3, 5], ["antifreeze", 20, 20], ["brake-fluid", 6, 20],
+];
+
+export const seedMoves: StockMove[] = [
+  ...RECEIPTS.map(([itemId, qty, days], i): StockMove => ({
+    id: `m${i + 1}`,
+    itemId,
+    delta: qty,
+    at: minutesAgo(60 * 24 * days),
+    reason: { kind: "receipt" },
+  })),
+  ...loganService().map((l, i): StockMove => ({
+    id: `m-w${i + 1}`,
+    itemId: l.itemId,
+    delta: -l.qty,
+    at: minutesAgo(60 * 70),
+    reason: { kind: "writeoff", requestId: "r1042" },
+  })),
 ];

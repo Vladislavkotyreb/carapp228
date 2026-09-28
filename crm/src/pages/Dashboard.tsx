@@ -2,21 +2,33 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, Meter, PageHeader, SectionTitle, SourceBadge } from "@/components/bits";
-import { ago, count } from "@/data/format";
+import { ago, count, qty } from "@/data/format";
+import { isLow, stockLevels } from "@/data/inventory";
 import { useStore } from "@/data/store";
 import { roleName } from "@/data/stats";
 import { bySource, isOpen, kpi, load, topSystems } from "@/data/stats";
-import { SOURCE_LABEL, type RequestSource } from "@/data/types";
-import { isOnShift } from "@/data/payroll";
+import { SOURCE_LABEL, UNIT_LABEL, type RequestSource } from "@/data/types";
+import { isActive, isOnShift } from "@/data/staff";
 
 /** Дашборд: что требует внимания сейчас, откуда идут люди и кто чем занят.
  *  Сверху — то, на что надо отреагировать, ниже — то, на что посмотреть. */
-export function DashboardPage({ onOpenRequest }: { onOpenRequest: (id: string) => void }) {
+export function DashboardPage({
+  onOpenRequest,
+  onOpenStock,
+}: {
+  onOpenRequest: (id: string) => void;
+  onOpenStock: () => void;
+}) {
   const { state } = useStore();
+  const levels = stockLevels(state.moves);
+  const lowStock = state.stock
+    .map((i) => ({ item: i, have: levels.get(i.id) ?? 0 }))
+    .filter((x) => isLow(x.item, x.have))
+    .sort((a, b) => a.have / Math.max(1, a.item.min) - b.have / Math.max(1, b.item.min));
   const k = kpi(state.requests);
   const sources = bySource(state.requests);
   const total = sources.app + sources.site;
-  const loads = load(state.requests, state.employees);
+  const loads = load(state.requests, state.employees.filter(isActive));
   const maxLoad = Math.max(1, ...loads.map((l) => l.open));
   const systems = topSystems(state.requests);
   const maxSystem = Math.max(1, ...systems.map((s) => s.count));
@@ -130,6 +142,33 @@ export function DashboardPage({ onOpenRequest }: { onOpenRequest: (id: string) =
           </div>
         </section>
       </div>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <SectionTitle>Заканчивается на складе</SectionTitle>
+          <Button variant="ghost" size="compact" trailingIcon={ArrowRight} onClick={onOpenStock}>
+            На склад
+          </Button>
+        </div>
+        {lowStock.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground">Всего хватает</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-border rounded-xl border border-border">
+            {lowStock.map(({ item, have }) => (
+              <li key={item.id} className="flex items-center gap-4 px-4 py-2.5">
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[13px]">{item.name}</span>
+                  <span className="font-mono text-[11px] text-muted-foreground">{item.sku}</span>
+                </span>
+                <span className="text-right text-[13px] tabular-nums">
+                  <span className="font-medium text-red-500">{qty(have, UNIT_LABEL[item.unit])}</span>
+                  <span className="text-muted-foreground"> из порога {qty(item.min, UNIT_LABEL[item.unit])}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

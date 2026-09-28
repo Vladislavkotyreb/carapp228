@@ -69,7 +69,7 @@ enum ServiceMath {
         switch urgency(kmLeft: kmLeft) {
         case .normal: nil
         case .soon: "Осталось меньше \(NumberFormat.grouped(soonThreshold))\u{00A0}км"
-        case .urgent where kmLeft == 0: "ТО пора пройти"
+        case .urgent where kmLeft == 0: "Самое время пройти ТО"
         case .urgent: "Осталось меньше \(NumberFormat.grouped(urgentThreshold))\u{00A0}км"
         }
     }

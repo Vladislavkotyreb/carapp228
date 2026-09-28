@@ -1,16 +1,14 @@
 import { useState, type DragEvent } from "react";
 import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
 import { CalendarClock, ChevronDown, Flag, Globe, Smartphone, UserRound, UserX } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Avatar } from "@/components/bits";
 import { dateTime } from "@/data/format";
 import { BOARD_COLUMNS, lanes, needsAttention, type GroupBy, type Lane } from "@/data/stats";
 import { useStore } from "@/data/store";
-import { isOnShift } from "@/data/payroll";
+import { isActive, isOnShift } from "@/data/staff";
 import { SOURCE_LABEL, STATUS_LABEL, type RequestStatus, type ServiceRequest } from "@/data/types";
-import { RequestDetail } from "@/pages/Requests";
 
 // Доска по образцу Jira (рефы на Mobbin: Jira board, swimlanes): серые колонки
 // фиксированной ширины с горизонтальной прокруткой, заголовки капсом со
@@ -35,14 +33,14 @@ function readGroup(): GroupBy {
   }
 }
 
-export function KanbanBoard({ requests }: { requests: ServiceRequest[] }) {
+/** Карточку открывает родитель — той же панелью, что и строку списка. */
+export function KanbanBoard({ requests, onOpen }: { requests: ServiceRequest[]; onOpen: (id: string) => void }) {
   const { state, dispatch } = useStore();
   const [groupBy, setGroupByState] = useState<GroupBy>(readGroup);
   const [people, setPeople] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
 
   const setGroupBy = (v: GroupBy) => {
@@ -60,8 +58,8 @@ export function KanbanBoard({ requests }: { requests: ServiceRequest[] }) {
     people.size === 0
       ? requests
       : requests.filter((r) => people.has(r.assigneeId ?? NOBODY));
-  const rows = lanes(shown, state.employees, groupBy);
-  const open = state.requests.find((r) => r.id === openId);
+  const staff = state.employees.filter(isActive);
+  const rows = lanes(shown, staff, groupBy);
   const employee = (id?: string) => state.employees.find((e) => e.id === id);
 
   function togglePerson(id: string) {
@@ -103,7 +101,7 @@ export function KanbanBoard({ requests }: { requests: ServiceRequest[] }) {
     <>
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center" role="group" aria-label="Фильтр по исполнителю">
-          {state.employees.map((e, i) => (
+          {staff.map((e, i) => (
             <Tooltip key={e.id} content={e.name} side="bottom">
               <button
                 type="button"
@@ -259,7 +257,7 @@ export function KanbanBoard({ requests }: { requests: ServiceRequest[] }) {
                                     setDragging(null);
                                     setOver(null);
                                   }}
-                                  onOpen={() => setOpenId(r.id)}
+                                  onOpen={() => onOpen(r.id)}
                                 />
                               </motion.div>
                             ))}
@@ -275,21 +273,6 @@ export function KanbanBoard({ requests }: { requests: ServiceRequest[] }) {
         </div>
       </LayoutGroup>
 
-      <Dialog open={open !== undefined} onOpenChange={(v) => !v && setOpenId(null)}>
-        <DialogContent size="xl">
-          {open && (
-            <>
-              <DialogHeader>
-                <DialogTitle>
-                  №{open.number} · {open.client.name} · {open.car.name}
-                </DialogTitle>
-                <DialogDescription>{open.summary}</DialogDescription>
-              </DialogHeader>
-              <RequestDetail request={open} />
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

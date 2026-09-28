@@ -1,5 +1,23 @@
-import { useEffect, useState } from "react";
-import { ClipboardList, LayoutDashboard, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowDownToLine,
+  ClipboardList,
+  LayoutDashboard,
+  Moon,
+  Package,
+  Search,
+  Sun,
+  Users,
+  Wrench,
+} from "lucide-react";
+import {
+  CommandMenu,
+  CommandMenuDialog,
+  CommandMenuEmpty,
+  CommandMenuInput,
+  CommandMenuList,
+  type CommandMenuItemData,
+} from "@/components/ui/command-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -20,8 +38,12 @@ import { StoreProvider, useStore } from "@/data/store";
 import { DashboardPage } from "@/pages/Dashboard";
 import { EmployeesPage } from "@/pages/Employees";
 import { RequestsPage } from "@/pages/Requests";
+import { StockPage } from "@/pages/Stock";
+import { isLow, stockLevels } from "@/data/inventory";
+import { qty } from "@/data/format";
+import { UNIT_LABEL } from "@/data/types";
 
-type Page = "dashboard" | "requests" | "employees";
+type Page = "dashboard" | "requests" | "stock" | "employees";
 
 const THEME_KEY = "beepy-crm-theme";
 
@@ -47,6 +69,8 @@ function Shell() {
   const [expanded, setExpanded] = useState("");
   // Тёмная по умолчанию — как само приложение Beepy.
   const [dark, setDark] = useState(readDark);
+  const [palette, setPalette] = useState(false);
+  const [focusItem, setFocusItem] = useState<string | undefined>();
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
@@ -58,17 +82,79 @@ function Shell() {
   }, [dark]);
 
   const fresh = state.requests.filter((r) => r.status === "new").length;
+  const levels = useMemo(() => stockLevels(state.moves), [state.moves]);
+  const low = state.stock.filter((i) => isLow(i, levels.get(i.id) ?? 0)).length;
 
   function openRequest(id: string) {
     setExpanded(id);
     setPage("requests");
   }
 
+
   const nav: { id: Page; label: string; icon: typeof LayoutDashboard; badge?: number }[] = [
     { id: "dashboard", label: "Дашборд", icon: LayoutDashboard },
     { id: "requests", label: "Заявки", icon: ClipboardList, badge: fresh || undefined },
+    { id: "stock", label: "Склад", icon: Package, badge: low || undefined },
     { id: "employees", label: "Сотрудники", icon: Users },
   ];
+
+  // Палитра ⌘K — главный вход с клавиатуры, как в Linear: разделы, действия,
+  // заявка по номеру или клиенту, позиция склада по названию или артикулу.
+  const commands = useMemo<CommandMenuItemData[]>(() => {
+    const go = (p: Page) => () => {
+      setPage(p);
+      setFocusItem(undefined);
+    };
+    return [
+      { value: "go-dashboard", label: "Дашборд", icon: LayoutDashboard, group: "Разделы", onSelect: go("dashboard") },
+      { value: "go-requests", label: "Заявки", icon: ClipboardList, group: "Разделы", onSelect: go("requests") },
+      { value: "go-stock", label: "Склад", icon: Package, group: "Разделы", onSelect: go("stock") },
+      { value: "go-employees", label: "Сотрудники", icon: Users, group: "Разделы", onSelect: go("employees") },
+      {
+        value: "act-receive",
+        label: "Приход на склад",
+        description: "Отсканируйте упаковку",
+        icon: ArrowDownToLine,
+        group: "Действия",
+        keywords: ["скан", "штрихкод", "оприходовать"],
+        onSelect: go("stock"),
+      },
+      {
+        value: "act-theme",
+        label: dark ? "Светлая тема" : "Тёмная тема",
+        icon: dark ? Sun : Moon,
+        group: "Действия",
+        onSelect: () => setDark((d) => !d),
+      },
+      ...state.requests.map(
+        (r): CommandMenuItemData => ({
+          value: `req-${r.id}`,
+          label: `№${r.number} · ${r.client.name} · ${r.car.name}`,
+          description: r.summary,
+          icon: Wrench,
+          group: "Заявки",
+          keywords: [String(r.number), r.car.plate ?? ""],
+          onSelect: () => openRequest(r.id),
+        }),
+      ),
+      ...state.stock.map(
+        (i): CommandMenuItemData => ({
+          value: `stock-${i.id}`,
+          label: i.name,
+          description: `${i.sku} · ${qty(levels.get(i.id) ?? 0, UNIT_LABEL[i.unit])}`,
+          icon: Package,
+          group: "Склад",
+          keywords: [i.sku, ...i.barcodes],
+          onSelect: () => {
+            setPage("stock");
+            setFocusItem(i.id);
+          },
+        }),
+      ),
+    ];
+    // openRequest стабилен по смыслу: только сеттеры.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.requests, state.stock, levels, dark]);
 
   return (
     <SidebarProvider>
@@ -111,13 +197,32 @@ function Shell() {
       <SidebarInset>
         <div className="flex h-12 items-center gap-2 px-4">
           <SidebarTrigger />
-          <span className="text-[12px] text-muted-foreground">Набросок · данные тестовые, хранятся в браузере</span>
+          <span className="hidden truncate text-[12px] text-muted-foreground sm:inline">
+            Набросок · данные тестовые, хранятся в браузере
+          </span>
+          <button
+            type="button"
+            onClick={() => setPalette(true)}
+            className="ml-auto flex h-7 items-center gap-2 rounded-md border border-border px-2.5 text-[12px] text-muted-foreground transition-colors hover:bg-hover hover:text-foreground"
+          >
+            <Search className="size-3.5" aria-hidden />
+            Поиск и команды
+            <kbd className="rounded border border-border px-1 font-sans text-[11px]">⌘K</kbd>
+          </button>
         </div>
-        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 pb-10 pt-2">
-          {page === "dashboard" && <DashboardPage onOpenRequest={openRequest} />}
+        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-10 pt-2 md:px-6">
+          {page === "dashboard" && <DashboardPage onOpenRequest={openRequest} onOpenStock={() => setPage("stock")} />}
           {page === "requests" && <RequestsPage initiallyOpen={expanded} />}
+          {page === "stock" && <StockPage focusItemId={focusItem} />}
           {page === "employees" && <EmployeesPage />}
         </main>
+        <CommandMenuDialog open={palette} onOpenChange={setPalette} title="Поиск и команды">
+          <CommandMenu items={commands}>
+            <CommandMenuInput placeholder="Раздел, заявка №, клиент, запчасть или артикул…" />
+            <CommandMenuList />
+            <CommandMenuEmpty>Ничего не нашли</CommandMenuEmpty>
+          </CommandMenu>
+        </CommandMenuDialog>
       </SidebarInset>
     </SidebarProvider>
   );

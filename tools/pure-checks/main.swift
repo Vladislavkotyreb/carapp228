@@ -819,7 +819,7 @@ group("Запись на сервис") {
           "Осталось меньше 5\u{00A0}000\u{00A0}км")
     check("красная — свой", ServiceMath.bookingHint(kmLeft: 400),
           "Осталось меньше 1\u{00A0}000\u{00A0}км")
-    check("просрочено — без числа", ServiceMath.bookingHint(kmLeft: 0), "ТО пора пройти")
+    check("просрочено — без числа", ServiceMath.bookingHint(kmLeft: 0), "Самое время пройти ТО")
 
     let here = GeoPoint(latitude: 55.75, longitude: 37.61)
     check("ближайшая по расстоянию, а не первая в выдаче",

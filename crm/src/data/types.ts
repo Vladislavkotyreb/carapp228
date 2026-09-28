@@ -49,6 +49,11 @@ export interface ServiceRequest {
   payload: RequestPayload;
   status: RequestStatus;
   assigneeId?: string;
+  /** Расход по заявке: что мастер потратил. Черновик, пока не списан. */
+  parts?: PartLine[];
+  /** Когда расход списан со склада. Списанный расход не правится — только
+   *  «Вернуть на склад», чтобы движение по складу не расходилось с заявкой. */
+  partsWrittenOffAt?: string;
 }
 
 /** Роль — данные, а не зашитый список: у каждого сервиса свои должности
@@ -58,22 +63,17 @@ export interface RoleDef {
   name: string;
 }
 
-/** Как платим. Сумма типов, а не два необязательных поля: у сотрудника
- *  либо ставка за смену, либо оклад — «и то и другое» выразить нельзя. */
-export type Pay =
-  | { kind: "daily"; rate: number }
-  | { kind: "monthly"; salary: number };
-
 export interface Employee {
   id: string;
   name: string;
   roleId: string;
   phone: string;
-  pay: Pay;
-  /** Табель: отработанные дни, `ГГГГ-ММ-ДД`. «На смене» — это отметка
-   *  сегодняшнего дня здесь же, а не отдельный флаг: два источника правды
-   *  о том, работает ли человек сегодня, разошлись бы. */
+  /** Дни на смене, `ГГГГ-ММ-ДД`. «На смене» — отметка сегодняшнего дня
+   *  здесь же, а не отдельный флаг: два источника правды разошлись бы. */
   workDays: string[];
+  /** Деактивирован: ушёл из сервиса. Не удаляем — на нём закрытые заявки,
+   *  без записи они потеряли бы имя исполнителя. */
+  deactivatedAt?: string;
 }
 
 export const STATUS_LABEL: Record<RequestStatus, string> = {
@@ -97,10 +97,73 @@ export const SOURCE_LABEL: Record<RequestSource, string> = {
   site: "Сайт",
 };
 
-export const PAY_KIND_LABEL: Record<Pay["kind"], string> = {
-  daily: "Ставка за смену",
-  monthly: "Месячный оклад",
-};
 
 /** Открытые статусы — те, что ещё занимают сотрудника. */
 export const OPEN_STATUSES: readonly RequestStatus[] = ["new", "in_progress", "waiting_parts"];
+
+// --------------------------------------------------------------------- Склад
+
+/** Единица учёта. Масло и жидкости — литрами: из бочки отпускают на розлив,
+ *  и даже канистра на машину уходит не целиком. */
+export type Unit = "pcs" | "l";
+
+export const UNIT_LABEL: Record<Unit, string> = { pcs: "шт", l: "л" };
+
+/** Роль расходника в шаблоне работ: «масло», «масляный фильтр». По ней
+ *  шаблон «Замена масла» находит, что именно положить в расход. */
+export type StockRole =
+  | "engine_oil"
+  | "oil_filter"
+  | "drain_washer"
+  | "air_filter"
+  | "cabin_filter"
+  | "brake_pads_front"
+  | "antifreeze"
+  | "brake_fluid";
+
+export interface StockItem {
+  id: string;
+  name: string;
+  /** Артикул производителя — по нему ищут и по нему же заказывают. */
+  sku: string;
+  /** Штрихкоды упаковки (EAN-13 и т. п.). У одной детали от разных
+   *  поставщиков бывают разные коды, поэтому список. */
+  barcodes: string[];
+  unit: Unit;
+  /** Сколько единиц в упаковке: канистра 4 л. Скан упаковки при приходе
+   *  добавляет её целиком. Нет — упаковка равна единице. */
+  pack?: number;
+  /** Порог «заканчивается». */
+  min: number;
+  /** Закупочная цена за единицу, ₽. */
+  price: number;
+  role?: StockRole;
+  /** Для каких машин подходит — слова из названия машины. Пусто — для всех
+   *  (шайба, жидкости). Фильтры у каждой марки свои. */
+  fits?: string[];
+  /** Товар с обязательной маркировкой «Честный знак» (масла, антифриз,
+   *  тормозная жидкость — поштучный учёт с 1 апреля 2026). */
+  marked?: boolean;
+}
+
+/** Почему изменился остаток. Остаток не хранится — он сумма движений:
+ *  одно место правды, и журнал объясняет любое число на складе. */
+export type MoveReason =
+  | { kind: "receipt" }
+  | { kind: "writeoff"; requestId: string }
+  | { kind: "return"; requestId: string }
+  | { kind: "count" };
+
+export interface StockMove {
+  id: string;
+  itemId: string;
+  /** В единицах позиции; расход — отрицательный. */
+  delta: number;
+  at: string;
+  reason: MoveReason;
+}
+
+export interface PartLine {
+  itemId: string;
+  qty: number;
+}
