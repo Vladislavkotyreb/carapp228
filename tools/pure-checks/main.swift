@@ -769,6 +769,38 @@ group("PhoneFormat") {
           "8\u{00A0}800\u{00A0}555-35-35")
 }
 
+// ---------------------------------------------------------------- CloudMath
+
+group("CloudMath") {
+    let right = CloudMath.capsulePoint(0, a: 100, b: 50)
+    check("капсула: угол 0 — правый край", right.x == 100 && abs(right.y) < 1e-9, true)
+    let top = CloudMath.capsulePoint(Double.pi / 2, a: 100, b: 50)
+    check("капсула: угол π/2 — нижняя точка", abs(top.x) < 1e-6 && top.y == 50, true)
+
+    check("волна гаснет на краях", abs(CloudMath.wave(0, time: 3, k: 1.4, speed: 1.8, phase: 1)) < 1e-9, true)
+    check("волна в пределах −1…1",
+          (0...100).allSatisfy { abs(CloudMath.wave(Double($0) / 100, time: 7.3, k: 1.4, speed: 1.8, phase: 3.1)) <= 1 },
+          true)
+
+    check("дыхание не опускается ниже 0.22",
+          (0...300).allSatisfy { CloudMath.drive(level: 0, at: Double($0) / 10) >= 0.22 }, true)
+    check("громкий мотор ведёт уровень сам", CloudMath.drive(level: 0.9, at: 1), 0.9)
+    check("уровень выше 1 не уходит", CloudMath.drive(level: 3, at: 1), 1)
+
+    check("дно моргания — 0.12", CloudMath.blink(at: 1.8), 0.12)
+    check("между морганиями фары открыты", CloudMath.blink(at: 0.4), 1)
+    check("моргание в пределах 0.12…1",
+          (0...400).allSatisfy { (0.12...1).contains(CloudMath.blink(at: Double($0) / 37, seed: 0.8)) }, true)
+
+    check("смена настроения: начало", CloudMath.moodProgress(elapsed: 0), 0)
+    check("смена настроения: конец", CloudMath.moodProgress(elapsed: 5), 1)
+    check("смешивание лиц: t = 1 даёт новое", CloudFace.of(.listen).mixed(with: .of(.knock), 1), CloudFace.of(.knock))
+    check("смешивание цвета: t = 1 даёт янтарь",
+          CloudPalette.prism.glow.mixed(with: CloudPalette.amber, 1), CloudPalette.amber)
+    check("смешивание цвета не выходит за t = 1",
+          CloudPalette.aurora.glow.mixed(with: CloudPalette.amber, 2), CloudPalette.amber)
+}
+
 print("")
 print("Состояний в каталоге: \(UIStateCatalog.all.count), "
       + "из них без ноды макета: \(UIStateCatalog.withoutNode.count).")

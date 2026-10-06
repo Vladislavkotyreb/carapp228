@@ -24,6 +24,13 @@ enum OrbStyle {
     /// `VoiceOrb`, `audio-pipeline`, `forces`, `utils`), поэтому перенесён
     /// приём, а не реализация.
     case particles
+    /// Облачко: стеклянная капсула с волной, палитра Aurora (`SoundCapsule`).
+    case glassAurora
+    /// То же облачко в палитре Prism.
+    case glassPrism
+    /// Облачко с персонажем-фарами: в тишине спокойны, в записи взгляд
+    /// гуляет за звуком.
+    case glassEyes
 }
 
 struct SoundOrb: View {
@@ -83,10 +90,14 @@ struct SoundOrb: View {
     }
 
     var body: some View {
-        if Self.style == .figma {
-            figmaOrb
-        } else {
-            generated
+        switch Self.style {
+        case .figma: figmaOrb
+        case .glassAurora: SoundCapsule(level: level, palette: .aurora)
+        case .glassPrism: SoundCapsule(level: level, palette: .prism)
+        case .glassEyes:
+            SoundCapsule(level: level, palette: .aurora, content: .eyes,
+                         mood: level > 0 ? .listen : .quiet)
+        case .wave, .blob, .particles: generated
         }
     }
 
@@ -134,7 +145,8 @@ struct SoundOrb: View {
             Canvas { context, size in
                 let t = phase(at: timeline.date)
                 switch Self.style {
-                case .figma, .wave: draw(in: &context, size: size, time: t)
+                case .figma, .wave, .glassAurora, .glassPrism, .glassEyes:
+                    draw(in: &context, size: size, time: t)
                 case .blob: drawBlob(in: &context, size: size, time: t)
                 case .particles: drawParticles(in: &context, size: size, time: t)
                 }
