@@ -118,7 +118,7 @@ struct FloatingTabBar: View {
         TabItem(symbol: "map", selectedSymbol: "map.fill",
                 title: "Карта", color: Figma.vibrantControlsPrimary),
         TabItem(symbol: "wrench.adjustable", selectedSymbol: "wrench.adjustable.fill",
-                title: "Ошибки", color: Figma.vibrantControlsPrimary),
+                title: "Диагностика", color: Figma.vibrantControlsPrimary),
         // У «ellipsis» заливного варианта нет — вкладка отличается пилюлей и цветом.
         TabItem(symbol: "ellipsis", selectedSymbol: "ellipsis",
                 title: "Ещё", color: Figma.labelsPrimary)

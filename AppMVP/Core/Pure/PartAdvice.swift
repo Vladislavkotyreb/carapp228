@@ -34,6 +34,11 @@ enum PartAdvice {
             "Проверить люфт шкива и\u{00A0}подтёки антифриза под помпой"
         case "ac_compressor":
             "Проверить, уходит ли звук при выключенном кондиционере"
+        case "accessories":
+            // Общая корзина разбора «что-то из навесного»: какой именно узел,
+            // он не назвал. Совета не было вовсе — карточка выходила без
+            // объяснения (найдено проверкой 06.10.2026).
+            "Послушать спереди мотора на холостых: ремень, ролики, генератор, помпа"
         case "exhaust":
             "Осмотреть глушитель и\u{00A0}гофру на прогар, проверить подвесы"
         case "turbo":
@@ -83,6 +88,10 @@ enum PartAdvice {
             ["Помпа", "Антифриз", "Прокладка помпы"]
         case "ac_compressor":
             ["Компрессор кондиционера", "Ремень привода", "Шкив компрессора"]
+        case "accessories":
+            // Только то, что меняют при любом шуме навесного: узел не назван,
+            // и генератор с помпой здесь были бы догадкой.
+            ["Ремень навесного", "Ролик натяжной"]
         case "exhaust":
             ["Гофра глушителя", "Подвесы глушителя", "Прокладка приёмной трубы"]
         case "turbo":
@@ -135,6 +144,8 @@ enum PartAdvice {
             "Шуршание или гул спереди мотора. Помпа гоняет антифриз — её подшипник со временем начинает шуметь и\u{00A0}течь."
         case "ac_compressor":
             "Гул или щелчки при включённом кондиционере. Компрессор или его муфта изнашиваются."
+        case "accessories":
+            "Шум спереди мотора от\u{00A0}того, что крутит приводной ремень: генератор, помпа, компрессор, ролики. Какой именно узел — покажет осмотр."
         case "exhaust":
             "Рокот или дребезг снизу, громче на разгоне. Прогорел глушитель, гофра или ослабли подвесы."
         case "turbo":
@@ -209,5 +220,104 @@ enum PartAdvice {
         case (nil, false):       return "Обычно меняют: " + items
         case (nil, true):        return nil
         }
+    }
+}
+
+// MARK: - Словарь разбора
+//
+// Переехал сюда из `Core/Services/CarDiagnosis.swift` 06.10.2026: это словарь
+// без состояния и сети, а в чистом слое его проверяет `run-pure-checks.sh`.
+
+/// Русские названия для словаря `cardiag`. Списки взяты из
+/// `pipeline/build.py`: шесть зон и семейства неисправностей, разложенные по
+/// ним. Держим полностью, а не «что попалось»: незнакомое семейство иначе
+/// доедет до экрана английским идентификатором вроде `wheel_bearing`.
+enum DiagnosisVocabulary {
+    /// Зона, к которой пайплайн относит семейство. Раскладка та же, что в
+    /// `_REGION` из `pipeline/build.py`, — сервер присылает зоны отдельным
+    /// списком, но там они общие для всей записи, а на карточке нужна своя.
+    static func zone(forPart key: String) -> String {
+        switch key {
+        case "engine_internal", "rod_knock", "valvetrain", "low_oil",
+             "fuel_ignition", "fuel_pump":
+            "Двигатель"
+        case "belt", "alternator", "water_pump", "ac_compressor", "accessories":
+            "Навесное оборудование"
+        case "exhaust", "turbo":
+            "Выпускная система"
+        case "cv_axle", "cv_joint", "differential":
+            "Трансмиссия"
+        case "suspension", "power_steering":
+            "Подвеска и рулевое"
+        case "brakes", "wheel_bearing", "bad_wheal_bearing", "wheel_tire", "tires":
+            "Тормоза и колёса"
+        case "transmission":
+            "Трансмиссия"
+        case "cooling_other":
+            "Система охлаждения"
+        case "mounts":
+            "Опоры двигателя"
+        default:
+            "Не определено"
+        }
+    }
+
+    static func part(_ key: String) -> String {
+        switch key {
+        case "engine_internal": "Внутри двигателя"
+        case "rod_knock": "Стук шатунных вкладышей"
+        case "valvetrain": "Газораспределительный механизм"
+        case "low_oil": "Низкий уровень масла"
+        case "fuel_ignition": "Топливо и зажигание"
+        case "fuel_pump": "Топливный насос"
+        case "belt": "Ремень привода"
+        case "alternator": "Генератор"
+        case "water_pump": "Помпа"
+        case "ac_compressor": "Компрессор кондиционера"
+        case "accessories": "Навесное оборудование"
+        case "exhaust": "Выпускная система"
+        case "turbo": "Турбина"
+        case "cv_joint": "ШРУС"
+        case "cv_axle": "Приводной вал"
+        case "differential": "Дифференциал"
+        case "suspension": "Подвеска"
+        case "power_steering": "Усилитель руля"
+        case "brakes": "Тормоза"
+        // Два класса ступичного подшипника — не опечатка здесь, а опечатка в
+        // разметке самой модели: в ней рядом живут `wheel_bearing` и
+        // `bad_wheal_bearing`. Оба ведём в одно название.
+        case "wheel_bearing", "bad_wheal_bearing": "Ступичный подшипник"
+        case "wheel_tire", "tires": "Колёса и шины"
+        case "transmission": "Коробка передач"
+        case "cooling_other": "Система охлаждения"
+        case "mounts": "Опоры двигателя"
+        case "other": "Что-то другое"
+        case "none": "Ничего определённого"
+        default: key
+        }
+    }
+
+    /// Коды деталей, у которых есть название. Нужен обратный поиск «название
+    /// → код» для находок, сохранённых без кода.
+    static let partCodes = [
+        "engine_internal", "rod_knock", "valvetrain", "low_oil", "fuel_ignition",
+        "fuel_pump", "belt", "alternator", "water_pump", "ac_compressor", "accessories",
+        "exhaust", "turbo", "cv_joint", "cv_axle", "differential", "suspension",
+        "power_steering", "brakes", "wheel_bearing", "wheel_tire", "transmission",
+        "cooling_other", "mounts"
+    ]
+
+    /// Код детали по её названию — для находок, сохранённых до того, как
+    /// код стали писать в базу. `extra` — названия не из словаря (заглушка
+    /// разбора): пары «название — код». Нет совпадения — `nil`, и находка
+    /// остаётся карточкой без «что это может быть».
+    ///
+    /// У двух кодов бывает одно название («Ступичный подшипник»); берётся
+    /// первый по `partCodes` — совет у них общий.
+    static func partCode(forTitle title: String,
+                         extra: [(title: String, code: String)] = []) -> String? {
+        let wanted = title.trimmingCharacters(in: .whitespaces)
+        if let code = partCodes.first(where: { part($0) == wanted }) { return code }
+        return extra.first { $0.title == wanted }?.code
     }
 }

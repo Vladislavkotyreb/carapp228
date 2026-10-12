@@ -27,6 +27,9 @@ struct MapPin: Identifiable, Equatable {
     /// организации у Яндекса. В базу не сохраняется: избранное хранит только
     /// телефон, а ссылки приходят заново с каждым поиском.
     var contacts: [ContactLink] = []
+    /// Фото, рейтинг, часы и рубрики — для карточки в списке. У сохранённого
+    /// места пусто, пока поиск не нашёл его же рядом.
+    var details = PlaceDetails()
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
@@ -59,11 +62,14 @@ extension MapPin {
     }
 }
 
-/// Заготовка места, которую пользователь ставит долгим нажатием.
+/// Булавка — место, которое пользователь отметил на карте, но ещё не
+/// добавил: тап ставит её, из её карточки место добавляют.
 struct PlaceDraft: Identifiable, Equatable {
     let id = UUID()
     let latitude: Double
     let longitude: Double
+
+    var point: GeoPoint { GeoPoint(latitude: latitude, longitude: longitude) }
 }
 
 /// Всё, что раздел «Карта» знает про Яндекс: карта, поиск мест, маршрут и
@@ -91,9 +97,28 @@ final class MapController: NSObject, ObservableObject {
         }
     }
     @Published private(set) var found: [MapPin] = []
-    @Published var selected: MapPin?
+    /// Что искали текстом. `nil` — поиск идёт по активным типам.
+    @Published private(set) var textQuery: String?
+    /// Только сохранённые: избранное и свои точки. Найденное рядом уходит и
+    /// с карты, и из списка — чип «Избранное».
+    @Published var savedOnly = false {
+        didSet {
+            guard savedOnly != oldValue else { return }
+            redraw()
+            // Пока смотрели своё, карту могли увезти — найденное обновляем.
+            if !savedOnly { search() }
+        }
+    }
+    /// Выбранное место. Вместе с булавкой не живёт: карточка внизу одна, и
+    /// выбор места булавку снимает.
+    @Published var selected: MapPin? {
+        didSet { if selected != nil, draft != nil { clearDraft() } }
+    }
     @Published private(set) var isSearching = false
-    @Published var draft: PlaceDraft?
+    /// Булавка на карте. Ставится тапом по пустому месту, см. `dropPin`.
+    @Published private(set) var draft: PlaceDraft?
+    /// Булавка, для которой открыта форма «Новое место».
+    @Published var form: PlaceDraft?
     @Published var message: String?
     /// Есть ли разрешение и позиция. Без неё маршрут строить не от чего.
     @Published private(set) var hasLocation = false
@@ -115,7 +140,13 @@ final class MapController: NSObject, ObservableObject {
     // MARK: Владение объектами SDK
 
     private weak var map: YMKMap?
-    private var placemarks: YMKMapObjectCollection?
+    private var placemarks: YMKClusterizedPlacemarkCollection?
+    /// Значок булавки. Лежит мимо `placemarks`: ту коллекцию перерисовка
+    /// очищает целиком, а булавка поиск и фильтры переживает.
+    private var draftMark: YMKPlacemarkMapObject?
+    private var draftAnimation: DispatchWorkItem?
+    /// Отложенный поиск после сдвига карты, см. `onCameraPositionChanged`.
+    private var cameraSearch: DispatchWorkItem?
     /// Готовый слой парковок Яндекса: платные и бесплатные зоны с разметкой,
     /// те же, что в Яндекс Картах. Им, а не поиском «парковка», показываются
     /// парковки: поиск находил организации-парковки точками, а у Яндекса
@@ -161,12 +192,15 @@ final class MapController: NSObject, ObservableObject {
         // остаются читаемыми, чего фильтром поверх не добиться.
         map.isNightModeEnabled = true
 
-        placemarks = map.mapObjects.add()
+        // Коллекция с группировкой: при отдалении близкие метки сливаются в
+        // одну с числом (просьба пользователя 08.10.2026, образец — Airbnb).
+        placemarks = map.mapObjects.addClusterizedPlacemarkCollection(with: self)
 
         // Слушатели SDK хранит слабо — живыми их держит сам контроллер,
         // который лежит в `@StateObject` экрана.
         placemarks?.addTapListener(with: self)
         map.addInputListener(with: self)
+        map.addCameraListener(with: self)
 
         let layer = YMKMapKit.sharedInstance()
             .createUserLocationLayer(with: mapView.mapWindow)
@@ -210,10 +244,43 @@ final class MapController: NSObject, ObservableObject {
     }
 
     private func requestLocation() {
+        // Геопозиция выключена в приложении («Ещё» → «Геопозиция»): карта
+        // ведёт себя как при запрете — без точки «я здесь» и расстояний.
+        let isOn = LocationSwitch.isOn
+        userLayer?.setVisibleWithOn(isOn)
+        guard isOn else {
+            location.stopUpdatingLocation()
+            hasLocation = false
+            here = nil
+            centerWithoutLocation()
+            return
+        }
         switch location.authorizationStatus {
         case .notDetermined: location.requestWhenInUseAuthorization()
         case .authorizedWhenInUse, .authorizedAlways: location.startUpdatingLocation()
-        default: hasLocation = false
+        default:
+            hasLocation = false
+            centerWithoutLocation()
+        }
+    }
+
+    /// Геопозиции нет и не будет (запрещена или выключена): карта встаёт на
+    /// сохранённые места или на Москву и ищет там. Раньше она оставалась на
+    /// виде всего материка (найдено 08.10.2026). Один раз за жизнь карты —
+    /// дальше человек двигает её сам.
+    private func centerWithoutLocation() {
+        guard !didCenter, map != nil else { return }
+        didCenter = true
+        // На следующем проходе цикла: `attach` приходит раньше `onAppear`
+        // экрана, и сохранённых мест в этот момент ещё нет.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            let center = MapGeo.fallbackCenter(saved: self.saved.map {
+                GeoPoint(latitude: $0.latitude, longitude: $0.longitude)
+            })
+            self.move(to: CLLocationCoordinate2D(latitude: center.latitude,
+                                                 longitude: center.longitude),
+                      zoom: 11) { [weak self] in self?.search() }
         }
     }
 
@@ -226,12 +293,26 @@ final class MapController: NSObject, ObservableObject {
     /// поиск вокруг его собственной точки в этот момент бесполезен.
     func search() {
         // Парковки не ищутся: их рисует слой Яндекса, см. `carparks`.
-        let kinds = activeKinds.subtracting([.parking])
-        guard let map, !kinds.isEmpty else {
-            if kinds.isEmpty { found = []; redraw() }
+        // Набран текст в поиске шторки — ищем его одним запросом вместо
+        // типов. Тип у найденного — СТО: Яндекс рубрику в удобном виде не
+        // отдаёт, а значок и раздел списка точке нужны.
+        let requests: [(kind: PlaceKind, text: String)]
+        if let textQuery {
+            requests = [(.service, textQuery)]
+        } else {
+            // Порядок — от СТО к шиномонтажу, а не как отдаст множество: из
+            // двух карточек одного места остаётся первая, и тип у неё не
+            // должен меняться от запуска к запуску.
+            requests = [PlaceKind.service, .tyre]
+                .filter(activeKinds.contains)
+                .map { ($0, $0.query) }
+        }
+        guard let map, !requests.isEmpty else {
+            if requests.isEmpty { found = []; redraw() }
             return
         }
 
+        cameraSearch?.cancel()
         let region = map.visibleRegion
         let box = YMKBoundingBox(southWest: region.bottomLeft, northEast: region.topRight)
         let geometry = YMKGeometry(boundingBox: box)
@@ -239,6 +320,8 @@ final class MapController: NSObject, ObservableObject {
         let options = YMKSearchOptions()
         options.searchTypes = .biz
         options.resultPageSize = 32
+        // Фото и рейтинг — для карточек списка; без запроса их не отдают.
+        options.snippets = [.photos, .businessRating1x]
         if let here { options.userPosition = YMKPoint(latitude: here.latitude,
                                                       longitude: here.longitude) }
 
@@ -259,12 +342,16 @@ final class MapController: NSObject, ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 15, execute: watchdog)
 
         var collected: [PlaceKind: [MapPin]] = [:]
-        var pending = kinds.count
+        var pending = requests.count
 
-        for kind in kinds {
-            searchSessions[kind]?.cancel()
+        // Сессии прошлого поиска гасим все: после текстового запроса набор
+        // типов другой, и опоздавший ответ затёр бы свежий.
+        searchSessions.values.forEach { $0.cancel() }
+        searchSessions.removeAll()
+
+        for (kind, text) in requests {
             searchSessions[kind] = searchManager.submit(
-                withText: kind.query,
+                withText: text,
                 geometry: geometry,
                 searchOptions: options
             ) { [weak self] response, error in
@@ -276,16 +363,26 @@ final class MapController: NSObject, ObservableObject {
                     if Self.isKeyRejected(error) {
                         self.keyRejected = true
                     } else if pending == 0, collected.isEmpty {
-                        self.message = "Не удалось загрузить места"
+                        self.message = "Места не\u{00A0}загрузились. Попробуйте ещё раз"
                     }
                 }
                 guard pending == 0 else { return }
                 self.searchWatchdog?.cancel()
                 self.isSearching = false
-                self.found = kinds.flatMap { collected[$0] ?? [] }
+                self.found = MapGeo.unique(requests.flatMap { collected[$0.kind] ?? [] }) {
+                    MapGeo.duplicateKey(title: $0.title, subtitle: $0.subtitle)
+                }
                 self.redraw()
             }
         }
+    }
+
+    /// Поиск по тексту из поля шторки: название, услуга или адрес. Пустая
+    /// строка возвращает поиск по активным типам.
+    func search(text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        textQuery = trimmed.isEmpty ? nil : trimmed
+        search()
     }
 
     /// То же, но с ожиданием конца поиска — для «потянуть, чтобы обновить».
@@ -324,8 +421,27 @@ final class MapController: NSObject, ObservableObject {
                           longitude: point.longitude,
                           source: .found,
                           phone: phone(of: object),
-                          contacts: contacts(of: object))
+                          contacts: contacts(of: object),
+                          details: details(of: object))
         }
+    }
+
+    /// Фото и рейтинг приходят сниппетами (`options.snippets`), часы и
+    /// рубрики — в метаданных бизнеса.
+    private static func details(of object: YMKGeoObject) -> PlaceDetails {
+        let box = object.metadataContainer
+        let photos = box.getItemOf(YMKSearchBusinessPhotoObjectMetadata.self)
+            as? YMKSearchBusinessPhotoObjectMetadata
+        let rating = box.getItemOf(YMKSearchBusinessRating1xObjectMetadata.self)
+            as? YMKSearchBusinessRating1xObjectMetadata
+        let business = box.getItemOf(YMKSearchBusinessObjectMetadata.self)
+            as? YMKSearchBusinessObjectMetadata
+        return PlaceDetails(photo: photos?.photos.first?.id,
+                            photos: photos?.photos.map(\.id) ?? [],
+                            rating: rating?.score?.doubleValue,
+                            ratings: Int(rating?.ratings ?? 0),
+                            hours: business?.workingHours?.state?.shortText,
+                            categories: business?.categories.map(\.name) ?? [])
     }
 
     /// Онлайн-запись, мессенджеры и сайт из карточки организации. Лежат там
@@ -364,6 +480,10 @@ final class MapController: NSObject, ObservableObject {
         if !activeKinds.contains(.service) { activeKinds.insert(.service) }
 
         guard let here else {
+            guard LocationSwitch.isOn else {
+                message = "Включите геопозицию в\u{00A0}разделе «Ещё», чтобы найти ближайший сервис"
+                return
+            }
             switch location.authorizationStatus {
             case .denied, .restricted:
                 message = "Разрешите доступ к геопозиции, чтобы найти ближайший сервис"
@@ -392,6 +512,8 @@ final class MapController: NSObject, ObservableObject {
         let options = YMKSearchOptions()
         options.searchTypes = .biz
         options.resultPageSize = 32
+        // Фото и рейтинг — для карточек списка; без запроса их не отдают.
+        options.snippets = [.photos, .businessRating1x]
         options.userPosition = YMKPoint(latitude: here.latitude, longitude: here.longitude)
 
         nearestSession?.cancel()
@@ -409,8 +531,8 @@ final class MapController: NSObject, ObservableObject {
             let pins = response.map { Self.pins(from: $0, kind: .service) } ?? []
             let origin = GeoPoint(latitude: here.latitude, longitude: here.longitude)
             guard let index = MapGeo.nearest(to: origin, among: pins.map(\.point)) else {
-                self.message = response == nil ? "Не удалось найти сервисы рядом"
-                                                : "Рядом не нашлось автосервисов"
+                self.message = response == nil ? "Сервисы не\u{00A0}нашлись. Попробуйте ещё раз"
+                                                : "Рядом нет автосервисов"
                 return
             }
             let pin = pins[index]
@@ -447,7 +569,7 @@ final class MapController: NSObject, ObservableObject {
         let mine = saved
             .filter { activeKinds.contains($0.kind) }
             .map { MapPin(place: $0) }
-        return mine + nearby
+        return savedOnly ? mine : mine + nearby
     }
 
     private func redraw() {
@@ -461,28 +583,81 @@ final class MapController: NSObject, ObservableObject {
             // значит промахиваться на двух местах в одном доме.
             mark.userData = pin.id as NSString
         }
+        // Без этого вызова SDK не группирует и не показывает ничего нового.
+        placemarks.clusterPlacemarks(withClusterRadius: Self.clusterRadius,
+                                     minZoom: Self.clusterMinZoom)
+    }
+
+    /// Метки ближе 56 pt друг к другу — это ширина самой метки — сливаются.
+    /// С 16-го масштаба (дома и подъезды) группировки нет: там метки уже
+    /// не перекрываются, а два сервиса в одном доме надо уметь различить.
+    private static let clusterRadius: Double = 56
+    private static let clusterMinZoom: UInt = 16
+
+    /// Метка группы: белая пилюля, число и рядом объёмные значки того, что
+    /// внутри — звезда, ключ, шина (просьба пользователя 08.10.2026: не слово
+    /// «мест», а сами места). Парковка без модели значка не даёт.
+    private static func clusterIcon(count: Int, models: [String]) -> UIImage {
+        let number = NSAttributedString(string: "\(count)", attributes: [
+            .font: UIFont.systemFont(ofSize: 17, weight: .bold), .foregroundColor: UIColor.black])
+        let numberSize = number.size()
+        let icons = models.compactMap { UIImage(named: $0) }
+        let icon: CGFloat = 30, overlap: CGFloat = 10, inset: CGFloat = 12, gap: CGFloat = 4
+        let strip = icons.isEmpty ? 0 : icon + CGFloat(icons.count - 1) * (icon - overlap)
+        let width = max(44, inset + ceil(numberSize.width) + (icons.isEmpty ? inset : gap + strip + 8))
+        let height: CGFloat = 44
+        let shadow: CGFloat = 6
+        let size = CGSize(width: width + shadow * 2, height: height + shadow * 2)
+        return UIGraphicsImageRenderer(size: size).image { context in
+            let rect = CGRect(x: shadow, y: shadow, width: width, height: height)
+            context.cgContext.setShadow(offset: CGSize(width: 0, height: 2), blur: shadow,
+                                        color: UIColor.black.withAlphaComponent(0.35).cgColor)
+            UIColor.white.setFill()
+            UIBezierPath(roundedRect: rect, cornerRadius: height / 2).fill()
+            context.cgContext.setShadow(offset: .zero, blur: 0, color: nil)
+            let left = icons.isEmpty ? rect.midX - numberSize.width / 2 : rect.minX + inset
+            number.draw(at: CGPoint(x: left, y: rect.midY - numberSize.height / 2))
+            var x = left + ceil(numberSize.width) + gap
+            for image in icons {
+                image.draw(in: CGRect(x: x, y: rect.midY - icon / 2, width: icon, height: icon))
+                x += icon - overlap
+            }
+        }
+    }
+
+    /// Имя объёмной модели для точки: избранное — звезда, остальное — по виду.
+    private static func model(for pin: MapPin) -> String? {
+        pin.isSaved ? "MapIconStar" : pin.kind.model
     }
 
     /// Значок точки. Свой рисуется, а не берётся из SDK: у него значков нет
     /// вовсе, а SF Symbol нужного цвета получается из шрифта одной строкой.
     private static func icon(for pin: MapPin) -> UIImage {
+        // Объёмные метки (просьба пользователя 08.10.2026, образец — карта
+        // Airbnb): избранное — звезда, СТО — ключ с отвёрткой, шиномонтаж —
+        // шина. Рендеры из `tools/map-icons/render.swift`. У парковки модели
+        // нет — она остаётся кружком со значком.
+        if let model = model(for: pin), let image = UIImage(named: model) { return image }
+
         let side: CGFloat = 34
-        let tint = UIColor(pin.kind.tint)
+        // Без цвета категории (решение пользователя 03.10.2026, макет
+        // `46421:217`): тип различает значок. Найденное — тёмный кружок с
+        // белым значком, своё и избранное — белый с чёрным.
+        let fill = pin.isSaved ? UIColor.white : UIColor(Figma.sheetControl)
+        let ink = pin.isSaved ? UIColor.black : UIColor.white
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side))
         return renderer.image { context in
             let rect = CGRect(x: 1, y: 1, width: side - 2, height: side - 2)
-            // Свои места отличаются от найденных заливкой, а не цветом: цвет
-            // здесь уже занят типом.
             let path = UIBezierPath(ovalIn: rect)
-            (pin.isSaved ? tint : UIColor.white).setFill()
+            fill.setFill()
             path.fill()
-            tint.setStroke()
-            path.lineWidth = 2
+            UIColor.white.withAlphaComponent(pin.isSaved ? 0.2 : 0.85).setStroke()
+            path.lineWidth = 1.5
             path.stroke()
 
             let config = UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
             let glyph = UIImage(systemName: pin.kind.symbol, withConfiguration: config)?
-                .withTintColor(pin.isSaved ? .white : tint, renderingMode: .alwaysOriginal)
+                .withTintColor(ink, renderingMode: .alwaysOriginal)
             if let glyph {
                 let size = glyph.size
                 glyph.draw(in: CGRect(x: (side - size.width) / 2,
@@ -506,7 +681,12 @@ final class MapController: NSObject, ObservableObject {
     /// объявления схемы в `LSApplicationQueriesSchemes` всегда отвечает «нет».
     /// Объявление лежит в `AppMVP/Resources/Info.plist`.
     func openInYandexMaps(to pin: MapPin) {
-        let to = "\(pin.latitude),\(pin.longitude)"
+        openInYandexMaps(latitude: pin.latitude, longitude: pin.longitude)
+    }
+
+    /// То же до произвольной точки — так ведёт маршрут булавка.
+    func openInYandexMaps(latitude: Double, longitude: Double) {
+        let to = "\(latitude),\(longitude)"
         let app = URL(string: "yandexmaps://maps.yandex.ru/?rtext=~\(to)&rtt=auto")
         let web = URL(string: "https://yandex.ru/maps/?rtext=~\(to)&rtt=auto")
 
@@ -531,7 +711,8 @@ final class MapController: NSObject, ObservableObject {
 
     func centerOnMe() {
         guard let here else {
-            message = "Не видно вашего местоположения"
+            message = LocationSwitch.isOn ? "Не видно вашего местоположения"
+                                          : "Геопозиция выключена в\u{00A0}разделе «Ещё»"
             requestLocation()
             return
         }
@@ -560,22 +741,138 @@ extension MapController: YMKMapObjectTapListener {
     }
 }
 
+// MARK: - Группы меток
+
+extension MapController: YMKClusterListener, YMKClusterTapListener {
+    func onClusterAdded(with cluster: YMKCluster) {
+        // Что внутри группы: по одной модели на вид, в постоянном порядке.
+        let ids = Set(cluster.placemarks.compactMap { $0.userData as? String })
+        let inside = Set(visiblePins.filter { ids.contains($0.id) }.compactMap(Self.model(for:)))
+        let models = ["MapIconStar", "MapIconService", "MapIconTyre", "MapIconParking"].filter(inside.contains)
+        cluster.appearance.setIconWith(Self.clusterIcon(count: Int(cluster.size), models: models))
+        cluster.addClusterTapListener(with: self)
+    }
+
+    /// Тап по группе приближает к ней на два шага — группа распадается.
+    func onClusterTap(with cluster: YMKCluster) -> Bool {
+        guard let map else { return false }
+        let position = map.cameraPosition
+        map.move(with: YMKCameraPosition(target: cluster.appearance.geometry,
+                                         zoom: position.zoom + 2,
+                                         azimuth: position.azimuth, tilt: position.tilt),
+                 animation: YMKAnimation(type: .smooth, duration: 0.35), cameraCallback: nil)
+        return true
+    }
+}
+
 // MARK: - Тап по карте
 
 extension MapController: YMKMapInputListener {
     func onMapTap(with map: YMKMap, point: YMKPoint) {
-        // Тап по пустому месту закрывает карточку — так же ведут себя
-        // системные карты.
-        selected = nil
+        // Открыта карточка места — тап по пустому её закрывает, как в
+        // системных картах, и булавку не ставит: человек отменял, а не
+        // отмечал. Карточки нет — ставим булавку (просьба пользователя
+        // 03.10.2026): из её карточки место добавляют.
+        if selected != nil {
+            selected = nil
+        } else {
+            dropPin(at: point)
+        }
     }
 
-    /// Долгое нажатие ставит новое место. Жест выбран не случайно: обычный тап
-    /// уже занят выбором точки, а отдельная кнопка «поставить точку» потребовала
-    /// бы режима, из которого надо выходить.
+    /// Долгое нажатие — короткий путь: булавка и сразу форма «Новое место»,
+    /// минуя карточку. Так добавляли места до булавки, и привычный жест
+    /// остался.
     func onMapLongTap(with map: YMKMap, point: YMKPoint) {
         selected = nil
-        draft = PlaceDraft(latitude: point.latitude, longitude: point.longitude)
+        dropPin(at: point)
+        form = draft
     }
+}
+
+// MARK: - Камера
+
+extension MapController: YMKMapCameraListener {
+    /// Поиск идёт по видимой области и сам ходит за картой: подвинули —
+    /// через полсекунды места обновились. Кнопка «Искать здесь», стоявшая
+    /// тут полдня, заставляла делать руками то, что и так подразумевалось
+    /// (замечание пользователя 03.10.2026). Пауза — чтобы серия коротких
+    /// сдвигов стоила одного запроса. Только жест: свои перелёты камеры
+    /// (к точке, «я здесь») поиск запускают сами, где он нужен.
+    func onCameraPositionChanged(with map: YMKMap, cameraPosition: YMKCameraPosition,
+                                 cameraUpdateReason: YMKCameraUpdateReason, finished: Bool) {
+        guard cameraUpdateReason == .gestures else { return }
+        cameraSearch?.cancel()
+        // Среди одних сохранённых искать нечего — найденное всё равно скрыто.
+        guard finished, !savedOnly else { return }
+        let work = DispatchWorkItem { [weak self] in self?.search() }
+        cameraSearch = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+}
+
+// MARK: - Булавка
+
+extension MapController {
+    /// Поставить булавку, а стоящую — переставить: вторым тапом человек
+    /// уточняет место, а не начинает заново.
+    func dropPin(at point: YMKPoint) {
+        guard let map else { return }
+        draft = PlaceDraft(latitude: point.latitude, longitude: point.longitude)
+
+        let mark = draftMark ?? map.mapObjects.addPlacemark()
+        mark.geometry = point
+        mark.zIndex = 100
+        draftMark = mark
+        animateDraftMark(mark)
+    }
+
+    /// Снять булавку: крестик карточки, выбор другого места или сохранение.
+    func clearDraft() {
+        draftAnimation?.cancel()
+        if let draftMark, let map { map.mapObjects.remove(with: draftMark) }
+        draftMark = nil
+        draft = nil
+        form = nil
+    }
+
+    /// Открыть форму «Новое место» для стоящей булавки.
+    func nameDraft() {
+        form = draft
+    }
+
+    /// Булавка «втыкается»: вырастает из точки с небольшим перелётом. Шаги
+    /// руками, а не анимацией SDK: у значка анимируется только стиль, и
+    /// другой способ — подменять картинку на каждом кадре.
+    private func animateDraftMark(_ mark: YMKPlacemarkMapObject) {
+        draftAnimation?.cancel()
+        let image = Self.pinImage
+        let scales: [Float] = [0.3, 0.6, 0.9, 1.12, 1.06, 1.0]
+        mark.setIconWith(image, style: Self.pinStyle(scale: scales[0]))
+        for (step, scale) in scales.enumerated().dropFirst() {
+            let work = DispatchWorkItem { [weak self, weak mark] in
+                guard let self, let mark, mark === self.draftMark else { return }
+                mark.setIconStyleWith(Self.pinStyle(scale: scale))
+            }
+            if step == scales.count - 1 { draftAnimation = work }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.04 * Double(step), execute: work)
+        }
+    }
+
+    /// Остриё булавки — на точке: якорь по центру снизу, иначе при смене
+    /// масштаба карты она «плавала» бы вокруг своего места.
+    private static func pinStyle(scale: Float) -> YMKIconStyle {
+        let style = YMKIconStyle()
+        style.anchor = NSValue(cgPoint: CGPoint(x: 0.5, y: 1.0))
+        style.scale = NSNumber(value: scale)
+        return style
+    }
+
+    /// Объёмная булавка в стиле остальных меток (просьба пользователя
+    /// 08.10.2026): красная шляпка на стальной игле, рендер из
+    /// `tools/map-icons/render.swift`. Картинка обрезана так, что остриё —
+    /// середина нижней кромки: на неё смотрит якорь.
+    private static let pinImage = UIImage(named: "MapIconPin") ?? UIImage()
 }
 
 // MARK: - Геопозиция

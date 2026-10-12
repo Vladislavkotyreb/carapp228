@@ -26,10 +26,6 @@ final class AudioLevelMeter: ObservableObject {
     /// первые секунды: начни он с нуля, первые вдохи шара были бы ложными.
     private var noiseFloor: Double = 0.5
 
-    /// Ниже этого порога в децибелах считаем тишиной. −50 дБ примерно
-    /// соответствует тихой комнате, всё что тише — шум самого микрофона.
-    private let silenceFloor: Double = -50
-
     func start() {
         guard !isRunning else { return }
 

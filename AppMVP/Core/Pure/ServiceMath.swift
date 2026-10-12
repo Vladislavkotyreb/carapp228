@@ -74,12 +74,63 @@ enum ServiceMath {
         }
     }
 
+    /// Вторая строка карточки ТО: работы через запятую. У записи без работ —
+    /// пробег: иначе карточка стояла пустой, с одним «0 ₽» (найдено
+    /// 08.10.2026), а пробег — единственное, что такая запись сообщает.
+    static func cardSubtitle(works: [String], mileage: Int) -> String {
+        let titles = works.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        return titles.isEmpty ? "На\u{00A0}\(NumberFormat.grouped(mileage))\u{00A0}км"
+                              : titles.joined(separator: ", ")
+    }
+
     /// Текст напоминания. Номер подставляется только если он есть: у машины,
     /// добавленной по названию, его нет вовсе.
     static func reminderText(name: String, plate: String, kmLeft: Int) -> String {
         let head = plate.isEmpty ? name : "\(name) \(plate)"
-        return "\(head) — через \(NumberFormat.grouped(kmLeft))\u{00A0}км "
-             + "необходимо провести ТО"
+        // На нуле «ТО через 0 км» читается сбоем — говорим как есть.
+        guard kmLeft > 0 else { return "\(head) — пробег до\u{00A0}ТО вышел" }
+        return "\(head) — ТО через \(NumberFormat.grouped(kmLeft))\u{00A0}км"
+    }
+
+    /// О чём напоминание: до ТО меньше тысячи или пробег вышел совсем.
+    enum ReminderStage: Int, Codable, Comparable {
+        case close
+        case due
+
+        static func < (a: ReminderStage, b: ReminderStage) -> Bool { a.rawValue < b.rawValue }
+    }
+
+    /// Последнее напоминание про машину: что сказано и когда.
+    struct ReminderMark: Codable, Equatable {
+        var stage: ReminderStage
+        var sentAt: Date
+    }
+
+    enum ReminderStep: Equatable {
+        /// Зона не красная: очередь снять, отметку забыть — следующий заход
+        /// в красную зону напомнит сразу.
+        case clear
+        /// Уже сказано, повторять рано.
+        case wait
+        /// Напомнить и запомнить отметку.
+        case send(ReminderStage)
+    }
+
+    /// Повтор не чаще раза в неделю. Без порога напоминание уходило при
+    /// каждом появлении главного экрана и каждой смене пробега, а с
+    /// автопробегом пробег меняется каждую поездку (найдено 08.10.2026).
+    static let reminderGap: TimeInterval = 7 * 24 * 3600
+
+    /// Напоминать ли сейчас. Раньше недели — только если стало хуже:
+    /// «меньше тысячи» сменилось на «пробег вышел».
+    static func reminderStep(kmLeft: Int, mark: ReminderMark?, now: Date) -> ReminderStep {
+        guard urgency(kmLeft: kmLeft) == .urgent else { return .clear }
+        let stage: ReminderStage = kmLeft > 0 ? .close : .due
+        guard let mark, stage <= mark.stage else { return .send(stage) }
+        // Отметка из будущего — часы перевели назад; молчать из-за неё
+        // до той даты нельзя.
+        let since = now.timeIntervalSince(mark.sentAt)
+        return since >= reminderGap || since < 0 ? .send(stage) : .wait
     }
 
     /// «Всего потрачено» — сумма по всем работам всех ТО.

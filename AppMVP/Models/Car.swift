@@ -38,6 +38,24 @@ final class Car {
     @Relationship(deleteRule: .cascade, inverse: \EngineCheck.car)
     var checks: [EngineCheck]
 
+    /// Поездки автопробега. Уходят вместе с машиной, как и прослушивания.
+    @Relationship(deleteRule: .cascade, inverse: \Trip.car)
+    var trips: [Trip] = []
+
+    /// Метры поездок, не дотянувшие до целого километра: пробег целый, и
+    /// хвост ждёт следующей поездки (`TripMath.settle`). Необязательное —
+    /// у машин, добавленных до автопробега, его нет.
+    var tripCarry: Double?
+    /// Сколько километров в пробеге набежало из поездок с тех пор, как его
+    /// в последний раз ввели руками. Больше нуля — пробег показывается с «≈».
+    var trackedKm: Int?
+    /// Bluetooth машины (или CarPlay), к которому привязан автопробег:
+    /// идентификатор выхода звука от системы и его имя для экрана. Пусто —
+    /// машина не привязана, и её поездки решают геопозиция и датчики
+    /// (`TripLink`). Лежит только здесь, на телефоне.
+    var bluetoothUID: String?
+    var bluetoothName: String?
+
     init(
         plate: String,
         name: String,

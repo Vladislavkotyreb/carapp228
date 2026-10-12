@@ -143,17 +143,20 @@ struct AddServiceSheet: View {
             .padding(.bottom, 24)
             }
 
+            // Размытие под панелью — отдельным слоем от верха шторки и по её
+            // скруглению. Фоном панели оно вставало по центру её 70 pt при
+            // своих 118 и вылезало на 24 pt выше шторки: над скруглёнными
+            // углами торчал прямоугольник («уши», кадр 06.10.2026).
+            SheetTopBlur(tint: Figma.sheetBackground)
+                .frame(height: 118)
+                .clipShape(Self.sheetShape)
+
             toolbar
                 .padding(.top, 16)
-                .background {
-                    SheetTopBlur(tint: Figma.sheetBackground)
-                        .frame(height: 118)
-                        .frame(maxHeight: .infinity, alignment: .top)
-                }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background {
-            UnevenRoundedRectangle(topLeadingRadius: 38, topTrailingRadius: 38)
+            Self.sheetShape
                 .fill(Figma.sheetBackground)
                 .shadow(color: .black.opacity(0.18), radius: 18.75, y: 15)
         }
@@ -261,47 +264,10 @@ struct AddServiceSheet: View {
         .frame(height: 52)
     }
 
+    private static let sheetShape = UnevenRoundedRectangle(topLeadingRadius: 38, topTrailingRadius: 38)
+
     private var toolbar: some View {
-        ZStack {
-            Text(title)
-                .font(.system(size: 17, weight: .semibold))
-                .tracking(-0.43)
-                .foregroundStyle(Figma.vibrantControlsPrimary)
-
-            HStack {
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        // Кромку круглой кнопки даёт системное стекло
-                        .liquidGlass(in: Circle(), tint: Figma.sheetControl) {
-                            Circle()
-                                .fill(Figma.sheetControl)
-                                .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
-                        }
-                        .contentShape(Circle())
-                        .motionRim(in: Circle())
-                        .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
-                }
-                .accessibilityLabel("Закрыть")
-
-                Spacer()
-
-                // Белая галочка вместо синей из прототипа: акцент кнопок белый.
-                Button(action: onSave) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.black)
-                        .frame(width: 44, height: 44)
-                        .background(Circle().fill(Figma.labelsPrimary))
-                        .contentShape(Circle())
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .frame(height: 44)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 10)
+        SheetBar(title: title, onClose: onClose, confirmLabel: "Сохранить", onConfirm: onSave)
+            .padding(.bottom, 10)
     }
 }

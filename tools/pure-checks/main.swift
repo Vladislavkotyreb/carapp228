@@ -90,6 +90,36 @@ group("ServiceMath") {
           ServiceMath.odometerAfterService(current: 50_000, serviceMileage: 48_000), 50_000)
     check("ТО с большим пробегом поднимает одометр",
           ServiceMath.odometerAfterService(current: 50_000, serviceMileage: 52_000), 52_000)
+
+    // Напоминание о ТО: не чаще раза в неделю, раньше — только если стало хуже.
+    let sent = Date(timeIntervalSinceReferenceDate: 800_000_000)
+    let hour: TimeInterval = 3600
+    let close = ServiceMath.ReminderMark(stage: .close, sentAt: sent)
+    let due = ServiceMath.ReminderMark(stage: .due, sentAt: sent)
+    check("напоминание: зелёная зона — снять",
+          ServiceMath.reminderStep(kmLeft: 6_000, mark: close, now: sent), .clear)
+    check("напоминание: жёлтая зона — тоже снять",
+          ServiceMath.reminderStep(kmLeft: 1_000, mark: close, now: sent), .clear)
+    check("напоминание: первый раз в красной зоне",
+          ServiceMath.reminderStep(kmLeft: 999, mark: nil, now: sent), .send(.close))
+    check("напоминание: первый раз, пробег уже вышел",
+          ServiceMath.reminderStep(kmLeft: 0, mark: nil, now: sent), .send(.due))
+    check("напоминание: через час после прошлого — молчать",
+          ServiceMath.reminderStep(kmLeft: 0, mark: due, now: sent + hour), .wait)
+    check("напоминание: пробег сменился, зона та же — молчать",
+          ServiceMath.reminderStep(kmLeft: 400, mark: close, now: sent + hour), .wait)
+    check("напоминание: за секунду до недели — молчать",
+          ServiceMath.reminderStep(kmLeft: 0, mark: due,
+                                   now: sent + ServiceMath.reminderGap - 1), .wait)
+    check("напоминание: неделя прошла — повторить",
+          ServiceMath.reminderStep(kmLeft: 0, mark: due,
+                                   now: sent + ServiceMath.reminderGap), .send(.due))
+    check("напоминание: пробег вышел раньше недели — сказать сразу",
+          ServiceMath.reminderStep(kmLeft: 0, mark: close, now: sent + hour), .send(.due))
+    check("напоминание: одометр поправили вниз — не повторять",
+          ServiceMath.reminderStep(kmLeft: 500, mark: due, now: sent + hour), .wait)
+    check("напоминание: отметка из будущего не затыкает",
+          ServiceMath.reminderStep(kmLeft: 0, mark: due, now: sent - hour), .send(.due))
 }
 
 // ---------------------------------------------------------------- MarketPrice
@@ -597,8 +627,6 @@ group("MapPhase.of") {
     }
     check("каждая фаза достижима",
           Set(MapPhase.allCases).subtracting(reachable).map(\.rawValue).sorted(), [])
-    check("подписи сегментов заданы у всех подач",
-          MapMode.allCases.filter { $0.title.isEmpty }.map(\.rawValue), [])
 }
 
 // ------------------------------------------------------------ UIStateCatalog
@@ -659,13 +687,23 @@ do {
     check("красный за 1000", ServiceMath.urgency(kmLeft: 999), .urgent)
     check("просроченное — красное", ServiceMath.urgency(kmLeft: 0), .urgent)
 
+    check("карточка ТО: работы через запятую",
+          ServiceMath.cardSubtitle(works: ["Замена масла", " Фильтр "], mileage: 9_999), "Замена масла, Фильтр")
+    check("карточка ТО без работ показывает пробег",
+          ServiceMath.cardSubtitle(works: [], mileage: 9_999), "На\u{00A0}9\u{00A0}999\u{00A0}км")
+    check("работа без названия — тоже «без работ»",
+          ServiceMath.cardSubtitle(works: ["  "], mileage: 120_000), "На\u{00A0}120\u{00A0}000\u{00A0}км")
+
     check("напоминание с номером",
           ServiceMath.reminderText(name: "Лада Веста", plate: "В 777 ОР 777",
                                    kmLeft: 1_000),
-          "Лада Веста В 777 ОР 777 — через 1\u{00A0}000\u{00A0}км необходимо провести ТО")
+          "Лада Веста В 777 ОР 777 — ТО через 1\u{00A0}000\u{00A0}км")
     check("напоминание без номера",
           ServiceMath.reminderText(name: "Моя машина", plate: "", kmLeft: 800),
-          "Моя машина — через 800\u{00A0}км необходимо провести ТО")
+          "Моя машина — ТО через 800\u{00A0}км")
+    check("напоминание на нуле — без «через 0 км»",
+          ServiceMath.reminderText(name: "Моя машина", plate: "", kmLeft: 0),
+          "Моя машина — пробег до\u{00A0}ТО вышел")
 }
 
 // MARK: - CarCatalog: название машины → слаг кадра каталога
@@ -769,6 +807,141 @@ group("PhoneFormat") {
           "8\u{00A0}800\u{00A0}555-35-35")
 }
 
+// --------------------------------------------------------------- FindingsEmpty
+
+group("FindingsEmpty: пустое состояние шторки находок") {
+    let all: [FindingsEmpty] = [.nothingFound, .unsure,
+                                .notEngine(explanation: "В записи почти тишина."),
+                                .failed(reason: "Сервер диагностики недоступен")]
+    check("у каждого состояния есть заголовок, текст и значок",
+          all.filter { $0.title.isEmpty || $0.message.isEmpty || $0.symbol.isEmpty }.count, 0)
+    check("заголовки разные", Set(all.map(\.title)).count, all.count)
+    check("«порадуйтесь» — только когда разбор сказал «норма»",
+          all.filter { $0.message.contains("порадуйтесь") }, [.nothingFound])
+    check("галочка — только у «нормы»",
+          all.filter { $0.symbol.contains("checkmark") }, [.nothingFound])
+    check("мотора не слышно — текст привратника как есть",
+          FindingsEmpty.notEngine(explanation: "В записи почти тишина.").message,
+          "В записи почти тишина.")
+    check("сбой называет причину",
+          FindingsEmpty.failed(reason: "Сервер диагностики недоступен").message
+              .hasPrefix("Сервер диагностики недоступен. "), true)
+}
+
+// ------------------------------------------ Что показывает шторка по разбору
+
+group("FindingsEmpty.of: ответ разбора → пусто или находки") {
+    let heard = "В записи почти тишина."
+    func of(_ model: Bool, _ engine: Bool, _ verdict: String) -> FindingsEmpty? {
+        FindingsEmpty.of(modelLoaded: model, isEngine: engine, verdict: verdict,
+                         heardExplanation: heard)
+    }
+    check("неисправность — находки, не пустое состояние", of(true, true, "fault"), nil)
+    check("норма — «ничего не нашли»", of(true, true, "normal"), .nothingFound)
+    check("вердикт посередине — «судить не берёмся»", of(true, true, "uncertain"), .unsure)
+    check("незнакомый вердикт — тоже «не берёмся», а не находки", of(true, true, "???"), .unsure)
+    check("не мотор — текст привратника", of(true, false, "fault"),
+          .notEngine(explanation: heard))
+    check("не мотор старше вердикта «норма»", of(true, false, "normal"),
+          .notEngine(explanation: heard))
+    check("без модели — сбой, что бы ни пришло дальше", of(false, true, "fault"),
+          .failed(reason: "Сервер запущен без модели"))
+
+    // Главное свойство: находки возможны ровно в одном сочетании из всех.
+    var withFindings = 0
+    for model in [true, false] { for engine in [true, false] {
+        for verdict in ["fault", "normal", "uncertain", ""] where of(model, engine, verdict) == nil {
+            withFindings += 1
+        }
+    } }
+    check("находки показываются в одном сочетании из шестнадцати", withFindings, 1)
+}
+
+// ------------------------------------------------ Словарь разбора и обратно
+
+group("DiagnosisVocabulary: код ↔ название") {
+    let codes = DiagnosisVocabulary.partCodes
+    check("у каждого кода есть русское название",
+          codes.filter { DiagnosisVocabulary.part($0) == $0 }, [])
+    check("у каждого кода есть зона",
+          codes.filter { DiagnosisVocabulary.zone(forPart: $0) == "Не определено" }, [])
+    check("коды не повторяются", Set(codes).count, codes.count)
+    check("название находит свой код у каждой детали",
+          codes.filter { DiagnosisVocabulary.partCode(forTitle: DiagnosisVocabulary.part($0)) != $0 }, [])
+    // Старые находки без кода должны получить объяснение или расходники —
+    // ради этого обратный поиск и заведён.
+    check("у найденной по названию детали есть что показать",
+          codes.filter { PartAdvice.meaning($0) == nil && PartAdvice.parts($0).isEmpty }, [])
+    check("два кода с одним названием ведут в первый",
+          DiagnosisVocabulary.partCode(forTitle: DiagnosisVocabulary.part("bad_wheal_bearing")),
+          "wheel_bearing")
+    check("лишние пробелы не мешают",
+          DiagnosisVocabulary.partCode(forTitle: " Генератор "), "alternator")
+    check("незнакомое название — nil, а не догадка",
+          DiagnosisVocabulary.partCode(forTitle: "Ничего тревожного не слышно"), nil)
+    check("карточка вердикта деталью не считается",
+          DiagnosisVocabulary.partCode(forTitle: "Похоже на неисправность"), nil)
+    let stub = [(title: "Проблемы с трансмиссией", code: "transmission")]
+    check("название заглушки находится через extra",
+          DiagnosisVocabulary.partCode(forTitle: "Проблемы с трансмиссией", extra: stub),
+          "transmission")
+    check("словарь старше extra",
+          DiagnosisVocabulary.partCode(forTitle: "Генератор",
+                                       extra: [(title: "Генератор", code: "belt")]),
+          "alternator")
+}
+
+// ------------------------------------------- Дата сохранённого прослушивания
+
+group("ListeningSummary.savedDate") {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "Europe/Moscow")!
+    func day(_ y: Int, _ m: Int, _ d: Int) -> Date {
+        calendar.date(from: DateComponents(year: y, month: m, day: d, hour: 12))!
+    }
+    let now = day(2026, 10, 6)
+    check("тот же год — без года",
+          ListeningSummary.savedDate(day(2026, 9, 26), now: now, calendar: calendar), "26 сентября")
+    check("прошлый год — с годом, и год не отрывается",
+          ListeningSummary.savedDate(day(2025, 12, 31), now: now, calendar: calendar),
+          "31 декабря\u{00A0}2025")
+    check("1 января текущего года — без года",
+          ListeningSummary.savedDate(day(2026, 1, 1), now: now, calendar: calendar), "1 января")
+}
+
+// ------------------------------------------------------- Поиск расходника
+
+group("PartAdvice.searchURL: «Найти» из шторки") {
+    let url = PartAdvice.searchURL(item: "Масло трансмиссионное", carName: "Mercedes-Benz GL-класс")
+    check("поиск идёт в Яндекс Маркет", url?.host, "market.yandex.ru")
+    let text = url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }?
+        .queryItems?.first { $0.name == "text" }?.value
+    check("в запросе расходник и машина", text, "Масло трансмиссионное Mercedes-Benz GL-класс")
+    let alone = PartAdvice.searchURL(item: "Фильтр\u{00A0}АКПП", carName: nil)
+        .flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }?
+        .queryItems?.first { $0.name == "text" }?.value
+    check("без машины — только расходник, неразрывный пробел снят", alone, "Фильтр АКПП")
+}
+
+// --------------------------------------------------------------- PlaceDetails
+
+group("PlaceDetails: фото и рейтинг карточки места") {
+    let photo = "https://avatars.mds.yandex.net/get-altay/4344240/2a00/%s"
+    check("размер встаёт на место %s",
+          PlaceDetails(photo: photo).photoURL(.large)?.absoluteString,
+          "https://avatars.mds.yandex.net/get-altay/4344240/2a00/XL")
+    check("нет шаблона — нет адреса", PlaceDetails().photoURL(.large), nil)
+    check("без места под размер — нет адреса",
+          PlaceDetails(photo: "https://avatars.mds.yandex.net/x").photoURL(.large), nil)
+    check("не https — нет адреса",
+          PlaceDetails(photo: "http://avatars.mds.yandex.net/%s").photoURL(.large), nil)
+    check("оценка с запятой", PlaceDetails(rating: 4.9, ratings: 827).ratingLabel, "4,9")
+    check("ровная оценка — с нулём", PlaceDetails(rating: 4, ratings: 17).ratingLabel, "4,0")
+    check("округление до десятых", PlaceDetails(rating: 4.96, ratings: 3).ratingLabel, "5,0")
+    check("никто не оценивал — подписи нет", PlaceDetails(rating: 0, ratings: 0).ratingLabel, nil)
+    check("оценки нет вовсе", PlaceDetails().ratingLabel, nil)
+}
+
 // ----------------------------------------------------------- BusinessContacts
 
 group("BusinessContacts") {
@@ -853,11 +1026,6 @@ group("ListeningSummary") {
     check("не слушали", ListeningSummary.title(days: nil), "Мотор ещё не слушали")
 
     check("дата по-русски в родительном", ListeningSummary.dayMonth(twelfth, calendar: cal), "12 сентября")
-    check("подпись с пробегом и находкой",
-          ListeningSummary.subtitle(date: "12 сентября", mileage: 56_400, topFinding: "Ремень привода"),
-          "12 сентября · 56\u{00A0}400\u{00A0}км · Ремень привода")
-    check("без пробега — без пустого места",
-          ListeningSummary.subtitle(date: "12 сентября", mileage: nil, topFinding: nil), "12 сентября")
 
     check("проехали после ТО",
           ListeningSummary.kmAfterService(checkMileage: 56_400, lastServiceMileage: 50_000), 6_400)
@@ -891,6 +1059,23 @@ group("ListeningSummary") {
             .hasSuffix("Beepy слушал мотор 1 октября — явных неисправностей не нашёл."), true)
 }
 
+// ------------------------------------------------------ MapGeo: шторка мест
+
+group("MapGeo: поиск по списку и дубли") {
+    check("пустой запрос подходит всему", MapGeo.matches(query: "  ", title: "Гараж", subtitle: nil), true)
+    check("слово из адреса", MapGeo.matches(query: "остоженка", title: "Гараж 77", subtitle: "Остоженка, 25"), true)
+    check("все слова обязательны", MapGeo.matches(query: "гараж садовая", title: "Гараж 77", subtitle: "Остоженка, 25"), false)
+    check("ё и регистр", MapGeo.matches(query: "ТЁПЛЫЙ", title: "Теплый стан", subtitle: nil), true)
+    check("ключ дубля без регистра и лишних пробелов",
+          MapGeo.duplicateKey(title: "Фсервис ", subtitle: "Турчанинов  пер., 6"),
+          MapGeo.duplicateKey(title: "ФСЕРВИС", subtitle: "турчанинов пер., 6"))
+    check("тот же адрес, другое название — разные места",
+          MapGeo.duplicateKey(title: "Гараж", subtitle: "Крымский Вал, 9")
+              == MapGeo.duplicateKey(title: "Гараж 77", subtitle: "Крымский Вал, 9"), false)
+    check("остаётся первое из одинаковых, порядок цел",
+          MapGeo.unique(["б", "а", "Б", "в", "а"]) { $0.lowercased() }, ["б", "а", "в"])
+}
+
 // ---------------------------------------------------------------- PartAdvice
 
 group("PartAdvice: что это может быть и что купить") {
@@ -917,6 +1102,519 @@ group("PartAdvice: что это может быть и что купить") {
     check("пустое название машины не даёт хвостового пробела",
           PartAdvice.searchURL(item: "Помпа", carName: "  ")?.absoluteString,
           "https://market.yandex.ru/search?text=%D0%9F%D0%BE%D0%BC%D0%BF%D0%B0")
+}
+
+// ------------------------------------------------------------- Лента фото
+
+group("PlaceDetails.photoURLs: лента фото") {
+    let a = "https://avatars.mds.yandex.net/get-altay/1/a/%s"
+    let b = "https://avatars.mds.yandex.net/get-altay/1/b/%s"
+    let details = PlaceDetails(photo: a, photos: [a, b, a, "http://x/%s", "https://x/без-размера"])
+    check("лента: повторы и негодные адреса выпадают",
+          details.photoURLs(.large).map(\.absoluteString),
+          ["https://avatars.mds.yandex.net/get-altay/1/a/XL", "https://avatars.mds.yandex.net/get-altay/1/b/XL"])
+    check("лента: не больше предела", details.photoURLs(.large, limit: 1).count, 1)
+    check("лента: без фото пусто", PlaceDetails().photoURLs(.large).isEmpty, true)
+}
+
+// ------------------------------------------------- Карта без геопозиции
+
+group("MapGeo.fallbackCenter: куда смотреть без геопозиции") {
+    check("без мест — Москва", MapGeo.fallbackCenter(saved: []), MapGeo.moscow)
+    let one = GeoPoint(latitude: 59.93, longitude: 30.31)
+    check("одно место — оно само", MapGeo.fallbackCenter(saved: [one]), one)
+    let middle = MapGeo.fallbackCenter(saved: [GeoPoint(latitude: 10, longitude: 20),
+                                                GeoPoint(latitude: 30, longitude: 40)])
+    check("два места — середина", middle, GeoPoint(latitude: 20, longitude: 30))
+}
+
+// ---------------------------------------------------------------- TripMath
+
+group("TripMath: автопробег") {
+    func sample(_ lat: Double, _ lon: Double, acc: Double = 5, t: Double) -> TripMath.Sample {
+        TripMath.Sample(latitude: lat, longitude: lon, accuracy: acc, time: t)
+    }
+    let a = sample(55.7400, 37.6000, t: 0)
+    // 0.001° широты — 111,2 м.
+    let b = sample(55.7410, 37.6000, t: 10)
+
+    check("первый годный отсчёт — опора", TripMath.step(from: nil, to: a), .anchor)
+    check("грубый отсчёт пропускается", TripMath.step(from: a, to: sample(55.75, 37.6, acc: 80, t: 10)), .skip)
+    check("негодный отсчёт пропускается", TripMath.step(from: nil, to: sample(55.74, 37.6, acc: -1, t: 0)), .skip)
+    check("дрожь на месте пропускается", TripMath.step(from: a, to: sample(55.74003, 37.6, t: 5)), .skip)
+    check("скачок быстрее 252 км/ч пропускается", TripMath.step(from: a, to: sample(55.75, 37.6, t: 5)), .skip)
+    check("время назад пропускается", TripMath.step(from: b, to: a), .skip)
+    if case .move(let meters) = TripMath.step(from: a, to: b) {
+        check("0,001° широты — 111 м", Int(meters.rounded()), 111)
+    } else {
+        check("обычный шаг считается", false, true)
+    }
+
+    // Десять шагов по 111 м с дрожью и скачком посередине.
+    var track = (0...10).map { sample(55.74 + Double($0) * 0.001, 37.6, t: Double($0) * 10) }
+    track.insert(sample(55.7451, 37.9, t: 51), at: 6)
+    track.insert(sample(55.74502, 37.6, t: 52), at: 7)
+    // Путь по всем отсчётам подряд — так их кормит `TripTracker`.
+    func total(_ samples: [TripMath.Sample]) -> Double {
+        var progress = TripMath.Progress()
+        samples.forEach { progress.add($0) }
+        return progress.meters
+    }
+    check("путь по треку: 1 112 м, шум не добавил", Int(total(track).rounded()), 1112)
+    check("пустой трек — ноль", total([]), 0)
+
+    // После скачка опора прежняя: следующий честный отсчёт меряется от неё.
+    var progress = TripMath.Progress()
+    [a, sample(55.80, 37.6, t: 1), b].forEach { progress.add($0) }
+    check("скачок не сдвигает опору", Int(progress.meters.rounded()), 111)
+
+    check("хвост меньше километра переносится", TripMath.settle(meters: 900, carry: 0).km, 0)
+    check("перенос копится", TripMath.settle(meters: 900, carry: 900).km, 1)
+    check("остаток после километра", Int(TripMath.settle(meters: 900, carry: 900).carry.rounded()), 800)
+    check("12,4 км — 12 в пробег", TripMath.settle(meters: 12_400, carry: 0).km, 12)
+    check("отрицательный путь — ноль", TripMath.settle(meters: -5, carry: -5).km, 0)
+
+    check("поездка стоит — «0 м», а не «10 м»", TripMath.liveDistance(0), "0\u{00A0}м")
+    check("поездка едет — обычная подпись", TripMath.liveDistance(1_240), "1,2\u{00A0}км")
+
+    check("поездка в 13 часов — забытая", TripMath.isStale(startedAt: 0, now: 13 * 3600), true)
+    check("поездка в 3 часа — нет", TripMath.isStale(startedAt: 0, now: 3 * 3600), false)
+
+    check("пробег без поездок — без «≈»", TripMath.odometerLabel(56_412, trackedKm: 0), "56\u{00A0}412\u{00A0}км")
+    check("пробег с поездками — с «≈»", TripMath.odometerLabel(56_412, trackedKm: 30), "≈\u{00A0}56\u{00A0}412\u{00A0}км")
+
+    check("команда запускает подсчёт только с «Всегда»",
+          [TripAccess.notAsked, .whenInUse, .always, .denied].map(\.worksFromCommand),
+          [false, false, true, false])
+    check("подписи доступа короткие и разные",
+          Set([TripAccess.notAsked, .whenInUse, .always, .denied].map(\.status)).count, 4)
+}
+
+group("TripTrack.project: путь без карты") {
+    let a = GeoPoint(latitude: 55.7400, longitude: 37.6000)
+    let b = GeoPoint(latitude: 55.7500, longitude: 37.6000)   // строго на север
+    let c = GeoPoint(latitude: 55.7400, longitude: 37.6200)   // строго на восток
+    let northward = TripTrack.project([a, b], width: 300, height: 150, inset: 20)
+    check("две точки на север: одна над другой, по центру",
+          northward.map { $0.x.rounded() }, [150, 150])
+    check("север вверху", northward.map { $0.y.rounded() }, [130, 20])
+    let eastward = TripTrack.project([a, c], width: 300, height: 150, inset: 20)
+    check("две точки на восток: слева направо, по середине высоты",
+          eastward.map { [$0.x.rounded(), $0.y.rounded()] }, [[20, 75], [280, 75]])
+    let corner = TripTrack.project([a, b, c], width: 300, height: 150, inset: 20)
+    check("ничего не выходит за поле",
+          corner.allSatisfy { $0.x >= 20 && $0.x <= 280 && $0.y >= 20 && $0.y <= 130 }, true)
+    check("одна точка — в центре кадра",
+          TripTrack.project([a, a], width: 300, height: 150, inset: 20),
+          [TripTrack.Spot(x: 150, y: 75), TripTrack.Spot(x: 150, y: 75)])
+    check("пустой маршрут — рисовать нечего",
+          TripTrack.project([], width: 300, height: 150, inset: 20), [])
+    check("кадр меньше полей — рисовать негде",
+          TripTrack.project([a, b], width: 30, height: 30, inset: 20), [])
+}
+
+group("TripMath.forget: поездку удалили") {
+    func parts(_ r: (km: Int, trackedKm: Int, carry: Double)) -> [Double] {
+        [Double(r.km), Double(r.trackedKm), r.carry]
+    }
+    check("единственная поездка уходит целиком",
+          parts(TripMath.forget(meters: 3903, trackedKm: 3, carry: 903)), [3, 0, 0])
+    check("часть километра остаётся в переносе",
+          parts(TripMath.forget(meters: 900, trackedKm: 2, carry: 100)), [1, 1, 200])
+    check("поездка съела только перенос — пробег не меняется",
+          parts(TripMath.forget(meters: 500, trackedKm: 2, carry: 700)), [0, 2, 200])
+    check("после сверки с приборкой удаление пробег не трогает",
+          parts(TripMath.forget(meters: 5000, trackedKm: 0, carry: 0)), [0, 0, 0])
+    check("снимается не больше, чем поездки добавили",
+          parts(TripMath.forget(meters: 9000, trackedKm: 3, carry: 0)), [3, 0, 0])
+    let settled = TripMath.settle(meters: 3903, carry: 0)
+    check("записали и удалили — пробег вернулся",
+          TripMath.forget(meters: 3903, trackedKm: settled.km, carry: settled.carry).km, settled.km)
+}
+
+group("TripMath.adjust: расстояние поездки поправили") {
+    func parts(_ r: (km: Int, trackedKm: Int, carry: Double)) -> [Double] {
+        [Double(r.km), Double(r.trackedKm), r.carry]
+    }
+    check("прибавили — километры идут в пробег",
+          parts(TripMath.adjust(from: 3_900, to: 6_000, trackedKm: 3, carry: 900)), [3, 6, 0])
+    check("прибавили чуть-чуть — только перенос",
+          parts(TripMath.adjust(from: 3_900, to: 4_000, trackedKm: 3, carry: 200)), [0, 3, 300])
+    check("убавили — километры уходят из пробега",
+          parts(TripMath.adjust(from: 6_000, to: 3_900, trackedKm: 6, carry: 0)), [-3, 3, 900])
+    check("то же расстояние — ничего не меняется",
+          parts(TripMath.adjust(from: 3_900, to: 3_900, trackedKm: 3, carry: 900)), [0, 3, 900])
+    check("после сверки с приборкой прибавка идёт в пробег",
+          parts(TripMath.adjust(from: 3_900, to: 5_900, trackedKm: 0, carry: 0)), [2, 2, 0])
+    check("после сверки убавка пробег не трогает",
+          parts(TripMath.adjust(from: 5_900, to: 3_900, trackedKm: 0, carry: 0)), [0, 0, 0])
+
+    check("запятая", TripMath.meters(fromKm: "3,9"), 3_900)
+    check("точка", TripMath.meters(fromKm: "3.9"), 3_900)
+    check("целое с пробелом", TripMath.meters(fromKm: " 12 "), 12_000)
+    check("разряды неразрывным пробелом", TripMath.meters(fromKm: "1\u{00A0}200"), 1_200_000)
+    check("не число", TripMath.meters(fromKm: "три"), nil)
+    check("пусто", TripMath.meters(fromKm: ""), nil)
+    check("короче ста метров — не поездка", TripMath.meters(fromKm: "0,05"), nil)
+    check("длиннее 2 000 км — опечатка", TripMath.meters(fromKm: "20000"), nil)
+    check("в поле — с запятой", TripMath.kmField(3_903), "3,9")
+    check("в поле — целое без дроби", TripMath.kmField(12_040), "12")
+    check("поле разбирается обратно",
+          TripMath.meters(fromKm: TripMath.kmField(2_792)), 2_800)
+}
+
+group("TripAuto: автоопределение поездки") {
+    // 0.001° широты — 111,2 м.
+    let home = GeoPoint(latitude: 55.7400, longitude: 37.6000)
+    func north(_ meters: Double) -> GeoPoint {
+        GeoPoint(latitude: 55.7400 + meters / 111_195, longitude: 37.6000)
+    }
+    func fix(_ meters: Double, acc: Double = 10, t: Double = 0) -> TripMath.Sample {
+        let p = north(meters)
+        return TripMath.Sample(latitude: p.latitude, longitude: p.longitude, accuracy: acc, time: t)
+    }
+    func motion(_ mode: TripAuto.Mode, sure: Bool = true) -> TripAuto.Motion {
+        TripAuto.Motion(mode: mode, sure: sure)
+    }
+
+    check("в машине на светофоре — всё ещё машина",
+          TripAuto.mode(automotive: true, cycling: false, walking: false, running: false,
+                        stationary: true), .drive)
+    check("бег — пешком",
+          TripAuto.mode(automotive: false, cycling: false, walking: false, running: true,
+                        stationary: false), .foot)
+    check("велосипед отдельно",
+          TripAuto.mode(automotive: false, cycling: true, walking: false, running: false,
+                        stationary: false), .cycle)
+    check("лежит",
+          TripAuto.mode(automotive: false, cycling: false, walking: false, running: false,
+                        stationary: true), .still)
+    check("ни одного флага — неизвестно",
+          TripAuto.mode(automotive: false, cycling: false, walking: false, running: false,
+                        stationary: false), .unknown)
+
+    // Память о местах.
+    var memory = TripAuto.Memory()
+    memory.park(at: home)
+    check("первое место запомнено, телефон у машины",
+          memory, TripAuto.Memory(spots: [home], atCar: true))
+    memory.park(at: north(60))
+    check("тот же двор — место заменяется, а не добавляется", memory.spots, [north(60)])
+    memory.park(at: north(2_000))
+    check("новое место встаёт первым", memory.spots, [north(2_000), north(60)])
+    var crowded = TripAuto.Memory()
+    for step in 0..<9 { crowded.park(at: north(Double(step) * 1_000)) }
+    check("помним не больше шести мест", crowded.spots.count, TripAuto.maxSpots)
+    check("самое старое место вытеснено", crowded.spots.last, north(3_000))
+
+    var wrong = TripAuto.Memory(spots: [north(2_000), home], atCar: true)
+    wrong.forget(at: north(2_030))
+    check("поездку удалили — её конец больше не место стоянки",
+          wrong, TripAuto.Memory(spots: [home], atCar: false))
+    var untouched = TripAuto.Memory(spots: [home], atCar: true)
+    untouched.forget(at: north(2_000))
+    check("удалили поездку, кончившуюся не у места стоянки, — память та же",
+          untouched, TripAuto.Memory(spots: [home], atCar: true))
+
+    var seen = TripAuto.Memory(spots: [home], atCar: false)
+    seen.seen(at: north(50), accuracy: 10, riding: false)
+    check("замечен в зоне — у машины", seen.atCar, true)
+    seen.seen(at: north(400), accuracy: 1_000, riding: false)
+    check("грубый отсчёт ничего не меняет", seen.atCar, true)
+    seen.seen(at: north(400), accuracy: 10, riding: true)
+    check("уехал из зоны — это не «ушёл пешком»", seen.atCar, true)
+    seen.seen(at: north(400), accuracy: 10, riding: false)
+    check("замечен снаружи пешком — ушёл от машины", seen.atCar, false)
+
+    // Слушать ли геопозицию после пробуждения.
+    let away = TripAuto.Memory(spots: [home], atCar: false)
+    let near = TripAuto.Memory(spots: [home], atCar: true)
+    let empty = TripAuto.Memory()
+    check("выход из зоны слушаем всегда",
+          TripAuto.shouldProbe(away, origin: .zone, fix: nil, motion: motion(.foot)), true)
+    check("мест ещё нет — первая поездка откуда угодно",
+          TripAuto.shouldProbe(empty, origin: .wander, fix: fix(0), motion: nil), true)
+    check("мест нет, но идёт пешком — не слушаем",
+          TripAuto.shouldProbe(empty, origin: .wander, fix: fix(0), motion: motion(.foot)), false)
+    check("неуверенное «идёт» не останавливает",
+          TripAuto.shouldProbe(empty, origin: .wander, fix: fix(0),
+                               motion: motion(.foot, sure: false)), true)
+    check("ушёл от машины пешком — чужая поездка",
+          TripAuto.shouldProbe(away, origin: .wander, fix: fix(1_000), motion: motion(.drive)), false)
+    check("у машины и едет — выход из зоны опоздал, слушаем",
+          TripAuto.shouldProbe(near, origin: .wander, fix: fix(50), motion: motion(.drive)), true)
+    check("у машины, датчиков нет, точно вне зоны — слушаем",
+          TripAuto.shouldProbe(near, origin: .wander, fix: fix(1_000, acc: 65), motion: nil), true)
+    check("возможно, ещё в зоне — ждём выхода",
+          TripAuto.shouldProbe(near, origin: .wander, fix: fix(100, acc: 65), motion: nil), false)
+    check("грубый отсчёт задевает зону — ждём выхода",
+          TripAuto.shouldProbe(near, origin: .wander, fix: fix(1_000, acc: 1_000), motion: nil), false)
+    check("телефон лежит — не слушаем",
+          TripAuto.shouldProbe(near, origin: .wander, fix: fix(1_000), motion: motion(.still)), false)
+    check("отсчёта нет — слушаем",
+          TripAuto.shouldProbe(near, origin: .wander, fix: nil, motion: nil), true)
+
+    check("прошлая проба ничего не нашла — десять минут не слушаем",
+          TripAuto.shouldProbe(near, origin: .wander, fix: fix(1_000, acc: 65), motion: nil,
+                               sinceMiss: 300), false)
+    check("через десять минут — слушаем снова",
+          TripAuto.shouldProbe(near, origin: .wander, fix: fix(1_000, acc: 65), motion: nil,
+                               sinceMiss: TripAuto.wanderCooldown), true)
+    check("датчики: в машине — пауза не действует",
+          TripAuto.shouldProbe(near, origin: .wander, fix: fix(1_000, acc: 65),
+                               motion: motion(.drive), sinceMiss: 60), true)
+    check("выход из зоны паузу не замечает",
+          TripAuto.shouldProbe(near, origin: .zone, fix: nil, motion: nil, sinceMiss: 60), true)
+
+    // Чистое смещение: шум раздувает путь, а не смещение.
+    var straight = TripAuto.Drift()
+    for index in 0..<4 { straight.add(fix(Double(index) * 111, t: Double(index) * 10)) }
+    check("едем прямо 11 м/с — смещение то же", (straight.speed ?? 0).rounded(), 11)
+    var jitter = TripAuto.Drift()
+    // Скачки на 40 м туда и обратно каждые 5 с: по пути 8 м/с, по смещению — ноль.
+    for index in 0..<8 { jitter.add(fix(index % 2 == 0 ? 0 : 40, t: Double(index) * 5)) }
+    check("скачки туда-обратно: смещение не растёт", jitter.isDriving, false)
+    var brief = TripAuto.Drift()
+    brief.add(fix(0, t: 0)); brief.add(fix(150, t: 10))
+    check("короче 20 секунд смещение не считается", brief.speed, nil)
+    var long = TripAuto.Drift()
+    for index in 0..<20 { long.add(fix(Double(index) * 50, t: Double(index) * 10)) }
+    check("окно держит не дольше сорока секунд",
+          (long.samples.last?.time ?? 0) - (long.samples.first?.time ?? 0) <= TripAuto.driftSpan + 10, true)
+
+    // Проба: 111 м за 10 с — 11 м/с, 11 м за 8 с — 1,4 м/с.
+    func probe(step meters: Double, every seconds: Double, count: Int) -> TripAuto.Probe {
+        var probe = TripAuto.Probe(origin: .zone, startedAt: 0, zone: home)
+        for index in 0..<count {
+            probe.add(fix(200 + Double(index) * meters, t: Double(index) * seconds))
+        }
+        return probe
+    }
+    let racing = probe(step: 111, every: 10, count: 5)
+    let strolling = probe(step: 11, every: 8, count: 8)
+    let silent = TripAuto.Probe(origin: .zone, startedAt: 0, zone: home)
+    // Пешеход у вокзала: отсчёты прыгают на 40 м туда и обратно, сам он
+    // уходит на метр в секунду.
+    var noisy = TripAuto.Probe(origin: .wander, startedAt: 0)
+    for index in 0..<24 {
+        noisy.add(fix(Double(index) * 5 + (index % 2 == 0 ? 0 : 40), t: Double(index) * 5))
+    }
+    check("едем: смещение держится не первый отсчёт", racing.driveRun >= TripAuto.driveSteps, true)
+    check("едем: от начала пробы уехали", racing.net.rounded(), 444)
+    check("идём: смещение не набирается", strolling.driveRun, 0)
+    check("скачки GPS: по пути быстро, по смещению — нет", noisy.driveRun, 0)
+    var rough = silent
+    rough.add(fix(200, acc: 80, t: 0))
+    check("грубый отсчёт в пробу не идёт", rough.first, nil)
+
+    check("датчики уверены: в машине — едем сразу",
+          TripAuto.verdict(silent, motion: motion(.drive), now: 1), .drive)
+    check("неуверенное «в машине», никуда не уехали — ждём",
+          TripAuto.verdict(silent, motion: motion(.drive, sure: false), now: 10), .wait)
+    check("неуверенное «в машине» к концу окна, но стоим — отбой",
+          TripAuto.verdict(silent, motion: motion(.drive, sure: false),
+                           now: TripAuto.probeWindow), .away)
+    check("неуверенное «в машине» к концу окна и уехали — едем",
+          TripAuto.verdict(probe(step: 30, every: 10, count: 8),
+                           motion: motion(.drive, sure: false), now: TripAuto.probeWindow), .drive)
+    check("датчиков нет, смещение 40 км/ч — едем",
+          TripAuto.verdict(racing, motion: nil, now: 40), .drive)
+    check("датчики не знают, смещение 40 км/ч — едем",
+          TripAuto.verdict(racing, motion: motion(.unknown, sure: false), now: 40), .drive)
+    check("телефон в держателе «лежит», а смещение 40 км/ч — едем",
+          TripAuto.verdict(racing, motion: motion(.still), now: 40), .drive)
+    check("«идёт» уверенно — не едем, что бы ни показывала геопозиция",
+          TripAuto.verdict(racing, motion: motion(.foot), now: 40), .wait)
+    check("«идёт» уверенно, 45 с — отбой",
+          TripAuto.verdict(racing, motion: motion(.foot), now: TripAuto.footProbe), .away)
+    check("велосипед — отбой через 45 с",
+          TripAuto.verdict(racing, motion: motion(.cycle), now: TripAuto.footProbe), .away)
+    check("пешеход со скачками GPS, датчики не знают — не едем",
+          TripAuto.verdict(noisy, motion: motion(.unknown, sure: false), now: 115), .wait)
+    check("пешеход со скачками GPS, окно вышло — отбой",
+          TripAuto.verdict(noisy, motion: nil, now: TripAuto.probeWindow), .away)
+    check("минута ни с места — отбой, не дожидаясь трёх",
+          TripAuto.verdict(silent, motion: nil, now: TripAuto.idleProbe), .away)
+    check("минута ни с места, но датчики: в машине — ждём",
+          TripAuto.verdict(silent, motion: motion(.drive, sure: false), now: TripAuto.idleProbe), .wait)
+    check("идёт без датчиков: минута прошла, сдвинулся — слушаем дальше",
+          TripAuto.verdict(strolling, motion: nil, now: TripAuto.idleProbe), .wait)
+    check("идёт без датчиков: окно вышло — отбой",
+          TripAuto.verdict(strolling, motion: nil, now: TripAuto.probeWindow), .away)
+
+    // Прямая от места стоянки.
+    let two = TripAuto.Memory(spots: [north(4_000), home], atCar: true)
+    check("мест нет — прямой нет",
+          TripAuto.lead(empty, origin: .wander, zone: nil, first: north(300)), nil)
+    check("из зоны — от её центра",
+          TripAuto.lead(two, origin: .zone, zone: home, first: north(300))?.from, home)
+    check("длина прямой — расстояние до первого отсчёта",
+          (TripAuto.lead(two, origin: .zone, zone: home, first: north(300))?.meters ?? 0).rounded(), 300)
+    check("запасной сигнал — от ближайшего места",
+          TripAuto.lead(two, origin: .wander, zone: nil, first: north(3_500))?.from, north(4_000))
+    check("дальше 5 км прямую не рисуем",
+          TripAuto.lead(near, origin: .wander, zone: nil, first: north(6_000)), nil)
+
+    // Свидетельства езды и конец поездки.
+    check("смещение 40 км/ч, датчиков нет — езда", TripAuto.rolling(straight, motion: nil), true)
+    check("скачки GPS, датчиков нет — не езда", TripAuto.rolling(jitter, motion: nil), false)
+    check("«идёт» уверенно — не езда, даже при быстром смещении",
+          TripAuto.rolling(straight, motion: motion(.foot)), false)
+    check("велосипед — не езда", TripAuto.rolling(straight, motion: motion(.cycle)), false)
+    check("ползём в пробке, датчики: в машине",
+          TripAuto.rolling(jitter, motion: motion(.drive, sure: false)), true)
+    check("«лежит», а смещение быстрое — верим смещению",
+          TripAuto.rolling(straight, motion: motion(.still)), true)
+    check("неуверенное «идёт» не запрещает",
+          TripAuto.rolling(straight, motion: motion(.foot, sure: false)), true)
+    check("стоим на светофоре в машине", TripAuto.idling(motion(.drive)), true)
+    check("неуверенное «в машине» стоянку не продлевает",
+          TripAuto.idling(motion(.drive, sure: false)), false)
+    check("без датчиков стоянку продлить нечем", TripAuto.idling(nil), false)
+
+    // Проверка после поездки по истории датчиков.
+    check("ехали почти всё время — поездка",
+          TripAuto.wasDrive(.init(drive: 500, foot: 40, total: 600)), true)
+    check("шли всё время — не поездка",
+          TripAuto.wasDrive(.init(drive: 0, foot: 560, total: 600)), false)
+    check("ехали пятую часть — не поездка",
+          TripAuto.wasDrive(.init(drive: 120, foot: 400, total: 600)), false)
+    check("ровно четверть — поездка",
+          TripAuto.wasDrive(.init(drive: 150, foot: 300, total: 600)), true)
+    check("история пуста — судить не по чему, оставляем",
+          TripAuto.wasDrive(.init(drive: 0, foot: 0, total: 0)), true)
+
+    let tail = TripAuto.Tail(moved: 0, alive: 0, meters: 5_000, points: 200, place: home)
+    check("четыре минуты пятьдесят девять — ещё едем",
+          TripAuto.shouldFinish(tail, motion: nil, now: TripAuto.stopGap - 1), false)
+    check("пять минут без езды — приехали",
+          TripAuto.shouldFinish(tail, motion: nil, now: TripAuto.stopGap), true)
+    check("вышел и идёт — полторы минуты",
+          TripAuto.shouldFinish(tail, motion: motion(.foot), now: TripAuto.footGap), true)
+    check("неуверенное «идёт» — ждём все пять",
+          TripAuto.shouldFinish(tail, motion: motion(.foot, sure: false), now: TripAuto.footGap), false)
+    let jam = TripAuto.Tail(moved: 0, alive: TripAuto.idleCap - 10, meters: 5_000, points: 200,
+                            place: home)
+    check("пробка: датчики держат поездку",
+          TripAuto.shouldFinish(jam, motion: motion(.drive), now: TripAuto.idleCap - 1), false)
+    check("двадцать минут без шага — конец, что бы ни говорили датчики",
+          TripAuto.shouldFinish(jam, motion: motion(.drive), now: TripAuto.idleCap), true)
+}
+
+group("TripLink: привязка Bluetooth машины") {
+    let speaker = TripLink.Port(kind: .other, uid: "Speaker", name: "Динамик")
+    let music = TripLink.Port(kind: .bluetooth, uid: "00:11:22:33:44:55-tacl", name: "Camry ")
+    let calls = TripLink.Port(kind: .bluetooth, uid: "00:11:22:33:44:55-tsco", name: "camry")
+    let buds = TripLink.Port(kind: .bluetooth, uid: "AA:BB:CC:DD:EE:FF-tacl", name: "Наушники")
+    let carPlay = TripLink.Port(kind: .carPlay, uid: "CarPlay-1", name: "Rio")
+
+    check("динамик не привязать", TripLink.bindable([speaker]) == nil, true)
+    check("привязывается Bluetooth, а не динамик", TripLink.bindable([speaker, music]), music)
+    check("CarPlay тоже привязывается", TripLink.bindable([carPlay]), carPlay)
+
+    let camry = TripLink.Bond(carID: "А 001 АА 77", uid: music.uid, name: "Camry")
+    let rio = TripLink.Bond(carID: "Rio", uid: carPlay.uid, name: carPlay.name)
+    check("по идентификатору", TripLink.connected([music], bonds: [rio, camry]), camry.carID)
+    check("звонки той же магнитолы — по имени", TripLink.connected([calls], bonds: [camry]), camry.carID)
+    check("наушники — не машина", TripLink.connected([buds], bonds: [camry, rio]) == nil, true)
+    check("динамик с тем же именем — не машина",
+          TripLink.matches(TripLink.Port(kind: .other, uid: "x", name: "Camry"),
+                           uid: camry.uid, name: camry.name), false)
+    let twin = TripLink.Bond(carID: "Вторая", uid: "11:11:11:11:11:11-tacl", name: "Camry")
+    check("одинаковые имена — решает идентификатор",
+          TripLink.connected([music], bonds: [twin, camry]), camry.carID)
+    check("пустое имя ни с чем не совпадает",
+          TripLink.matches(TripLink.Port(kind: .bluetooth, uid: "z", name: " "), uid: "", name: ""), false)
+
+    check("подключена машина — поездка её",
+          TripLink.gate(connected: "Rio", defaultBound: true), .car("Rio"))
+    check("своя машина молчит", TripLink.gate(connected: nil, defaultBound: true), .absent)
+    check("машина не привязана — как раньше", TripLink.gate(connected: nil, defaultBound: false), .free)
+
+    // Проба и Bluetooth.
+    let home = GeoPoint(latitude: 55.7400, longitude: 37.6000)
+    let left = TripAuto.Memory(spots: [home], atCar: false)
+    let foot = TripAuto.Motion(mode: .foot, sure: true)
+    check("своя машина подключена — слушаем даже ушедшего пешком",
+          TripAuto.shouldProbe(left, origin: .wander, fix: nil, motion: foot, link: .car("Rio")), true)
+    check("своя машина молчит — перемещение не слушаем",
+          TripAuto.shouldProbe(TripAuto.Memory(), origin: .wander, fix: nil, motion: nil,
+                               link: .absent), false)
+    check("своя машина молчит — выход из зоны ждёт её минуту",
+          TripAuto.shouldProbe(left, origin: .zone, fix: nil, motion: nil, link: .absent), true)
+
+    func fix(_ meters: Double, t: Double) -> TripMath.Sample {
+        TripMath.Sample(latitude: 55.7400 + meters / 111_195, longitude: 37.6000, accuracy: 10, time: t)
+    }
+    var crawl = TripAuto.Probe(origin: .zone, startedAt: 0)
+    crawl.add(fix(0, t: 1))
+    crawl.add(fix(80, t: 30))
+    crawl.add(fix(160, t: 60))
+    check("в своей машине хватает 150 м по прямой",
+          TripAuto.verdict(crawl, motion: foot, link: .car("Rio"), now: 60), .drive)
+    check("без привязки то же «идёт» — ушёл пешком",
+          TripAuto.verdict(crawl, motion: foot, now: 60), .away)
+    check("своя машина молчит — не едем, сколько ни проехали",
+          TripAuto.verdict(crawl, motion: TripAuto.Motion(mode: .drive, sure: true), link: .absent,
+                           now: 30), .wait)
+    check("минута без своей машины — сдаёмся",
+          TripAuto.verdict(crawl, motion: nil, link: .absent, now: TripLink.linkWait), .away)
+    let parked = TripAuto.Probe(origin: .zone, startedAt: 0)
+    check("в машине с мотором, но стоим — ждём, а не сдаёмся",
+          TripAuto.verdict(parked, motion: nil, link: .car("Rio"), now: TripAuto.idleProbe + 1), .wait)
+    check("три минуты стоим в машине — всё же сдаёмся",
+          TripAuto.verdict(parked, motion: nil, link: .car("Rio"), now: TripAuto.probeWindow), .away)
+
+    check("Bluetooth на месте — поездка идёт", TripLink.lost(since: nil, now: 1_000), false)
+    check("мигнул — ещё не конец", TripLink.lost(since: 100, now: 100 + TripLink.linkGap - 1), false)
+    check("пропал на минуту — приехали", TripLink.lost(since: 100, now: 100 + TripLink.linkGap), true)
+}
+
+group("TripTrack: маршрут поездки") {
+    let a = GeoPoint(latitude: 55.740201, longitude: 37.595712)
+    let near = GeoPoint(latitude: 55.740301, longitude: 37.595712)   // 11 м
+    let far = GeoPoint(latitude: 55.741201, longitude: 37.595712)    // 111 м
+    check("первая точка пишется", TripTrack.shouldAppend(a, after: nil), true)
+    check("ближе 25 м — не пишется", TripTrack.shouldAppend(near, after: a), false)
+    check("дальше 25 м — пишется", TripTrack.shouldAppend(far, after: a), true)
+
+    let west = GeoPoint(latitude: -33.868820, longitude: -151.209296)
+    let data = TripTrack.encode([a, far, west])
+    check("восемь байт на точку", data.count, 24)
+    check("запись и чтение сходятся", TripTrack.decode(data), [a, far, west])
+    check("оборванный хвост отбрасывается", TripTrack.decode(data.dropLast(3)), [a, far])
+    check("пустые данные — пустой маршрут", TripTrack.decode(Data()).isEmpty, true)
+
+    let box = TripTrack.bounds([a, far, west])
+    check("рамка: юго-запад", box?.southWest, GeoPoint(latitude: -33.868820, longitude: -151.209296))
+    check("рамка: северо-восток", box?.northEast, GeoPoint(latitude: 55.741201, longitude: 37.595712))
+    check("рамка пустого маршрута — nil", TripTrack.bounds([]) == nil, true)
+    check("концы маршрута — первая и последняя точки", TripTrack.endpoints([a, far, west])?.end, west)
+    check("у одной точки концов нет", TripTrack.endpoints([a]) == nil, true)
+
+    var moscow = Calendar(identifier: .gregorian)
+    moscow.timeZone = TimeZone(identifier: "Europe/Moscow")!
+    // 8 октября 2026, 21:16 по Москве.
+    let evening = Date(timeIntervalSince1970: 1_791_483_360)
+    check("подпись карточки: дата с годом и временем", TripTrack.cardTitle(evening, calendar: moscow),
+          "8 октября 2026, 21:16")
+    check("заголовок экрана поездки", TripTrack.sheetTitle(evening, calendar: moscow), "Поездка 8 октября")
+
+    check("40 секунд — меньше минуты", TripTrack.durationLabel(seconds: 40), "меньше минуты")
+    check("42 минуты", TripTrack.durationLabel(seconds: 42 * 60 + 30), "42\u{00A0}мин")
+    check("час и пять минут", TripTrack.durationLabel(seconds: 65 * 60), "1\u{00A0}ч 5\u{00A0}мин")
+    check("ровно два часа", TripTrack.durationLabel(seconds: 7200), "2\u{00A0}ч")
+    check("36 км за 30 минут — 72 км/ч", TripTrack.speedLabel(meters: 36_000, seconds: 1800), "72\u{00A0}км/ч")
+    check("короче минуты скорости нет", TripTrack.speedLabel(meters: 500, seconds: 30) == nil, true)
+}
+
+// ---------------------------------------------------------------- CloudMath
+
+group("CloudMath") {
+    check("дыхание не опускается ниже 0.22",
+          (0...300).allSatisfy { CloudMath.drive(level: 0, at: Double($0) / 10) >= 0.22 }, true)
+    check("громкий мотор ведёт уровень сам", CloudMath.drive(level: 0.9, at: 1), 0.9)
+    check("уровень выше 1 не уходит", CloudMath.drive(level: 3, at: 1), 1)
 }
 
 print("")

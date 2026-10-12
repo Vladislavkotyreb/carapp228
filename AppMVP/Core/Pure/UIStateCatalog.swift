@@ -107,15 +107,15 @@ enum UIStateCatalog {
     // MARK: - Раздел «Ошибки»
 
     static let issues: [UIStateEntry] = [
-        .init(id: "issues-empty", screen: "Ошибки",
+        .init(id: "issues-empty", screen: "Диагностика",
               what: "История пуста, зазор до кнопки 206", node: "46096:2555"),
-        .init(id: "issues-history", screen: "Ошибки",
+        .init(id: "issues-history", screen: "Диагностика",
               what: "История есть, зазор до кнопки 48", node: "46105:4251"),
-        .init(id: "issues-recordingInline", screen: "Ошибки",
+        .init(id: "issues-recordingInline", screen: "Диагностика",
               what: "Запись на пустом экране, без модалки", node: nil),
-        .init(id: "issues-recordingModal", screen: "Ошибки",
+        .init(id: "issues-recordingModal", screen: "Диагностика",
               what: "Запись модалкой поверх притемнённой истории", node: "46105:3970"),
-        .init(id: "issues-analyzing", screen: "Ошибки",
+        .init(id: "issues-analyzing", screen: "Диагностика",
               what: "Запись отдана на разбор, кнопка держит индикатор", node: nil),
     ]
 
@@ -124,17 +124,17 @@ enum UIStateCatalog {
         .init(id: "findings-stub", screen: "Шторка находок",
               what: "Сервер не настроен — шесть карточек заглушки", node: "46102:3369"),
         .init(id: "findings-serverWithoutModel", screen: "Шторка находок",
-              what: "Сервер поднят без модели", node: nil),
+              what: "Сервер поднят без модели — пустое состояние со сбоем", node: nil),
         .init(id: "findings-notEngine", screen: "Шторка находок",
-              what: "Привратник не услышал мотора", node: nil),
+              what: "Привратник не услышал мотора — пустое состояние", node: nil),
         .init(id: "findings-fault", screen: "Шторка находок",
               what: "«Похоже на неисправность» плюс версии по убыванию", node: nil),
         .init(id: "findings-normal", screen: "Шторка находок",
-              what: "«Ничего тревожного не слышно», версий нет", node: nil),
+              what: "Пустое состояние «Мы ничего не нашли»: «Ещё раз», «Закрыть»", node: nil),
         .init(id: "findings-uncertain", screen: "Шторка находок",
-              what: "Вердикт посередине, судить не берёмся", node: nil),
+              what: "Вердикт посередине — пустое состояние «судить не берёмся»", node: nil),
         .init(id: "findings-failed", screen: "Шторка находок",
-              what: "Сеть или разбор отказали", node: nil),
+              what: "Сеть или разбор отказали — пустое состояние с причиной", node: nil),
     ]
 
     // MARK: - Прочее
@@ -143,9 +143,9 @@ enum UIStateCatalog {
         .init(id: "map-noKey", screen: "Карта",
               what: "Ключ MapKit не задан — объяснение вместо пустоты", node: nil),
         .init(id: "map-live", screen: "Карта",
-              what: "Карта с позицией пользователя", node: nil),
+              what: "Карта: поиск и чипы сверху, «я здесь» и «Список» справа внизу", node: nil),
         .init(id: "map-list", screen: "Карта",
-              what: "Список: избранное, свои точки и найденное рядом", node: nil),
+              what: "Список мест вместо карты, под теми же поиском и чипами", node: nil),
         .init(id: "map-listEmpty", screen: "Карта",
               what: "Список, в котором нечего показать", node: nil),
     ]

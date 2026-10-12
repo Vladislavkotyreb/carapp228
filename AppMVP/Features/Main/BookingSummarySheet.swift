@@ -81,9 +81,10 @@ struct BookingSummarySheet: View {
         .padding(.horizontal, 16)
         .padding(.top, 16)
         .padding(.bottom, 20)
-        .liquidGlass(in: Self.shape, tint: Figma.sheetBackground) {
-            Self.shape.fill(Figma.sheetBackground)
-        }
+        // Сплошная подложка, а не стекло с тоном: цвет тот же (замер
+        // 28,28,30), но системная «Закрыть» — сама стекло, а стекло на
+        // стекле почти не видно: кружок кнопки терялся (06.10.2026).
+        .background(Self.shape.fill(Figma.sheetBackground))
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
             Capsule()
@@ -129,7 +130,7 @@ struct BookingSummarySheet: View {
                     texts(title: ListeningSummary.title(days: nil),
                           subtitle: "Сервис узнает только машину и\u{00A0}пробег")
                 }
-                listenHint("Послушайте мотор — в\u{00A0}заявку уйдёт готовый диагноз")
+                listenHint("Послушайте мотор — приложим результат к\u{00A0}заявке")
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -221,30 +222,8 @@ struct BookingSummarySheet: View {
     // MARK: - Тулбар
 
     private var toolbar: some View {
-        ZStack {
-            Text("Что расскажем сервису")
-                .font(.system(size: 17, weight: .semibold))
-                .tracking(-0.43)
-                .foregroundStyle(Figma.vibrantControlsPrimary)
-
-            HStack {
-                Spacer()
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .liquidGlass(in: Circle(), tint: Figma.sheetControl) {
-                            Circle()
-                                .fill(Figma.sheetControl)
-                                .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
-                        }
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Закрыть")
-            }
-        }
-        .frame(height: 44)
+        // Контейнер уже даёт поля 16 — панель их возвращает себе.
+        SheetBar(title: "Что расскажем сервису", closeSide: .trailing, containerInset: 16,
+                 onClose: onClose)
     }
 }

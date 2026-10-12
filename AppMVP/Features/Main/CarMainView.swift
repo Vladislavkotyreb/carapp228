@@ -9,16 +9,6 @@ import UniformTypeIdentifiers
 /// главным актором.
 private enum ScrollHeader {
     static let space = "carScroll"
-
-    /// Отрезок появления. Заголовок страницы стоит на 103 и высотой 31, шапка
-    /// теперь 86 — значит он начинает уходить под неё на смещении 17 и полностью
-    /// скрывается на 48. Раньше шапка проявлялась раньше, чем ей было что закрыть.
-    static let fadeStart: CGFloat = 17
-    static let fadeEnd: CGFloat = 48
-
-    static func visibility(at offset: CGFloat) -> Double {
-        Double(min(1, max(0, (offset - fadeStart) / (fadeEnd - fadeStart))))
-    }
 }
 
 /// Пружина под фото машины: чем сильнее оттянут список, тем крупнее картинка.
@@ -329,16 +319,45 @@ struct CarMainView: View {
     /// находок. Отдельно от слота `sheet`: это данные, а не «какое окно
     /// открыто» — то же разделение, что у `editingRecord`.
     @State private var quickOutcome: DiagnosisCards.Outcome?
+    /// Прослушивание из ленты истории, открытое шторкой. Значения, а не
+    /// модель, и отдельно от слота `sheet` — как `editingRecord`.
+    @State private var viewingCheck: SavedCheck?
 
     /// Фильтр общей ленты «История обслуживания» (вариант B).
     @State private var historyFilter: HistoryFilter = .all
 
+    /// Поездка из ленты «Поездки», с которой сейчас работают: открыта
+    /// экраном, удаляется или правится. Значения, а не модель, и отдельно от
+    /// слота `sheet` — как `viewingCheck`.
+    @State private var viewingTrip: TripDetails?
+    /// Поле правки расстояния поездки, км.
+    @State private var tripKm = ""
+
+    /// Поездки этой машины, свежие сверху, — под чипсом «Поездки».
+    private var carTrips: [Trip] {
+        (car?.trips ?? []).sorted { $0.endedAt > $1.endedAt }
+    }
+    /// То, что лента показывает: значения, снятые с поездок.
+    private var shownTrips: [TripDetails] {
+        carTrips.prefix(Self.tripsShown).map { TripDetails($0) }
+    }
+    /// Сколько поездок показывать: лента не ленивая, и у каждой карточки
+    /// кадр карты.
+    private static let tripsShown = 10
+
     /// Лента: ТО и прослушивания одной хронологией, свежие сверху.
     private var historyItems: [HistoryItem] {
         let items: [HistoryItem] = switch historyFilter {
+        // «Всё» — это всё: ТО, прослушивания и поездки одной хронологией
+        // (замечание пользователя 09.10.2026: «не выводятся поездки»).
+        // Поездки здесь — строками той же высоты, что остальные записи;
+        // карточки с картой — под чипсом «Поездки».
         case .all: services.map(HistoryItem.service) + checks.map(HistoryItem.check)
+            + carTrips.prefix(Self.tripsShown).map(HistoryItem.trip)
         case .services: services.map(HistoryItem.service)
         case .checks: checks.map(HistoryItem.check)
+        // У поездок своя лента — `tripsStrip`.
+        case .trips: []
         }
         return items.sorted { $0.date > $1.date }
     }
@@ -399,13 +418,21 @@ struct CarMainView: View {
                 sheet = .findings
             }
         }
+        .bottomSheet(isPresented: presenting(.checkDetail),
+                     grabberInset: SavedCheckSheet.topInset) {
+            if let viewingCheck {
+                SavedCheckSheet(check: viewingCheck, onClose: { sheet = .closed })
+                    .id(viewingCheck.id)
+                    .padding(.top, SavedCheckSheet.topInset)
+            }
+        }
         .bottomSheet(isPresented: presenting(.findings)) {
             if let outcome = quickOutcome {
                 // Слушали с экрана машины — прикрепление включено и стоит на
                 // ней; в карусели можно перелистнуть на другую или выключить.
                 FindingsSheet(
                     findings: outcome.cards,
-                    nothingHeard: outcome.nothingHeard,
+                    empty: outcome.empty,
                     cars: cars.map(FindingsSheet.CarChoice.init),
                     preselected: car?.persistentModelID,
                     attachByDefault: true,
@@ -453,11 +480,16 @@ struct CarMainView: View {
             PriceInfoSheet(
                 kind: .odometer,
                 odometer: car?.odometer ?? 0,
+                trackedKm: car?.trackedKm ?? 0,
                 ownPrice: car?.price,
                 marketPrice: car?.marketPrice,
                 marketOffers: car?.marketOffers,
                 onSave: { value in
                     car?.odometer = value ?? 0
+                    // Пробег сверен с приборкой: поездки автопробега в нём
+                    // больше не оценка, «≈» снимается.
+                    car?.trackedKm = nil
+                    car?.tripCarry = nil
                     sheet = .closed
                     presentToast("Пробег обновлён!")
                     addedServiceTick += 1
@@ -505,6 +537,16 @@ struct CarMainView: View {
                 .padding(.bottom, 5.07)
             }
         }
+        .modifier(TripModals(
+            trip: viewingTrip,
+            showDetail: presenting(.tripDetail),
+            showDelete: presenting(.tripDelete),
+            showDistance: presenting(.tripDistance),
+            km: $tripKm,
+            onDelete: removeViewedTrip,
+            onSaveDistance: saveTripDistance,
+            onClose: { sheet = .closed }
+        ))
         .modifier(CarMainChrome(
             showAddCar: presenting(.addCar),
             showPhotoPicker: presenting(.photoPicker),
@@ -578,7 +620,7 @@ struct CarMainView: View {
         .task(id: serviceReminderKey) {
             for car in cars {
                 await ServiceReminder.update(
-                    id: String(car.persistentModelID.hashValue),
+                    id: ServiceReminder.key(createdAt: car.createdAt),
                     name: car.name, plate: car.plate,
                     kmLeft: kmUntilService(for: car))
             }
@@ -675,6 +717,9 @@ struct CarMainView: View {
                         // контента, когда он уходит под неё. Прозрачностью,
                         // а не условием: слой должен растворяться.
                         .overlay(alignment: .top) { toolbarBackdrop }
+                        // Оверлей после `ignoresSafeArea`: сам он безопасную
+                        // зону уважает и встаёт над таббаром.
+                        .overlay(alignment: .bottom) { bookingPill }
                         .toolbar { carToolbar }
                         // Фон бара скрыт: в макете контент уходит под тулбар,
                         // фото машины видно за ним.
@@ -688,7 +733,7 @@ struct CarMainView: View {
                 }
             }
             Tab("Карта", systemImage: "map", value: 1) { MapScreen(findsNearestService: $findsNearestService) }
-            Tab("Ошибки", systemImage: "wrench.adjustable", value: 2) {
+            Tab("Диагностика", systemImage: "wrench.adjustable", value: 2) {
                 IssuesScreen(hidesTabBar: $hidesTabBar, car: car)
                     .ignoresSafeArea()
                     // Видимость бара объявляется **содержимым вкладки**, а не
@@ -696,7 +741,7 @@ struct CarMainView: View {
                     // игнорируется, и бар оставался поверх модалки.
                     .toolbarVisibility(hidesTabBar ? .hidden : .automatic, for: .tabBar)
             }
-            Tab("Ещё", systemImage: "ellipsis", value: 3) { MoreScreen().ignoresSafeArea() }
+            Tab("Ещё", systemImage: "ellipsis", value: 3) { MoreScreen() }
         }
         // Тёмная тема 05.09.2026: бар больше не светлый — тёмное стекло он
         // берёт из общей тёмной схемы приложения, как на тёмном рендере
@@ -726,8 +771,14 @@ struct CarMainView: View {
             case 1: MapScreen(findsNearestService: $findsNearestService).transition(tabTransition)
             case 2: IssuesScreen(hidesTabBar: $hidesTabBar, car: car)
                     .ignoresSafeArea().transition(tabTransition)
-            case 3: MoreScreen().ignoresSafeArea().transition(tabTransition)
+            case 3: MoreScreen().transition(tabTransition)
             default: carScreen.transition(tabTransition)
+            }
+
+            if tab == 0 {
+                bookingPill
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, Figma.tabBarHeight + Figma.minBottomGap)
             }
 
             // В макете таббар стоит на y = 779 при высоте экрана 874, то есть
@@ -837,13 +888,28 @@ struct CarMainView: View {
         guard cars.indices.contains(index) else { return PageMetrics() }
         let car = cars[index]
         if car.services.isEmpty {
-            return PageMetrics(headerGap: 24, cardHeight: 92, statsGap: 24, history: 0)
+            // ТО ещё нет — карточка «Добавить ТО». История при этом может
+            // быть: прослушивания и поездки. Раньше блок прятался целиком, и
+            // у машины без ТО поездок не было видно вовсе (разбор 09.10.2026).
+            return PageMetrics(headerGap: 24, cardHeight: 92, statsGap: 24,
+                               history: Self.hasHistory(car) ? 1 : 0)
         }
         // Кнопка «Записаться» растит карточку на свою высоту и зазор до
         // полосы — смесь по весам делает это плавно и при свайпе.
         return suggestsBooking(car)
             ? PageMetrics(cardHeight: PageMetrics().cardHeight + Self.bookingRowHeight)
             : PageMetrics()
+    }
+
+    /// Есть ли у машины что показать в «Истории обслуживания».
+    private static func hasHistory(_ car: Car) -> Bool {
+        !car.services.isEmpty || !car.checks.isEmpty || !car.trips.isEmpty
+    }
+
+    /// Сколько записей в истории текущей машины. Удаляют последнюю —
+    /// страницу сначала возвращают наверх (см. `deleteService`).
+    private var historyCount: Int {
+        services.count + checks.count + (car?.trips.count ?? 0)
     }
 
     /// Веса двух соседних страниц дают в сумме 1, поэтому это именно смесь.
@@ -869,10 +935,28 @@ struct CarMainView: View {
     /// фильтра: 32 капсулы + 24 зазора. Группы считаются по отфильтрованной
     /// ленте — прослушивание той же высоты, что и ТО.
     private var historyHeight: CGFloat {
+        guard historyFilter != .trips else {
+            return 176 + Self.historyFilterRow + tripsHeight
+        }
         let group: CGFloat = 129 + 24      // карточка с датой и зазор перед ней
         let n = CGFloat(historyItems.count)
         return 176 + Self.historyFilterRow + n * group
     }
+
+    /// Высота ленты поездок вместе с зазором перед ней. У поездки с маршрутом
+    /// карточка выше на карту, поэтому сумма, а не число на множитель.
+    private var tripsHeight: CGFloat {
+        let shown = shownTrips
+        guard !shown.isEmpty else { return Self.historyGap + Self.tripsEmptyHeight }
+        let cards = shown.reduce(CGFloat(0)) { $0 + TripCard.height(hasMap: $1.hasMap) }
+        return Self.historyGap + cards + Self.tripGap * CGFloat(shown.count - 1)
+    }
+
+    /// Зазор между строкой чипсов и лентой — тот же, что между группами.
+    private static let historyGap: CGFloat = 24
+    private static let tripGap: CGFloat = 12
+    /// Строка «Поездок пока нет».
+    private static let tripsEmptyHeight: CGFloat = 20
 
     private static let historyFilterRow: CGFloat = 32 + 24
 
@@ -882,7 +966,7 @@ struct CarMainView: View {
 
         return ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                header(progress: p, stretches: true)
+                header(stretches: true)
 
                 Spacer(minLength: 0).frame(height: m.headerGap)
 
@@ -891,13 +975,10 @@ struct CarMainView: View {
                 Button {
                     if p > 0.5 { sheet = .addCar } else if services.isEmpty { sheet = .serviceChoice }
                 } label: {
-                    darkCard(progress: p, height: m.cardHeight)
+                    darkCard(height: m.cardHeight)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(p > 0.5 ? "Добавить авто" : "ТО")
-                // Оверлеем, а не внутри карточки: карточка сама кнопка, и
-                // кнопка в её лейбле делила бы нажатие с ней.
-                .overlay(alignment: .bottomTrailing) { bookingButtons }
 
                 Spacer(minLength: 0).frame(height: m.statsGap)
 
@@ -932,7 +1013,9 @@ struct CarMainView: View {
                     Button {
                         sheet = .odometerInfo
                     } label: {
-                        statCard(title: "Пробег") { "\(NumberFormat.grouped($0.odometer))\u{00A0}км" }
+                        statCard(title: "Пробег") {
+                            TripMath.odometerLabel($0.odometer, trackedKm: $0.trackedKm ?? 0)
+                        }
                     }
                     .buttonStyle(.plain)
                     .contentShape(Self.statCardShape)
@@ -975,10 +1058,10 @@ struct CarMainView: View {
         }
         .coordinateSpace(name: ScrollHeader.space)
         // На странице «Добавить авто» белые карточки погашены, но место
-        // занимают, а у машины без ТО прокручивать нечего — в обоих случаях
-        // прокрутка открывала бы пустоту. Флаг считается из carPage и dragX,
-        // залипнуть не может.
-        .scrollDisabled(p > 0.5 || services.isEmpty)
+        // занимают, а у машины без истории прокручивать нечего — в обоих
+        // случаях прокрутка открывала бы пустоту. Флаг считается из carPage и
+        // dragX, залипнуть не может.
+        .scrollDisabled(p > 0.5 || historyCount == 0)
         // HIG: форму со списком клавиатура должна отпускать скроллом
         .scrollDismissesKeyboard(.interactively)
     }
@@ -1058,7 +1141,7 @@ struct CarMainView: View {
     /// (макетный и «своё фото во весь верх»), и разница между ними — числа,
     /// которые смешивает `photoMix`. Высота в потоке постоянна, поэтому всё,
     /// что ниже шапки, не двигается ни в одном режиме.
-    private func header(progress p: Double, stretches: Bool) -> some View {
+    private func header(stretches: Bool) -> some View {
         let mix = photoMix
         return ZStack(alignment: .top) {
             photoStrip(mix: mix, stretches: stretches)
@@ -1071,7 +1154,7 @@ struct CarMainView: View {
                     ForEach(cars) { car in
                         title(car.name).opacity(weight(of: index(of: car)))
                     }
-                    title("Добавьте новый авто").opacity(weight(of: addPageIndex))
+                    title("Добавьте новое авто").opacity(weight(of: addPageIndex))
                 }
 
                 ZStack {
@@ -1173,10 +1256,6 @@ struct CarMainView: View {
 
     /// Выезд уместен только у студийного кадра на чёрном фоне.
     private var slides: Bool { !reduceMotion && photoMix < 0.5 }
-
-    /// Одно место на весь экран: то же название стоит и в шапке при прокрутке.
-    /// TODO: брать из модели, когда появится справочник марок.
-    private static let carTitle = "Mercedes-Benz GL-класс"
 
     /// Название машины. Блок в макете 370×48, текст в одну строку по центру;
     /// высота задана рамкой, а не межстрочным интервалом — у одной строки
@@ -1405,7 +1484,7 @@ struct CarMainView: View {
     /// Единственная тёмная карточка экрана. Содержимое перекрёстно меняется
     /// между страницами, высота приходит смешанной — поэтому при свайпе она
     /// не подменяется, а перетекает.
-    private func darkCard(progress p: Double, height: CGFloat) -> some View {
+    private func darkCard(height: CGFloat) -> some View {
         ZStack {
             // В раскладку попадают только видимые страницы. ZStack меряется по
             // самому высокому ребёнку, погашенному в ноль тоже: с появлением
@@ -1486,72 +1565,65 @@ struct CarMainView: View {
             }
             .frame(height: 30)
 
-            // Подпись «почему» слева, «Записаться» справа. Сама кнопка
-            // лежит оверлеем поверх карточки (см. `bookingButtons`), здесь —
-            // её невидимый двойник: он держит место ровно по её размеру.
+            // Подпись «почему»: карточка пожелтела или покраснела. Кнопки
+            // «Записаться» здесь больше нет (решение пользователя 08.10.2026):
+            // запись — плавающей «Записаться на ТО» над таббаром, см.
+            // `bookingPill`. Высота строки прежняя, метрики карточки не тронуты.
             if let hint = ServiceMath.bookingHint(kmLeft: kmUntilService(for: car)) {
-                HStack(spacing: 12) {
-                    // 13 и две строки: в одну 15-м кеглем подпись не
-                    // влезала рядом с кнопкой и обрезалась многоточием.
-                    Text(hint)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Figma.labelsSecondary)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    bookingLabel(tint: urgencyColor(for: car)).hidden()
-                }
+                Text(hint)
+                    .font(.system(size: 15))
+                    .foregroundStyle(Figma.labelsSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .frame(maxWidth: .infinity)
                 .frame(height: Self.bookingButtonHeight)
             }
         }
     }
 
-    /// «Записаться» — с жёлтой зоны пробега: ведёт на карту к ближайшему
-    /// сервису, где можно позвонить, написать или записаться онлайн.
+    /// «Записаться на ТО» — плавающая кнопка над таббаром, как «Список» на
+    /// карте (просьба пользователя 08.10.2026): запись доступна всегда, а не
+    /// только когда карточка «ТО через» пожелтела. Единственный вход в
+    /// запись: открывает шторку «Что расскажем сервису».
     ///
-    /// По кнопке на машину, с тем же весом страницы, что и содержимое
-    /// карточки: при свайпе она уходит вместе с ней. Погашенная кнопка
-    /// нажатий не принимает — иначе невидимая ловила бы тапы по карточке.
-    ///
-    /// HIG, а не главная кнопка экрана: маленькая тонированная капсула в
-    /// цвет зоны (`.bordered` + tint, controlSize `.small`). Это подсказка
-    /// к карточке, и спорить с ней за внимание она не должна.
-    private var bookingButtons: some View {
-        ZStack(alignment: .bottomTrailing) {
-            ForEach(cars) { car in
-                if !car.services.isEmpty, suggestsBooking(car) {
-                    let visible = weight(of: index(of: car))
-                    Button {
-                        sheet = .booking
-                    } label: {
-                        bookingLabel(tint: urgencyColor(for: car))
-                            // Видно 34, нажимается 44 — HIG. Раскладку
-                            // рамка касания не раздвигает.
-                            .contentShape(Rectangle().inset(by: -5))
-                    }
-                    .buttonStyle(.plain)
-                    .opacity(visible)
-                    .allowsHitTesting(visible > 0.5)
-                    .accessibilityHidden(visible < 0.5)
-                    .accessibilityHint("Покажет, что уйдёт в\u{00A0}сервис, и\u{00A0}найдёт ближайший")
+    /// На странице добавления машины кнопки нет: гаснет вместе со свайпом к
+    /// ней и, погашенная, касаний не принимает.
+    @ViewBuilder
+    private var bookingPill: some View {
+        if car != nil {
+            let visible = 1 - addProgress
+            Button {
+                sheet = .booking
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text("Записаться на\u{00A0}ТО")
+                        .font(.system(size: 16, weight: .medium))
                 }
+                .foregroundStyle(Figma.labelsPrimary)
+                .padding(.horizontal, 18)
+                .frame(height: Self.bookingPillHeight)
+                .liquidGlass(in: Capsule()) { Capsule().fill(Material.regular) }
+                .contentShape(Capsule())
             }
+            .buttonStyle(.plain)
+            .padding(.bottom, Self.bookingPillGap)
+            .opacity(visible)
+            .allowsHitTesting(visible > 0.5)
+            .accessibilityHidden(visible < 0.5)
+            .accessibilityHint("Покажет, что уйдёт в\u{00A0}сервис, и\u{00A0}найдёт ближайший")
         }
-        .padding(24)
     }
 
-    private func bookingLabel(tint: Color) -> some View {
-        Label("Записаться", systemImage: "calendar.badge.plus")
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(tint)
-            .lineLimit(1)
-            .fixedSize()
-            .padding(.horizontal, 14)
-            .frame(height: Self.bookingButtonHeight)
-            .background(tint.opacity(0.18), in: Capsule())
-    }
+    /// Размер и зазор до таббара — те же, что у «Список» на карте
+    /// (`MapScreen.Layout.control` и `gap`).
+    private static let bookingPillHeight: CGFloat = 44
+    private static let bookingPillGap: CGFloat = 12
 
-    /// Высота кнопки «Записаться» и её строка в карточке вместе с зазором 12
-    /// до полосы.
+    /// Высота подписи «почему» в карточке «ТО через» и её строка вместе с
+    /// зазором 12 до полосы. Имя осталось от кнопки «Записаться», которая
+    /// стояла в этой строке до 08.10.2026.
     private static let bookingButtonHeight: CGFloat = 34
     private static let bookingRowHeight: CGFloat = 12 + bookingButtonHeight
 
@@ -1576,10 +1648,6 @@ struct CarMainView: View {
                 }
             }
         }
-    }
-
-    private func statCard(title: String, value: String) -> some View {
-        statCardShell(title: title) { Text(value) }
     }
 
     /// Форма плитки счётчика. В макете её скругление — 1000, то есть капсула:
@@ -1650,9 +1718,103 @@ struct CarMainView: View {
 
             historyFilterChips
 
-            historyStrip
+            if historyFilter == .trips {
+                tripsStrip
+            } else {
+                historyStrip
+            }
         }
         .padding(.vertical, 16)
+    }
+
+    /// Поездки машины карточками, как в «Ещё» (просьба пользователя
+    /// 09.10.2026). Свайп влево по карточке открывает «Изменить» и
+    /// «Удалить», тап — экран поездки.
+    private var tripsStrip: some View {
+        let shown = shownTrips
+        return VStack(alignment: .leading, spacing: Self.tripGap) {
+            if shown.isEmpty {
+                Text("Поездок пока нет")
+                    .font(.system(size: 15))
+                    .foregroundStyle(Figma.vibrantSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: Self.tripsEmptyHeight)
+            }
+            ForEach(shown) { details in
+                SwipeRow(
+                    onEdit: {
+                        viewingTrip = details
+                        tripKm = details.kmField
+                        sheet = .tripDistance
+                    },
+                    onDelete: {
+                        viewingTrip = details
+                        sheet = .tripDelete
+                    }
+                ) {
+                    Button {
+                        viewingTrip = details
+                        sheet = .tripDetail
+                    } label: {
+                        TripCard(trip: details, showsCar: false)
+                    }
+                    .buttonStyle(CardPressStyle())
+                    .accessibilityHint("Открыть поездку")
+                }
+            }
+        }
+    }
+
+    private func storedTrip(for details: TripDetails) -> Trip? {
+        carTrips.first { $0.snapshotKey == details.snapshotKey }
+            ?? cars.flatMap(\.trips).first { $0.snapshotKey == details.snapshotKey }
+    }
+
+    private func removeViewedTrip() {
+        sheet = .closed
+        guard let viewingTrip, let trip = storedTrip(for: viewingTrip) else { return }
+        if historyCount == 1 { scrollToTop() }
+        TripEdits.remove(trip, in: modelContext)
+        presentToast("Поездка удалена")
+    }
+
+    private func saveTripDistance() {
+        sheet = .closed
+        guard let viewingTrip, let trip = storedTrip(for: viewingTrip) else { return }
+        guard let meters = TripMath.meters(fromKm: tripKm) else {
+            presentToast("Расстояние не изменено")
+            return
+        }
+        TripEdits.resize(trip, to: meters, in: modelContext)
+        presentToast("Расстояние обновлено!")
+        addedServiceTick += 1
+    }
+
+    // MARK: - Автопробег из меню «…»
+
+    /// Считает ли автопробег поездки этой машине. Машин несколько —
+    /// только выбранной (`TripCar`), по умолчанию первой добавленной.
+    private func autoCounts(_ car: Car?) -> Bool {
+        guard AutoSwitch.isOn, let car else { return false }
+        guard cars.count > 1 else { return true }
+        let chosen = TripCar.id ?? cars.first.map(TripTracker.carID)
+        return chosen == TripTracker.carID(of: car)
+    }
+
+    /// Пункт меню машины: включить автопробег для неё или выключить. Название
+    /// одно на всё приложение — «Автопробег» (просьба пользователя 09.10.2026);
+    /// «автоопределение» осталось именем механизма в коде (`TripAuto`).
+    private func toggleAuto() {
+        guard let car else { return }
+        let tracker = TripTracker.shared
+        if autoCounts(car) {
+            tracker.setAuto(false)
+            presentToast("Автопробег выключен")
+        } else {
+            tracker.setCar(TripTracker.carID(of: car))
+            tracker.setAuto(true)
+            presentToast("Автопробег включён!")
+        }
     }
 
     /// Сводка: одна карточка на две колонки. Раньше это были две плитки —
@@ -1752,9 +1914,11 @@ struct CarMainView: View {
             // без записей ТО было не удалить вовсе.
             // На странице «Добавьте новый авто» меню гаснет: удалять там
             // нечего, а «Удалить авто» без машины выглядел анекдотом.
-            EllipsisMenu {
-                sheet = .deleteConfirm
-            }
+            EllipsisMenu(
+                autoIsOn: { autoCounts(car) },
+                onAuto: toggleAuto,
+                onDelete: { sheet = .deleteConfirm }
+            )
             .frame(width: 44, height: 44)
             .darkGlassChip(in: Circle())
             .contentShape(Circle())
@@ -1877,7 +2041,9 @@ struct CarMainView: View {
                     Button { startEditing(record) } label: {
                         serviceCard(record)
                     }
-                    .buttonStyle(.plain)
+                    // Тот же отклик, что у карточки прослушивания рядом: две
+                    // карточки одной ленты не должны отвечать на палец по-разному.
+                    .buttonStyle(CardPressStyle())
                     .contentShape(.contextMenuPreview, Self.serviceCardShape)
                     .contextMenu {
                         Button { startEditing(record) } label: {
@@ -1892,26 +2058,96 @@ struct CarMainView: View {
                     }
                 case .check(let check):
                     // Прослушивание правке не подлежит — оно запись того, что
-                    // услышал разбор. Тап ведёт в «Ошибки», меню — удалить.
-                    Button { tab = 2 } label: {
+                    // услышал разбор. Тап открывает шторку с тем, что тогда
+                    // нашли (просьба пользователя 06.10.2026; раньше уводил
+                    // в «Ошибки»), меню — удалить.
+                    Button {
+                        viewingCheck = .init(check)
+                        sheet = .checkDetail
+                    } label: {
                         checkCard(check)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(CardPressStyle())
                     .contentShape(.contextMenuPreview, Self.serviceCardShape)
                     .contextMenu {
                         Button(role: .destructive) {
+                            if historyCount == 1 { scrollToTop() }
                             modelContext.delete(check)
                         } label: {
                             Label("Удалить", systemImage: "trash")
                         }
                     }
-                    .accessibilityHint("Откроет раздел «Ошибки»")
+                    .accessibilityHint("Откроет раздел «Диагностика»")
+                case .trip(let trip):
+                    // Поездка в общей ленте — строкой той же высоты, что ТО и
+                    // прослушивание. Тап открывает её экран, меню — то же, что
+                    // по свайпу под чипсом «Поездки».
+                    let details = TripDetails(trip)
+                    Button {
+                        viewingTrip = details
+                        sheet = .tripDetail
+                    } label: {
+                        tripRow(details)
+                    }
+                    .buttonStyle(CardPressStyle())
+                    .contentShape(.contextMenuPreview, Self.serviceCardShape)
+                    .contextMenu {
+                        Button {
+                            viewingTrip = details
+                            tripKm = details.kmField
+                            sheet = .tripDistance
+                        } label: {
+                            Label("Изменить", systemImage: "pencil")
+                        }
+
+                        Button(role: .destructive) {
+                            viewingTrip = details
+                            sheet = .tripDelete
+                        } label: {
+                            Label("Удалить", systemImage: "trash")
+                        }
+                    }
+                    .accessibilityHint("Открыть поездку")
                 }
             }
         }
     }
 
-    /// «Всё / ТО / Прослушивания» над лентой — капсулами, как фильтры
+    /// Строка поездки — геометрия карточки прослушивания (96pt, то же
+    /// стекло), зелёный значок пути: цвет поездок в приложении.
+    private func tripRow(_ trip: TripDetails) -> some View {
+        let places = [trip.startAddress, trip.endAddress].compactMap { $0 }
+        let detail = ([trip.duration] + (places.count == 2 ? [places.joined(separator: " → ")] : []))
+            .joined(separator: " · ")
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Figma.accentsGreen)
+                Text("Поездка · \(trip.distance)")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .frame(height: 20)
+
+            Text(detail)
+                .font(.system(size: 13))
+                .tracking(-0.08)
+                .figmaLineHeight(18, fontSize: 13)
+                .foregroundStyle(Figma.vibrantSecondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(height: 36, alignment: .top)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: Self.serviceCardHeight)
+        .darkGlassCard(in: Self.serviceCardShape)
+        .contentShape(Self.serviceCardShape)
+    }
+
+    /// «Всё / ТО / Прослушивания / Поездки» над лентой — капсулами, как фильтры
     /// приложения; выбранная — белая. Смена фильтра меняет высоту ленты, и
     /// она анимируется вместе с содержимым.
     private var historyFilterChips: some View {
@@ -1951,7 +2187,7 @@ struct CarMainView: View {
         let head = ["Прослушивание",
                     check.mileage.map { "\(NumberFormat.grouped($0))\u{00A0}км" }]
             .compactMap { $0 }.joined(separator: " · ")
-        let detail = [findings.isEmpty ? "Явных неисправностей не нашёл" : findings.joined(separator: ", "),
+        let detail = [findings.isEmpty ? "Явных неисправностей нет" : findings.joined(separator: ", "),
                       after.map { "\(NumberFormat.grouped($0))\u{00A0}км после ТО" }]
             .compactMap { $0 }.joined(separator: " · ")
         return VStack(alignment: .leading, spacing: 8) {
@@ -2013,7 +2249,7 @@ struct CarMainView: View {
 
             // Две строки по 18 — так работы и стоят в макете; у записи с одной
             // работой строка остаётся сверху, а карточка держит свои 96.
-            Text(record.works.map(\.title).joined(separator: ", "))
+            Text(ServiceMath.cardSubtitle(works: record.works.map(\.title), mileage: record.mileage))
                 .font(.system(size: 13))
                 .tracking(-0.08)
                 .figmaLineHeight(18, fontSize: 13)
@@ -2286,7 +2522,14 @@ struct CarMainView: View {
         // После удаления машин станет на одну меньше — страницу подтягиваем,
         // иначе карусель окажется за последней страницей.
         carPage = max(0, min(carPage, cars.count - 2))
-        // ТО и чеки уходят каскадом — правило задано в модели Car.services
+        // Кадры карт поездок лежат в кэше мимо базы — каскад их не уберёт,
+        // а на них маршруты удаляемой машины.
+        car.trips.forEach { TripSnapshots.remove(for: $0.snapshotKey) }
+        // Напоминание о ТО живёт в системной очереди и в настройках — тоже
+        // мимо базы.
+        ServiceReminder.forget(id: ServiceReminder.key(createdAt: car.createdAt))
+        // ТО, чеки, прослушивания и поездки уходят каскадом — правила заданы
+        // в модели `Car`.
         modelContext.delete(car)
     }
 
@@ -2311,8 +2554,8 @@ struct CarMainView: View {
                 .onTapGesture { sheet = .closed }
 
             VStack(spacing: 20) {
-                Text("Автомобиль будет удалён вместе со всей историей "
-                     + "обслуживания. Отменить это действие нельзя.")
+                Text("Машина удалится вместе с\u{00A0}историей ТО, прослушиваниями "
+                     + "и\u{00A0}поездками. Вернуть её нельзя.")
                     .font(.system(size: 17))
                     .tracking(-0.43)
                     .figmaLineHeight(22, fontSize: 17)
@@ -2345,12 +2588,13 @@ struct CarMainView: View {
         }
     }
 
-    /// Удаление записи ТО. С последней записью список пустеет и вертикальный
-    /// скролл отключается (`scrollDisabled(services.isEmpty)`) — если он в
-    /// этот момент был прокручен, страница застывала со сдвигом и «скролл
-    /// блокировался» (замечание пользователя). Сначала наверх, потом удалять.
+    /// Удаление записи ТО. С последней записью истории список пустеет и
+    /// вертикальный скролл отключается (`scrollDisabled(historyCount == 0)`)
+    /// — если он в этот момент был прокручен, страница застывала со сдвигом
+    /// и «скролл блокировался» (замечание пользователя). Сначала наверх,
+    /// потом удалять. То же у прослушивания и поездки.
     private func deleteService(_ record: ServiceRecord) {
-        if services.count == 1 { scrollToTop() }
+        if historyCount == 1 { scrollToTop() }
         // Работы уходят каскадом — правило в модели
         modelContext.delete(record)
     }
@@ -2424,9 +2668,26 @@ struct CarMainView: View {
 /// только UIMenu рисует деструктивный пункт по-системному — красными и
 /// текстом, и корзиной. Будущие действия добавляются в массив children.
 private struct EllipsisMenu: UIViewRepresentable {
+    /// Считает ли автопробег поездки этой машине — от этого подпись
+    /// пункта: «Включить…» или «Выключить…».
+    let autoIsOn: () -> Bool
+    let onAuto: () -> Void
     let onDelete: () -> Void
 
+    /// Меню собирается один раз, а машина под ним меняется (карусель):
+    /// действия лежат здесь и обновляются с каждой перерисовкой, иначе пункт
+    /// работал бы с машиной, которая была на экране при создании кнопки.
+    final class Coordinator {
+        var autoIsOn: () -> Bool = { false }
+        var onAuto: () -> Void = {}
+        var onDelete: () -> Void = {}
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeUIView(context: Context) -> UIButton {
+        let coordinator = context.coordinator
+        refresh(coordinator)
         let button = UIButton(type: .system)
         let icon = UIImage(systemName: "ellipsis",
                            withConfiguration: UIImage.SymbolConfiguration(
@@ -2434,15 +2695,80 @@ private struct EllipsisMenu: UIViewRepresentable {
         button.setImage(icon, for: .normal)
         button.tintColor = .white
         button.showsMenuAsPrimaryAction = true
-        button.menu = UIMenu(children: [
-            UIAction(title: "Удалить авто",
-                     image: UIImage(systemName: "trash"),
-                     attributes: .destructive) { _ in onDelete() },
-        ])
+        // Пункт собирается при каждом открытии меню: его подпись зависит от
+        // того, включён ли автопробег сейчас.
+        let auto = UIDeferredMenuElement.uncached { [weak coordinator] completion in
+            guard let coordinator else {
+                completion([])
+                return
+            }
+            let isOn = coordinator.autoIsOn()
+            completion([
+                UIAction(title: isOn ? "Выключить автопробег" : "Включить автопробег",
+                         image: UIImage(systemName: isOn ? "location.slash" : "location")) { _ in
+                    coordinator.onAuto()
+                },
+            ])
+        }
+        let delete = UIAction(title: "Удалить авто",
+                              image: UIImage(systemName: "trash"),
+                              attributes: .destructive) { [weak coordinator] _ in
+            coordinator?.onDelete()
+        }
+        // Удаление — отдельной группой, под чертой: рядом с обычным пунктом
+        // в него легко попасть мимо.
+        button.menu = UIMenu(children: [auto, UIMenu(options: .displayInline, children: [delete])])
         return button
     }
 
-    func updateUIView(_ button: UIButton, context: Context) {}
+    func updateUIView(_ button: UIButton, context: Context) {
+        refresh(context.coordinator)
+    }
+
+    private func refresh(_ coordinator: Coordinator) {
+        coordinator.autoIsOn = autoIsOn
+        coordinator.onAuto = onAuto
+        coordinator.onDelete = onDelete
+    }
+}
+
+/// Модалки поездки с главной: экран поездки, подтверждение удаления и
+/// правка расстояния. Отдельным модификатором, чтобы цепочка у `body` не
+/// росла: она и так на пределе проверки типов.
+private struct TripModals: ViewModifier {
+    let trip: TripDetails?
+    let showDetail: Binding<Bool>
+    let showDelete: Binding<Bool>
+    let showDistance: Binding<Bool>
+    @Binding var km: String
+    let onDelete: () -> Void
+    let onSaveDistance: () -> Void
+    let onClose: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: showDetail) {
+                if let trip {
+                    TripSheet(trip: trip, onDelete: onDelete, onClose: onClose)
+                }
+            }
+            .confirmationDialog("Удалить поездку?", isPresented: showDelete,
+                                titleVisibility: .visible) {
+                Button("Удалить", role: .destructive, action: onDelete)
+            } message: {
+                if let km = trip?.kmBack, km > 0 {
+                    Text("Пробег уменьшится на\u{00A0}\(NumberFormat.grouped(km))\u{00A0}км")
+                }
+            }
+            .alert("Расстояние поездки", isPresented: showDistance) {
+                TextField("км", text: $km)
+                    .keyboardType(.decimalPad)
+                Button("Сохранить", action: onSaveDistance)
+                Button("Отмена", role: .cancel) {}
+            } message: {
+                Text("Пробег пересчитается")
+            }
+    }
 }
 
 private struct ToolbarFade: ViewModifier {
@@ -2588,15 +2914,17 @@ private struct CarMainChrome: ViewModifier {
 }
 
 
-/// Запись общей ленты «История обслуживания»: ТО или прослушивание.
+/// Запись общей ленты «История обслуживания»: ТО, прослушивание или поездка.
 private enum HistoryItem: Identifiable {
     case service(ServiceRecord)
     case check(EngineCheck)
+    case trip(Trip)
 
     var id: PersistentIdentifier {
         switch self {
         case .service(let record): record.persistentModelID
         case .check(let check): check.persistentModelID
+        case .trip(let trip): trip.persistentModelID
         }
     }
 
@@ -2604,18 +2932,22 @@ private enum HistoryItem: Identifiable {
         switch self {
         case .service(let record): record.date
         case .check(let check): check.date
+        case .trip(let trip): trip.startedAt
         }
     }
 }
 
 private enum HistoryFilter: CaseIterable {
-    case all, services, checks
+    /// «Всё» — ТО, прослушивания и поездки; «Поездки» — те же поездки
+    /// карточками с картой.
+    case all, services, checks, trips
 
     var title: String {
         switch self {
         case .all: "Всё"
         case .services: "ТО"
         case .checks: "Прослушивания"
+        case .trips: "Поездки"
         }
     }
 }

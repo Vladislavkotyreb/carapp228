@@ -52,6 +52,11 @@ func focusNextField() {
 private struct BottomSheetModifier<SheetContent: View>: ViewModifier {
     @Binding var isPresented: Bool
     let allowsDragToDismiss: Bool
+    /// Насколько ручка ниже верха содержимого. У шторок Detent = Large верх
+    /// содержимого — верх экрана, а сама шторка начинается отступом ниже;
+    /// без поправки зона захвата стояла над шторкой, в статус-баре, и свайп
+    /// за ручку шторку не закрывал (снято на симуляторе 06.10.2026).
+    let grabberInset: CGFloat
     @ViewBuilder let sheetContent: () -> SheetContent
 
     @State private var dragY: CGFloat = 0
@@ -108,6 +113,7 @@ private struct BottomSheetModifier<SheetContent: View>: ViewModifier {
                         .frame(width: 140, height: 30)
                         .contentShape(Rectangle())
                         .gesture(dragGesture)
+                        .padding(.top, grabberInset)
                 }
             }
             .offset(y: dragY)
@@ -148,10 +154,12 @@ extension View {
     func bottomSheet<SheetContent: View>(
         isPresented: Binding<Bool>,
         allowsDragToDismiss: Bool = true,
+        grabberInset: CGFloat = 0,
         @ViewBuilder content: @escaping () -> SheetContent
     ) -> some View {
         modifier(BottomSheetModifier(isPresented: isPresented,
                                      allowsDragToDismiss: allowsDragToDismiss,
+                                     grabberInset: grabberInset,
                                      sheetContent: content))
     }
 }
@@ -178,5 +186,128 @@ struct SheetTopBlur: View {
                 startPoint: .top, endPoint: .bottom)
         )
         .allowsHitTesting(false)
+    }
+}
+
+/// Верхняя панель шторки: заголовок, «Закрыть» и, если есть что
+/// подтверждать, главное действие справа.
+///
+/// На iOS 26+ это системный тулбар, а не нарисованный (решение пользователя
+/// 06.10.2026: «переведи остальные шторки на системную панель»). Кнопки,
+/// стекло и начертание даёт система — на iOS 27 панель выглядит как в
+/// iOS 27 без правок здесь. По HIG «Toolbars»: стандартные Close и Done без
+/// подписей, без своих подложек и подкраски, главное действие одно и справа.
+///
+/// Панель встаёт в то же место и той же высоты, что прежняя нарисованная:
+/// содержимое шторок в навигационный контейнер не переезжает, поэтому их
+/// вёрстка, клавиатура и безопасные зоны не меняются. Исключение —
+/// `SavedCheckSheet`: она целиком в `NavigationStack`, и край прокрутки под
+/// панелью там тоже системный.
+///
+/// На iOS 17–25 остаётся прежняя нарисованная панель: системный тулбар там
+/// выглядит иначе, чем остальной интерфейс шторок.
+struct SheetBar: View {
+    enum CloseSide { case leading, trailing }
+
+    let title: String
+    /// Где «Закрыть». У шторок с одной кнопкой она по макету справа.
+    var closeSide: CloseSide = .leading
+    /// Сколько горизонтального поля уже дал контейнер. Системная панель
+    /// держит свои 16 сама — лишнее поле контейнера она возвращает.
+    var containerInset: CGFloat = 0
+    let onClose: () -> Void
+    /// Подпись главного действия для VoiceOver: «Сохранить», «Добавить авто».
+    var confirmLabel: String = "Готово"
+    var onConfirm: (() -> Void)? = nil
+
+    static let height: CGFloat = 44
+    /// Системная панель оставляет над кнопками своё поле: центр кнопок на
+    /// 32 pt ниже верха контейнера, а не на 22 (замер на симуляторах
+    /// iOS 26.5 и 27.0, 06.10.2026). Контейнеру даём это поле сверху и снизу;
+    /// внешняя рамка 44 ставит его по центру, то есть на то же поле выше, —
+    /// кнопки встают туда же, где стояли нарисованные, и стекло кнопки не
+    /// обрезается рамкой.
+    private static let systemInset: CGFloat = 10
+
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            NavigationStack {
+                Color.clear
+                    .containerBackground(.clear, for: .navigation)
+                    .navigationTitle(title)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: closeSide == .leading ? .topBarLeading
+                                                                     : .topBarTrailing) {
+                            Button(role: .close, action: onClose)
+                        }
+                        if let onConfirm {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button(role: .confirm, action: onConfirm)
+                                    .accessibilityLabel(confirmLabel)
+                            }
+                        }
+                    }
+            }
+            // Без подкраски «Закрыть»: по умолчанию кнопка панели берёт
+            // акцент приложения и выходила синей.
+            .tint(Figma.labelsPrimary)
+            .frame(height: Self.height + Self.systemInset * 2)
+            .frame(height: Self.height)
+            .padding(.horizontal, -containerInset)
+        } else {
+            drawn
+        }
+    }
+
+    /// Панель до iOS 26 — та, что была у шторок раньше: стеклянный кружок
+    /// с крестиком и белая галочка-акцент.
+    private var drawn: some View {
+        ZStack {
+            Text(title)
+                .font(.system(size: 17, weight: .semibold))
+                .tracking(-0.43)
+                .foregroundStyle(Figma.vibrantControlsPrimary)
+
+            HStack {
+                if closeSide == .leading { closeDrawn }
+                Spacer(minLength: 0)
+                if closeSide == .trailing { closeDrawn }
+
+                if let onConfirm {
+                    Button(action: onConfirm) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(.black)
+                            .frame(width: 44, height: 44)
+                            .background(Circle().fill(Figma.labelsPrimary))
+                            .contentShape(Circle())
+                    }
+                    .accessibilityLabel(confirmLabel)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .frame(height: Self.height)
+        .padding(.horizontal, max(0, 16 - containerInset))
+    }
+
+    private var closeDrawn: some View {
+        Button(action: onClose) {
+            Image(systemName: "xmark")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                // Кромку круглой кнопки даёт системное стекло
+                .liquidGlass(in: Circle(), tint: Figma.sheetControl) {
+                    Circle()
+                        .fill(Figma.sheetControl)
+                        .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+                }
+                .contentShape(Circle())
+                .motionRim(in: Circle())
+                .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
+        }
+        .accessibilityLabel("Закрыть")
     }
 }

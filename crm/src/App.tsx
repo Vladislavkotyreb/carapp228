@@ -197,9 +197,6 @@ function Shell() {
       <SidebarInset>
         <div className="flex h-12 items-center gap-2 px-4">
           <SidebarTrigger />
-          <span className="hidden truncate text-[12px] text-muted-foreground sm:inline">
-            Набросок · данные тестовые, хранятся в браузере
-          </span>
           <button
             type="button"
             onClick={() => setPalette(true)}
@@ -211,7 +208,7 @@ function Shell() {
           </button>
         </div>
         <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-10 pt-2 md:px-6">
-          {page === "dashboard" && <DashboardPage onOpenRequest={openRequest} onOpenStock={() => setPage("stock")} />}
+          {page === "dashboard" && <DashboardPage onOpenRequest={openRequest} />}
           {page === "requests" && <RequestsPage initiallyOpen={expanded} />}
           {page === "stock" && <StockPage focusItemId={focusItem} />}
           {page === "employees" && <EmployeesPage />}

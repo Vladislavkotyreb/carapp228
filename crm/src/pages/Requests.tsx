@@ -4,7 +4,7 @@ import { InputField, InputGroup } from "@/components/ui/input-group";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { TabItem, Tabs, TabsList } from "@/components/ui/tabs";
 import { Avatar, PageHeader, StatusBadge } from "@/components/bits";
-import { ago, count } from "@/data/format";
+import { ago } from "@/data/format";
 import { useStore } from "@/data/store";
 import { KanbanBoard } from "@/pages/Kanban";
 import { RequestPanel } from "@/pages/RequestPanel";
@@ -85,7 +85,6 @@ export function RequestsPage({ initiallyOpen }: { initiallyOpen: string }) {
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Заявки"
-        subtitle={`${count(visible.length, "заявка", "заявки", "заявок")} · из приложения Beepy и с сайта-визитки`}
         actions={
           <Tabs value={view} onValueChange={(v) => setView(v as View)}>
             <TabsList>

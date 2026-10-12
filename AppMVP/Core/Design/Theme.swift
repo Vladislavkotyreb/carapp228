@@ -1,34 +1,5 @@
 import SwiftUI
 
-enum AppColors {
-    static let accent = Color("AccentColor", bundle: nil)
-    static let primary = Color(red: 0.11, green: 0.11, blue: 0.12)
-    static let secondary = Color(red: 0.45, green: 0.45, blue: 0.47)
-    static let background = Color(.systemGroupedBackground)
-    static let card = Color(.secondarySystemGroupedBackground)
-    static let danger = Color.red
-}
-
-enum AppSpacing {
-    static let xs: CGFloat = 4
-    static let sm: CGFloat = 8
-    static let md: CGFloat = 16
-    static let lg: CGFloat = 24
-    static let xl: CGFloat = 32
-}
-
-enum AppTypography {
-    static let largeTitle = Font.largeTitle.weight(.bold)
-    static let title = Font.title2.weight(.semibold)
-    static let body = Font.body
-    static let caption = Font.caption
-}
-
-struct Theme {
-    static let cornerRadius: CGFloat = 12
-    static let buttonHeight: CGFloat = 52
-}
-
 /// Значения один-в-один из Figma (Beepy). С 05.09.2026 всё приложение идёт
 /// в тёмной теме: токены переведены на тёмные варианты тех же переменных
 /// библиотеки (тёмная секция 46225:7442 и палитра HIG Dark). Акцент кнопок —
@@ -68,7 +39,6 @@ enum Figma {
     /// системный Separator тёмной схемы iOS.
     static let separatorsOnDark = Color(red: 84 / 255, green: 84 / 255, blue: 88 / 255)
         .opacity(0.65)                                                              // #545458 65%
-    static let labelsVibrantTertiary = Color(red: 191 / 255, green: 191 / 255, blue: 191 / 255) // #BFBFBF
     static let overlaysDefault = Color.black.opacity(0.48)                          // Overlays/Default (Dark) #0000007A
     static let vibrantSecondary = Color(red: 114 / 255, green: 114 / 255, blue: 114 / 255)  // #727272
     static let grabber = Color(red: 51 / 255, green: 51 / 255, blue: 51 / 255)       // Fills-Vibrant/Primary (Dark) #333333
@@ -85,11 +55,6 @@ enum Figma {
     static let fillsVibrantSecondary = Color(red: 51 / 255, green: 51 / 255, blue: 51 / 255) // Fills-Vibrant (Dark) #333333
     static let graysGray2 = Color(red: 174 / 255, green: 174 / 255, blue: 178 / 255) // Grays/Gray-2 #AEAEB2
     static let graysBlack = Color.black                                              // Grays/Black
-    // Цвета живого шара на экране «Ошибки». В макете он растровая заглушка,
-    // поэтому взяты с неё пипеткой.
-    static let orbGreen = Color(red: 88 / 255, green: 240 / 255, blue: 168 / 255)
-    static let orbTeal = Color(red: 64 / 255, green: 210 / 255, blue: 224 / 255)
-    static let orbViolet = Color(red: 132 / 255, green: 116 / 255, blue: 232 / 255)
     // Палитра живой волны снята пипеткой с самого ассета из макета
     // (нода 46102:2999), чтобы анимация продолжала ровно его цвета.
     static let orbCore = Color(red: 144 / 255, green: 251 / 255, blue: 244 / 255)
@@ -101,9 +66,6 @@ enum Figma {
     /// Низ ленты. Тот же кадр, y=110 — здесь бирюзы уже нет вовсе.
     static let orbGrass = Color(red: 79 / 255, green: 174 / 255, blue: 105 / 255)
 
-    /// Тон облака частиц. У автора демо фиолетовый на белом фоне; у нас фон
-    /// чёрный, поэтому взят светлее — исходный на нём проваливается.
-    static let orbParticle = Color(red: 155 / 255, green: 140 / 255, blue: 255 / 255)
     static let darkCard = Color(red: 26 / 255, green: 26 / 255, blue: 26 / 255)      // #1A1A1A
     /// Панель записи на экране «Ошибки» (нода 46105:4088). Снято пипеткой с
     /// рендера: ровный #191919 по всей площади, без кромки.
@@ -122,11 +84,6 @@ enum Figma {
     // Frame макета — iPhone 16 Pro, 402×874
     static let frameWidth: CGFloat = 402
     static let frameHeight: CGFloat = 874
-    /// Высота шапки при прокрутке (нода 46012:1815). В макете шапка нарисована
-    /// от самого верха кадра, то есть вместе со статус-баром — как и остальные
-    /// верхние координаты экрана, отсчитывается от края, а не от safe area.
-    /// Было 137 с номером внутри; дизайн ужал её до компактной строки.
-    static let scrollHeaderHeight: CGFloat = 86
     /// Нижняя safe area на макетном устройстве. В самом Figma её нет —
     /// макет нарисован до края экрана, поэтому нижние элементы в нём
     /// местами заезжают на home indicator.

@@ -58,14 +58,15 @@ struct FindingsSheet: View {
     }
 
     let findings: [EngineIssue]
-    /// Разбор не услышал мотора — шторка в пустом состоянии.
-    let nothingHeard: Diagnosis.HeardKind?
+    /// Показывать нечего — шторка в пустом состоянии: без вопроса о машине,
+    /// с ответами «Ещё раз» и «Закрыть».
+    let empty: FindingsEmpty?
     /// Машины пользователя. Пусто — вопроса о прикреплении нет вовсе.
     let cars: [CarChoice]
     let onClose: () -> Void
     /// Сохранить находки. `nil` — не прикреплять ни к одной машине.
     let onApprove: (PersistentIdentifier?) -> Void
-    /// «Записать ещё раз» из пустого состояния.
+    /// «Ещё раз» из пустого состояния.
     let onRetry: () -> Void
 
     /// Прикреплять ли к машине. Включено сразу, когда слушали с экрана машины:
@@ -79,16 +80,15 @@ struct FindingsSheet: View {
     /// одной машиной (все точки гасли, кадр 26.09.2026). Id берётся из
     /// свежего `cars` в момент сохранения.
     @State private var selectedIndex: Int?
-    @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(findings: [EngineIssue], nothingHeard: Diagnosis.HeardKind?,
+    init(findings: [EngineIssue], empty: FindingsEmpty?,
          cars: [CarChoice], preselected: PersistentIdentifier?, attachByDefault: Bool,
          onClose: @escaping () -> Void,
          onApprove: @escaping (PersistentIdentifier?) -> Void,
          onRetry: @escaping () -> Void) {
         self.findings = findings
-        self.nothingHeard = nothingHeard
+        self.empty = empty
         self.cars = cars
         self.onClose = onClose
         self.onApprove = onApprove
@@ -155,10 +155,6 @@ struct FindingsSheet: View {
         static let carPanelRadius: CGFloat = 12
         static let carPanelPadding: CGFloat = 16
         static let rowRadius: CGFloat = 24
-        /// Карточка расходника: две строки названия и «Найти». 156, а не
-        /// 136: «трансмиссионное» в 13 semibold не влезало в строку.
-        static let itemWidth: CGFloat = 156
-        static let itemRadius: CGFloat = 20
         static let iconSize: CGFloat = 32
     }
 
@@ -168,8 +164,8 @@ struct FindingsSheet: View {
             // — HIG, эталон пользователя; сплошная заливка верха — косяк,
             // который уже ловили на главном экране.
             VStack(spacing: 0) {
-                if let heard = nothingHeard {
-                    nothingHeardState(heard)
+                if let empty {
+                    emptyState(empty)
                 } else {
                     findingsList
                 }
@@ -177,12 +173,13 @@ struct FindingsSheet: View {
             .padding(.top, Findings.toolbarTop + Findings.toolbarHeight
                      + Findings.listTop)
 
+            // Отдельным слоем от верха шторки и по её скруглению: фоном
+            // панели размытие вылезало выше шторки (см. `AddServiceSheet`).
+            SheetTopBlur(tint: Figma.sheetBackground)
+                .frame(height: 118)
+                .clipShape(UnevenRoundedRectangle(topLeadingRadius: 34, topTrailingRadius: 34))
+
             sheetToolbar
-                .background {
-                    SheetTopBlur(tint: Figma.sheetBackground)
-                        .frame(height: 118)
-                        .frame(maxHeight: .infinity, alignment: .top)
-                }
         }
         .frame(height: Findings.height)
         .frame(maxWidth: .infinity)
@@ -206,27 +203,31 @@ struct FindingsSheet: View {
         }
     }
 
-    /// Разбор не нашёл мотора. Показываем **что услышали вместо него** и одну
-    /// кнопку: подтверждать нечего, а «Нет, не добавлять» рядом с пустым
-    /// списком читается как выбор там, где выбора нет.
-    private func nothingHeardState(_ heard: Diagnosis.HeardKind) -> some View {
+    /// Показывать нечего: неисправностей не названо, мотора не слышно или
+    /// разбор не удался. Вопроса о машине и «Да, добавить ошибки» здесь нет —
+    /// добавлять нечего; ответов два: «Ещё раз» и «Закрыть» (решение
+    /// пользователя 04.10.2026). Тексты и значок — `FindingsEmpty`.
+    private func emptyState(_ empty: FindingsEmpty) -> some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
 
-            Image(systemName: "waveform.badge.exclamationmark")
+            Image(systemName: empty.symbol)
                 .font(.system(size: 52, weight: .light))
                 .foregroundStyle(Figma.vibrantSecondary)
 
             Spacer(minLength: 0).frame(height: 20)
 
-            Text("Двигателя не слышно")
+            Text(empty.title)
                 .font(.system(size: 22, weight: .bold))
                 .figmaLineHeight(28, fontSize: 22, weight: .bold)
                 .foregroundStyle(Figma.labelsPrimary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 32)
 
             Spacer(minLength: 0).frame(height: 8)
 
-            Text(heard.explanation)
+            Text(empty.message)
                 .font(.system(size: 15))
                 .figmaLineHeight(20, fontSize: 15)
                 .foregroundStyle(Figma.vibrantSecondary)
@@ -236,8 +237,10 @@ struct FindingsSheet: View {
 
             Spacer(minLength: 0)
 
-            GlassProminentButton(title: "Записать ещё раз") {
-                onRetry()
+            // Тот же блок, что у находок: главная кнопка и вторая под ней.
+            VStack(spacing: 12) {
+                GlassProminentButton(title: "Ещё\u{00A0}раз", action: onRetry)
+                GlassButton(title: "Закрыть", action: onClose)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, Findings.buttonsBottom)
@@ -304,8 +307,9 @@ struct FindingsSheet: View {
     /// в Figma, правка 26.09.2026): строка «иконка — вопрос — переключатель»,
     /// а под ней, когда включено, чёрная подложка с машинами. Включили —
     /// контейнер дорастает вниз, подложка проявляется изнутри него: клип по
-    /// форме контейнера прячет её, пока высота растёт. Подписи под вопросом
-    /// больше нет — выбранную машину и так видно.
+    /// форме контейнера прячет её, пока высота растёт. Под вопросом —
+    /// подзаголовок, зачем переключатель (просьба пользователя 04.10.2026):
+    /// выключенный, он не объяснял, что будет, если его включить.
     private var attachSection: some View {
         VStack(spacing: Layout.attachGap) {
             HStack(spacing: 12) {
@@ -315,10 +319,17 @@ struct FindingsSheet: View {
                     .frame(width: Layout.iconSize + 4, height: Layout.iconSize + 4)
                     .background(Circle().fill(Figma.fillsTertiary))
 
-                Text("Прикрепить к\u{00A0}машине?")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Figma.labelsPrimary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Прикрепить к\u{00A0}машине?")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Figma.labelsPrimary)
+
+                    Text("Выберите машину, к\u{00A0}которой будет добавлена диагностика")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Figma.labelsSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Toggle("Прикрепить к машине", isOn: $attach.animation(revealAnimation))
                     .labelsHidden()
@@ -499,7 +510,7 @@ struct FindingsSheet: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(items, id: \.self) { item in
-                            buyCard(item)
+                            BuyItemCard(item: item, carName: selectedChoice?.name)
                         }
                     }
                 }
@@ -521,47 +532,6 @@ struct FindingsSheet: View {
             .padding(.horizontal, 20)
     }
 
-    /// Карточка расходника. «Найти» — поиск в Яндекс Маркете, с названием
-    /// машины, если результаты прикреплены к ней. Номер в запрос не идёт.
-    private func buyCard(_ item: String) -> some View {
-        Button {
-            if let url = PartAdvice.searchURL(item: item, carName: selectedChoice?.name) {
-                openURL(url)
-            }
-        } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                Image(systemName: PartAdvice.symbol(forItem: item))
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Figma.accentsYellow)
-                    .frame(width: Layout.iconSize, height: Layout.iconSize)
-                    .background(Circle().fill(Figma.fillsTertiary))
-
-                Text(item)
-                    .font(.system(size: 13, weight: .semibold))
-                    .tracking(-0.08)
-                    .figmaLineHeight(18, fontSize: 13, weight: .semibold)
-                    .foregroundStyle(Figma.labelsPrimary)
-                    .lineLimit(2, reservesSpace: true)
-                    .multilineTextAlignment(.leading)
-
-                HStack(spacing: 4) {
-                    Text("Найти")
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                .font(.system(size: 13))
-                .foregroundStyle(Figma.graysGray)
-            }
-            .padding(12)
-            .frame(width: Layout.itemWidth, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: Layout.itemRadius, style: .continuous)
-                .fill(Figma.fillsTertiary))
-            .contentShape(RoundedRectangle(cornerRadius: Layout.itemRadius, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(item) — найти в\u{00A0}Яндекс Маркете")
-    }
-
     /// Карточка находки на тёмной шторке. Светлую держала тень, тёмную
     /// держит заливка: Fills/Tertiary над #1C1C1E даёт ту же разницу
     /// в несколько уровней, что была у белого 255 на 252.
@@ -579,54 +549,14 @@ struct FindingsSheet: View {
         .padding(.horizontal, 16)
     }
 
-    /// Тулбар: крестик слева, заголовок по центру, чёрная галочка справа.
+    /// Тулбар: крестик слева, заголовок по центру, галочка справа.
     private var sheetToolbar: some View {
-        ZStack {
-            // В пустом состоянии «нашли» — неправда: не нашли ничего.
-            Text(nothingHeard == nil ? "Вот что мы нашли" : "Запись")
-                .font(.system(size: 17, weight: .semibold))
-                .tracking(-0.43)
-                .foregroundStyle(Figma.labelsPrimary)
-
-            HStack {
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        // Кружок под крестиком в макете есть — Button Group со
-                        // стеклом без prominent. Подача та же, что у крестика
-                        // остальных шторок проекта.
-                        .liquidGlass(in: Circle(), tint: Figma.sheetControl) {
-                            Circle()
-                                .fill(Figma.sheetControl)
-                                .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
-                        }
-                .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Закрыть")
-
-                Spacer(minLength: 0)
-
-                if nothingHeard == nil {
-                    // Белая галочка-акцент, как у остальных шторок.
-                    Button(action: approve) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(.black)
-                            .frame(width: 44, height: 44)
-                            .background(Circle().fill(Figma.labelsPrimary))
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Добавить ошибки")
-                }
-            }
-        }
-        .frame(height: Findings.toolbarHeight)
-        .padding(.horizontal, 16)
-        .padding(.top, Findings.toolbarTop)
+        // В пустом состоянии «нашли» — неправда: не нашли ничего, и
+        // подтверждать нечего — галочки нет.
+        SheetBar(title: empty == nil ? "Вот что мы нашли" : "Запись", onClose: onClose,
+                 confirmLabel: "Добавить ошибки", onConfirm: empty == nil ? approve : nil)
+            .frame(height: Findings.toolbarHeight)
+            .padding(.top, Findings.toolbarTop)
     }
 }
 
@@ -727,10 +657,19 @@ extension FindingsSheet.CarChoice {
 /// прослушивания с главной. Вынесен из `IssuesScreen` 25.09.2026 без правок
 /// логики: пороги и формулировки ниже прошли разбор с пользователем.
 enum DiagnosisCards {
-    /// Итог разбора: карточки или пустое состояние «мотора не слышно».
-    struct Outcome {
-        var cards: [EngineIssue]
-        var nothingHeard: Diagnosis.HeardKind?
+    /// Итог разбора: находки или пустое состояние. Перечисление, а не два
+    /// поля рядом: «пусто и при этом находки» выразить нельзя.
+    enum Outcome {
+        case findings([EngineIssue])
+        case empty(FindingsEmpty)
+
+        var cards: [EngineIssue] {
+            if case .findings(let cards) = self { cards } else { [] }
+        }
+
+        var empty: FindingsEmpty? {
+            if case .empty(let empty) = self { empty } else { nil }
+        }
     }
 
     /// Можно ли разбирать по-настоящему. Нет — работаем на заглушке, как
@@ -744,12 +683,19 @@ enum DiagnosisCards {
         // Съёмка состояний: микрофон симулятора слышит тишину, и разбор
         // честно отвечает «ничего тревожного» — находок с деталями не увидеть.
         // `SIMCTL_CHILD_BEEPY_STUB_DIAGNOSIS=1 xcrun simctl launch …`
-        if ProcessInfo.processInfo.environment["BEEPY_STUB_DIAGNOSIS"] == "1" {
-            return Outcome(cards: IssuesStub.findings, nothingHeard: nil)
+        // Пустые состояния тем же ключом: `clear` — «ничего не нашли»,
+        // `unsure` — «судить не берёмся», `fail` — сбой. В симуляторе их
+        // иначе не вызвать.
+        switch ProcessInfo.processInfo.environment["BEEPY_STUB_DIAGNOSIS"] {
+        case "1": return .findings(IssuesStub.findings)
+        case "clear": return .empty(.nothingFound)
+        case "unsure": return .empty(.unsure)
+        case "fail": return failure(DiagnosisError.transport)
+        default: break
         }
         #endif
         guard canDiagnose, let recording else {
-            return Outcome(cards: IssuesStub.findings, nothingHeard: nil)
+            return .findings(IssuesStub.findings)
         }
         do {
             // Локальный разбор первым: модели лежат в бандле, сеть не
@@ -758,15 +704,16 @@ enum DiagnosisCards {
             let diagnosis = LocalDiagnosis.isAvailable
                 ? try await LocalDiagnosis.diagnose(fileURL: recording)
                 : try await CarDiagnosisClient.diagnose(fileURL: recording)
-            var heard: Diagnosis.HeardKind?
-            let cards = issues(from: diagnosis, nothingHeard: &heard)
-            return Outcome(cards: cards, nothingHeard: heard)
+            return outcome(from: diagnosis)
         } catch {
-            let reason = (error as? LocalizedError)?.errorDescription
-                ?? "Не удалось разобрать запись"
-            return Outcome(cards: [EngineIssue(title: "Не удалось разобрать запись", detail: reason)],
-                           nothingHeard: nil)
+            return failure(error)
         }
+    }
+
+    /// Разбор не удался — пустое состояние с причиной.
+    private static func failure(_ error: Error) -> Outcome {
+        .empty(.failed(reason: (error as? LocalizedError)?.errorDescription
+            ?? "Разбор не\u{00A0}сработал"))
     }
 
     /// Разбор в карточки экрана.
@@ -784,36 +731,16 @@ enum DiagnosisCards {
     /// «деталь сломана с вероятностью 99 %». Поэтому в подписи стоит «модель
     /// ставит сюда», а не «уверенность»: на демо-клипе как раз выходило
     /// 99 % на выхлоп при 64 % на сам факт неисправности.
-    static func issues(from diagnosis: Diagnosis,
-                       nothingHeard: inout Diagnosis.HeardKind?) -> [EngineIssue] {
-        guard diagnosis.modelLoaded else {
-            return [EngineIssue(title: "Модель не загружена",
-                                detail: "Сервер запущен без модели — запустите его "
-                                        + "с ключом --model models")]
+    static func outcome(from diagnosis: Diagnosis) -> Outcome {
+        // Пусто или находки — решает чистая `FindingsEmpty.of`, там же и
+        // объяснено, почему версии показываются только при вердикте
+        // «неисправность». Здесь остаётся сборка карточек.
+        if let empty = FindingsEmpty.of(modelLoaded: diagnosis.modelLoaded,
+                                        isEngine: diagnosis.isEngine,
+                                        verdict: diagnosis.verdict,
+                                        heardExplanation: diagnosis.heard.explanation) {
+            return .empty(empty)
         }
-
-        // Первый и главный предохранитель: похоже ли это вообще на мотор.
-        // Модель cardiag такого вопроса не задаёт — её головы различают
-        // неисправный мотор и исправный, а варианта «это не машина» у них нет.
-        // Отсюда и брался «дифференциал» в тихой комнате.
-        guard diagnosis.isEngine else {
-            // Не карточка в общем списке: шторка целиком переходит в пустое
-            // состояние. Карточка соседствовала бы с кнопками «Да, добавить
-            // ошибки» — предложением добавить в историю то, чего нет.
-            nothingHeard = diagnosis.heard
-            return []
-        }
-
-        // Версии показываем **только** когда голова «есть ли поломка» сказала
-        // «да». Она единственная здесь откалибрована, и она же единственная,
-        // что умеет ответить «нет»: у головы причин класса «ничего» нет, она
-        // раскладывает свои 100 % по деталям при любом входе.
-        //
-        // Именно на этом ловилась тишина: запись без мотора, но с парой
-        // шорохов даёт два «механических» куска, вердикт при этом честный
-        // «норма, 32 %», а список деталей всё равно уверенно называл выхлоп
-        // на 86 %. Гейт по вердикту это снимает.
-        guard diagnosis.verdict == "fault" else { return [verdictCard(diagnosis)] }
 
         var cards = [verdictCard(diagnosis)]
 
@@ -829,17 +756,17 @@ enum DiagnosisCards {
             // и подпись выходила повтором.
             let where_ = zone == part ? "" : zone + " · "
             return EngineIssue(title: part,
-                               detail: where_ + "модель ставит сюда " + percent(cause.p),
+                               detail: where_ + percent(cause.p) + " среди версий",
                                advice: PartAdvice.line(cause.part),
                                part: cause.part)
         }
 
         if ranked.isEmpty {
             cards.append(EngineIssue(
-                title: "Конкретную деталь назвать нельзя",
-                detail: "Ни одна версия не набрала веса — звука для этого мало"))
+                title: "Деталь не\u{00A0}определилась",
+                detail: "Мало звука. Запишите ещё раз, ближе к\u{00A0}мотору"))
         }
-        return cards
+        return .findings(cards)
     }
 
     /// Первая карточка: то единственное число, которое здесь означает
@@ -849,25 +776,16 @@ enum DiagnosisCards {
     /// стоял и оказался вреден: порог громкости в каскаде относительный, и
     /// ровно урчащий мотор кусков не даёт так же, как тишина. Отсеивать не мотор
     /// должен привратник, а это его работа, не наша.
+    ///
+    /// Карточка есть только у вердикта «неисправность»: «норма» и «не берусь
+    /// судить» с 04.10.2026 — пустое состояние шторки (`FindingsEmpty`).
     static func verdictCard(_ diagnosis: Diagnosis) -> EngineIssue {
         let share = percent(diagnosis.faultProbability)
         let caveat = diagnosis.segmentCount == 0
-            ? " Чистого куска звука выделить не удалось, разбор по всей записи."
+            ? " Разбирали всю запись: чистого фрагмента не\u{00A0}нашлось."
             : ""
-
-        switch diagnosis.verdict {
-        case "fault":
-            return EngineIssue(title: "Похоже на неисправность",
-                               detail: "Оценка «что-то не так» — \(share). "
-                                       + "Ниже версии, что именно, по убыванию." + caveat)
-        case "normal":
-            return EngineIssue(title: "Ничего тревожного не слышно",
-                               detail: "Оценка «что-то не так» — \(share)." + caveat)
-        default:
-            return EngineIssue(title: "По этой записи не берусь судить",
-                               detail: "Оценка «что-то не так» — \(share), "
-                                       + "это слишком близко к середине." + caveat)
-        }
+        return EngineIssue(title: "Похоже на неисправность",
+                           detail: "Вероятность — \(share). Ниже версии, от\u{00A0}самой вероятной." + caveat)
     }
 
     static func percent(_ value: Double) -> String {
@@ -886,10 +804,345 @@ extension EngineCheck {
         context.insert(check)
         for (index, issue) in issues.enumerated() {
             let finding = EngineFinding(title: issue.title, detail: issue.detail,
-                                        advice: issue.advice, order: index)
+                                        advice: issue.advice, part: issue.part, order: index)
             finding.check = check
             context.insert(finding)
         }
         return check
+    }
+}
+
+/// Карточка расходника в ленте «Что можно купить» — общая для шторки после
+/// записи и для сохранённого прослушивания. «Найти» — поиск в Яндекс
+/// Маркете, с названием машины, если она известна. Номер в запрос не идёт.
+struct BuyItemCard: View {
+    let item: String
+    let carName: String?
+
+    @Environment(\.openURL) private var openURL
+
+    /// 156, а не 136: «трансмиссионное» в 13 semibold не влезало в строку.
+    static let width: CGFloat = 156
+    private static let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+    private static let iconSize: CGFloat = 32
+
+    var body: some View {
+        Button {
+            if let url = PartAdvice.searchURL(item: item, carName: carName) { openURL(url) }
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                Image(systemName: PartAdvice.symbol(forItem: item))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Figma.accentsYellow)
+                    .frame(width: Self.iconSize, height: Self.iconSize)
+                    .background(Circle().fill(Figma.fillsTertiary))
+
+                Text(item)
+                    .font(.system(size: 13, weight: .semibold))
+                    .tracking(-0.08)
+                    .figmaLineHeight(18, fontSize: 13, weight: .semibold)
+                    .foregroundStyle(Figma.labelsPrimary)
+                    .lineLimit(2, reservesSpace: true)
+                    .multilineTextAlignment(.leading)
+                    // Без этого название обрезалось в одну строку
+                    // («Масло трансмисс…») при зарезервированных двух — там,
+                    // где расходников два и лента не выходит за край
+                    // (прогон 06.10.2026, запись от 13.09 «Дифференциал»).
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 4) {
+                    Text("Найти")
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .font(.system(size: 13))
+                .foregroundStyle(Figma.graysGray)
+            }
+            .padding(12)
+            .frame(width: Self.width, alignment: .leading)
+            .background(Self.shape.fill(Figma.fillsTertiary))
+            .contentShape(Self.shape)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(item) — найти в\u{00A0}Яндекс Маркете")
+    }
+}
+
+// MARK: - Сохранённое прослушивание
+
+/// Сохранённое прослушивание — значения для шторки, которая открывается
+/// тапом по записи в истории. Снимаются в момент тапа: шторка к базе не ходит.
+struct SavedCheck {
+    /// Своя на каждое открытие: шторка с этим `id` начинает с чистого
+    /// состояния, а не с прокрутки прошлого прослушивания.
+    let id = UUID()
+    /// Название машины; `nil` — слушали без привязки к машине.
+    let car: String?
+    /// «26 сентября» или «31 декабря 2025».
+    let date: String
+    /// «56 400 км»; `nil` — пробега в записи нет.
+    let mileage: String?
+    let findings: [EngineIssue]
+    /// Номер находки, по которой нажали. Шторка открывается сразу на ней:
+    /// без этого тап по шестой карточке показывал первую, и свою приходилось
+    /// искать прокруткой (прогон 06.10.2026).
+    var focus: Int? = nil
+}
+
+extension SavedCheck {
+    /// Переходник из модели — во вью-слое, как требует `Core/Pure`. Сама
+    /// логика — подпись даты и поиск детали по названию — чистая и
+    /// проверяется отдельно.
+    init(_ check: EngineCheck, focus finding: EngineFinding? = nil,
+         now: Date = .now, calendar: Calendar = .current) {
+        let ordered = check.orderedFindings
+        self.init(car: check.car?.name,
+                  date: ListeningSummary.savedDate(check.date, now: now, calendar: calendar),
+                  mileage: check.mileage.map { "\(NumberFormat.grouped($0))\u{00A0}км" },
+                  findings: ordered.map { finding in
+                      EngineIssue(title: finding.title, detail: finding.detail,
+                                  advice: finding.advice,
+                                  part: finding.part
+                                      ?? DiagnosisVocabulary.partCode(forTitle: finding.title,
+                                                                      extra: Self.stubTitles))
+                  },
+                  focus: finding.flatMap { tapped in ordered.firstIndex { $0 === tapped } })
+    }
+
+    /// Названия заглушки разбора: в словаре их нет, а в истории они есть.
+    private static let stubTitles = IssuesStub.findings.compactMap { issue in
+        issue.part.map { (title: issue.title, code: $0) }
+    }
+}
+
+/// Шторка сохранённого прослушивания: что тогда нашли. Только смотреть.
+///
+/// Композиция — та же, что у «Изменения ТО» (`AddServiceSheet`, просьба
+/// пользователя 06.10.2026): Detent = Large, сверху группа строк «Машина /
+/// Дата / Пробег» как «Дата / Пробег» у ТО, ниже заголовок раздела и по
+/// группе на находку, как «Работы». Те же числа: между разделами 32, под
+/// заголовком 20, между группами 12, строка 52, радиус группы 26.
+///
+/// Верхняя панель — системный тулбар, а не нарисованный (та же просьба:
+/// «HIG-панель из iOS 27»). По HIG «Toolbars»: стандартная кнопка закрытия
+/// без подписи слева, короткий заголовок по центру (до 15 знаков), без
+/// своих подложек и подкрашенных кнопок — стекло, форму кнопки и размытие
+/// края прокрутки даёт система, и на iOS 27 панель выглядит как в iOS 27
+/// без правок здесь. Главного действия справа нет: сохранять нечего.
+struct SavedCheckSheet: View {
+    let check: SavedCheck
+    let onClose: () -> Void
+
+    /// Отступ шторки от верха экрана — Detent = Large, как у формы ТО.
+    /// Один на отступ и на зону захвата ручки, чтобы они не разошлись.
+    static let topInset: CGFloat = 62
+
+    private static let groupShape = RoundedRectangle(cornerRadius: 26)
+    private static let sheetShape = UnevenRoundedRectangle(topLeadingRadius: 38,
+                                                           topTrailingRadius: 38)
+
+    var body: some View {
+        NavigationStack {
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 32) {
+                        infoGroup
+
+                        VStack(alignment: .leading, spacing: 20) {
+                            Text("Находки")
+                                .font(.system(size: 22, weight: .bold))
+                                .figmaLineHeight(28, fontSize: 22, weight: .bold)
+                                .foregroundStyle(Figma.labelsPrimary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            VStack(spacing: 12) {
+                                ForEach(check.findings) { issue in
+                                    findingGroup(issue)
+                                        .id(issue.id)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                    .padding(.bottom, 24)
+                }
+                .onAppear {
+                    // Первая находка и так на виду вместе с группой
+                    // «Машина / Дата / Пробег» — прокручивать незачем.
+                    guard let focus = check.focus, focus > 0,
+                          check.findings.indices.contains(focus) else { return }
+                    proxy.scrollTo(check.findings[focus].id, anchor: .top)
+                }
+            }
+            .softTopScrollEdge()
+            .background(Figma.sheetBackground)
+            .navigationTitle("Прослушивание")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { closeButton }
+            }
+        }
+        // Без подкраски: по умолчанию кнопка панели берёт акцент приложения
+        // и выходила синей. HIG просит монохромные кнопки тулбара, а акцент
+        // у приложения белый.
+        .tint(Figma.labelsPrimary)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Figma.sheetBackground)
+        .clipShape(Self.sheetShape)
+        .background {
+            Self.sheetShape
+                .fill(Figma.sheetBackground)
+                .shadow(color: .black.opacity(0.18), radius: 18.75, y: 15)
+        }
+        .overlay(alignment: .top) {
+            Capsule()
+                .fill(Figma.vibrantPrimary)
+                .frame(width: 58, height: 4)
+                .padding(.top, 5)
+        }
+    }
+
+    /// Стандартная кнопка закрытия. На iOS 26+ — системная роль: символ,
+    /// стекло и подпись для VoiceOver ставит система. Раньше роли нет —
+    /// тот же стандартный символ руками.
+    @ViewBuilder
+    private var closeButton: some View {
+        if #available(iOS 26.0, *) {
+            Button(role: .close, action: onClose)
+        } else {
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+            }
+            .accessibilityLabel("Закрыть")
+        }
+    }
+
+    // MARK: Группа «Машина / Дата / Пробег»
+
+    private var infoGroup: some View {
+        VStack(spacing: 0) {
+            infoRow("Машина", value: check.car ?? "Без\u{00A0}машины")
+            separator
+            infoRow("Дата", value: check.date)
+            if let mileage = check.mileage {
+                separator
+                infoRow("Пробег", value: mileage)
+            }
+        }
+        .background(Figma.fillsTertiary, in: Self.groupShape)
+    }
+
+    /// Строка «подпись — значение»: подпись как у «Дата» в форме ТО,
+    /// значение справа вторичным цветом — его не правят.
+    private func infoRow(_ label: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .font(.system(size: 17))
+                .tracking(-0.43)
+                .foregroundStyle(Figma.labelsPrimary)
+
+            Spacer(minLength: 0)
+
+            Text(value)
+                .font(.system(size: 17))
+                .tracking(-0.43)
+                .foregroundStyle(Figma.labelsSecondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 52)
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: Находка
+
+    /// Группа на находку, как группа «Название / Сумма» у работы: строки
+    /// через разделитель — что нашли, что это может быть, что купить.
+    private func findingGroup(_ issue: EngineIssue) -> some View {
+        let items = issue.part.map(PartAdvice.parts) ?? []
+        return VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(issue.title)
+                    .font(.system(size: 17, weight: .medium))
+                    .tracking(-0.43)
+                    .foregroundStyle(Figma.labelsPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(issue.detail)
+                    .font(.system(size: 13))
+                    .tracking(-0.08)
+                    .figmaLineHeight(18, fontSize: 13)
+                    .foregroundStyle(Figma.graysGray)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+
+            if let meaning = issue.part.flatMap(PartAdvice.meaning) {
+                separator
+                VStack(alignment: .leading, spacing: 6) {
+                    rowLabel("Что это может быть")
+                    Text(meaning)
+                        .font(.system(size: 15))
+                        .tracking(-0.23)
+                        .figmaLineHeight(20, fontSize: 15)
+                        .foregroundStyle(Figma.labelsPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(16)
+            }
+
+            if !items.isEmpty {
+                separator
+                VStack(alignment: .leading, spacing: 10) {
+                    rowLabel("Что можно купить")
+                        .padding(.horizontal, 16)
+                    // Лента во всю ширину группы: первая карточка на поле
+                    // текста, последняя уходит под край — видно, что листается.
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(items, id: \.self) { item in
+                                BuyItemCard(item: item, carName: check.car)
+                            }
+                        }
+                    }
+                    .contentMargins(.horizontal, 16, for: .scrollContent)
+                }
+                .padding(.vertical, 16)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Figma.fillsTertiary, in: Self.groupShape)
+        .clipShape(Self.groupShape)
+    }
+
+    private func rowLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Figma.labelsSecondary)
+    }
+
+    private var separator: some View {
+        Rectangle()
+            .fill(Figma.separatorsOnDark)
+            .frame(height: 1)
+            .padding(.leading, 16)
+    }
+}
+
+private extension View {
+    /// Мягкий край прокрутки под тулбаром — размытие вместо подложки.
+    /// Задан явно: на iOS 27 система по умолчанию ставила под панель плотную
+    /// полосу с жёсткой кромкой, она резала верх первой группы и прятала
+    /// ручку шторки (снято на симуляторе iOS 27.0, 06.10.2026). HIG
+    /// «Toolbars»: своих подложек у панели не заводить, область панели
+    /// отделять стилем края прокрутки.
+    @ViewBuilder
+    func softTopScrollEdge() -> some View {
+        if #available(iOS 26.0, *) {
+            scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            self
+        }
     }
 }

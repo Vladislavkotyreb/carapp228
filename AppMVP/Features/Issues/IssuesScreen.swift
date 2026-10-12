@@ -36,9 +36,13 @@ struct IssuesScreen: View {
     @State private var activity: IssuesActivity = .idle
 
     @State private var showFindings = false
-    /// Разбор не дал находок: мотора не слышно. Отдельным состоянием, потому
-    /// что шторка в нём выглядит иначе — подтверждать нечего.
-    @State private var nothingHeard: Diagnosis.HeardKind?
+    /// Прослушивание из истории, открытое шторкой, и открыта ли она. Данные
+    /// отдельно от флага: при закрытии шторка уезжает ещё с содержимым.
+    @State private var viewingCheck: SavedCheck?
+    @State private var showCheck = false
+    /// Разбор не дал находок: норма, мотора не слышно или сбой. Отдельным
+    /// состоянием, потому что шторка в нём выглядит иначе — подтверждать нечего.
+    @State private var emptyFindings: FindingsEmpty?
 
     /// Что показывает шторка. Пока сервер разбора не настроен — заглушка,
     /// после разбора — то, что вернул `cardiag`.
@@ -118,7 +122,7 @@ struct IssuesScreen: View {
         .bottomSheet(isPresented: $showFindings) {
             // Из «Ошибок» вопрос открыт: слушать могли и чужую машину, и
             // вовсе без неё. Карусель стоит на машине с главной.
-            FindingsSheet(findings: findings, nothingHeard: nothingHeard,
+            FindingsSheet(findings: findings, empty: emptyFindings,
                           cars: cars.map(FindingsSheet.CarChoice.init),
                           preselected: car?.persistentModelID,
                           attachByDefault: false,
@@ -126,7 +130,7 @@ struct IssuesScreen: View {
                           onApprove: approveFindings,
                           onRetry: {
                               showFindings = false
-                              nothingHeard = nil
+                              emptyFindings = nil
                               toggleRecording()
                           })
         }
@@ -134,7 +138,15 @@ struct IssuesScreen: View {
         // находок. Панель записи затемняет экран целиком, и оставлять поверх
         // неё живой таббар неверно: модальное окно на то и модальное, что
         // забирает управление себе.
+        .bottomSheet(isPresented: $showCheck, grabberInset: SavedCheckSheet.topInset) {
+            if let viewingCheck {
+                SavedCheckSheet(check: viewingCheck, onClose: { showCheck = false })
+                    .id(viewingCheck.id)
+                    .padding(.top, SavedCheckSheet.topInset)
+            }
+        }
         .onChange(of: showFindings) { _, _ in syncTabBar() }
+        .onChange(of: showCheck) { _, _ in syncTabBar() }
         .onChange(of: isModalRecording) { _, _ in syncTabBar() }
         // `onChange` молчит, если состояние истинно уже на входе в раздел, —
         // на этом ловилось скрытие таббара. Досылаем при появлении.
@@ -258,9 +270,19 @@ struct IssuesScreen: View {
                 ForEach(group.checks) { check in
                     ForEach(check.orderedFindings) { finding in
                         Spacer(minLength: 0).frame(height: 16)
-                        darkIssueCard(EngineIssue(title: finding.title,
-                                                  detail: finding.detail,
-                                                  advice: finding.advice))
+                        // Тап по находке открывает её прослушивание целиком:
+                        // что это может быть и что купить (06.10.2026).
+                        Button {
+                            viewingCheck = .init(check, focus: finding)
+                            showCheck = true
+                        } label: {
+                            darkIssueCard(EngineIssue(title: finding.title,
+                                                      detail: finding.detail,
+                                                      advice: finding.advice))
+                                .contentShape(Self.cardShape)
+                        }
+                        .buttonStyle(CardPressStyle())
+                        .accessibilityHint("Показать прослушивание")
                     }
                 }
             }
@@ -335,7 +357,7 @@ struct IssuesScreen: View {
     // MARK: - Действия
 
     private func syncTabBar() {
-        hidesTabBar = showFindings || isModalRecording
+        hidesTabBar = showFindings || showCheck || isModalRecording
     }
 
     private func toggleRecording() {
@@ -356,7 +378,7 @@ struct IssuesScreen: View {
     private func analyse() {
         // Прошлый отказ к новой записи отношения не имеет: без сброса шторка
         // осталась бы пустой даже там, где находки есть.
-        nothingHeard = nil
+        emptyFindings = nil
         guard DiagnosisCards.canDiagnose, meter.lastRecording != nil else {
             findings = IssuesStub.findings
             showFindings = true
@@ -369,7 +391,7 @@ struct IssuesScreen: View {
             let outcome = await DiagnosisCards.run(recording: recording)
             guard !Task.isCancelled else { return }
             findings = outcome.cards
-            nothingHeard = outcome.nothingHeard
+            emptyFindings = outcome.empty
             activity = .idle
             showFindings = true
         }

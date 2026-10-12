@@ -38,22 +38,20 @@ enum ListeningSummary {
         return "Слушали \(relative(days: days))"
     }
 
-    /// Вторая строка плашки: «12 сентября · 56 400 км · Ремень привода».
-    /// Пробега может не быть — у прослушиваний, сохранённых до его появления.
-    static func subtitle(date: String, mileage: Int?, topFinding: String?) -> String {
-        [date, mileage.map { "\(NumberFormat.grouped($0))\u{00A0}км" }, topFinding]
-            .compactMap { $0 }
-            .joined(separator: " · ")
-    }
-
-    /// Подпись для машины, которую ещё не слушали: зачем это сервису.
-    static let neverSubtitle = "Запишите звук мотора — сервис получит готовый диагноз"
-
     /// Сколько проехали от последнего ТО до прослушивания. `nil` — нечего
     /// сравнивать или данные разъехались (прослушали «раньше» ТО по пробегу).
     static func kmAfterService(checkMileage: Int?, lastServiceMileage: Int?) -> Int? {
         guard let checkMileage, let lastServiceMileage, checkMileage >= lastServiceMileage else { return nil }
         return checkMileage - lastServiceMileage
+    }
+
+    /// Дата сохранённого прослушивания для строки «Дата» в его шторке:
+    /// «26 сентября». Год дописывается, только когда он не текущий:
+    /// «26 сентября» про запись годичной давности читается как «недавно».
+    static func savedDate(_ date: Date, now: Date, calendar: Calendar) -> String {
+        let day = dayMonth(date, calendar: calendar)
+        let year = calendar.component(.year, from: date)
+        return year == calendar.component(.year, from: now) ? day : day + "\u{00A0}\(year)"
     }
 
     /// Дата «12 сентября» — по-русски, в родительном падеже, как в речи.

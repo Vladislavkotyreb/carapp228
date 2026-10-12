@@ -34,13 +34,10 @@ struct AddServiceChoiceSheet: View {
                     .padding(24)
                     .frame(maxWidth: .infinity)
                     .frame(height: 162)
-                    .liquidGlass(in: RoundedRectangle(cornerRadius: 42), tint: Figma.graysBlack) {
-                        RoundedRectangle(cornerRadius: 42)
-                            .fill(Figma.graysBlack)
-                            .overlay(RoundedRectangle(cornerRadius: 42)
-                                .stroke(Color.white.opacity(0.1), lineWidth: 0.5))
-                    }
-                    .motionRim(in: RoundedRectangle(cornerRadius: 42))
+                    // Серая, а не чёрная (просьба пользователя 06.10.2026):
+                    // чёрная карточка на тёмной шторке читалась провалом.
+                    // На ступень плотнее второй — это главный из двух путей.
+                    .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 42))
                     // Нажимается вся карточка, а не только надпись внутри.
                     .contentShape(RoundedRectangle(cornerRadius: 42))
                 }
@@ -72,11 +69,12 @@ struct AddServiceChoiceSheet: View {
         }
         .padding(.top, 16)
         .frame(height: 459)
-        // Тёмная тема (нода 46225:7551): поверхность шторки тёмная, карточка
-        // «фото или PDF» на ней — чистый чёрный с волосяной кромкой.
-        .liquidGlass(in: Self.shape, tint: Figma.sheetBackground) {
-            Self.shape.fill(Figma.sheetBackground)
-        }
+        // Тёмная тема (нода 46225:7551): поверхность шторки тёмная. Карточка
+        // «фото или PDF» в макете чёрная; у нас серая — см. выше.
+        // Сплошная подложка, а не стекло с тоном: цвет тот же (замер
+        // 28,28,30), но системная «Закрыть» — сама стекло, а стекло на
+        // стекле почти не видно: кружок кнопки терялся (06.10.2026).
+        .background(Self.shape.fill(Figma.sheetBackground))
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
             Capsule()
@@ -90,36 +88,7 @@ struct AddServiceChoiceSheet: View {
 
     /// В макете у этой шторки только крестик — справа, слева пусто.
     private var toolbar: some View {
-        ZStack {
-            Text(title)
-                .font(.system(size: 17, weight: .semibold))
-                .tracking(-0.43)
-                .foregroundStyle(Figma.vibrantControlsPrimary)
-
-            HStack {
-                Spacer()
-
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        // Кромку круглой кнопки даёт системное стекло
-                        .liquidGlass(in: Circle(), tint: Figma.sheetControl) {
-                            Circle()
-                                .fill(Figma.sheetControl)
-                                .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
-                        }
-                        .contentShape(Circle())
-                        .motionRim(in: Circle())
-                        .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Закрыть")
-            }
-        }
-        .frame(height: 44)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 10)
+        SheetBar(title: title, closeSide: .trailing, onClose: onClose)
+            .padding(.bottom, 10)
     }
 }

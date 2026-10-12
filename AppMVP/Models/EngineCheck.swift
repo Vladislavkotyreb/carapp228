@@ -56,13 +56,19 @@ final class EngineFinding {
     /// SwiftData добавляет молча только то, что может оставить пустым. Пусто
     /// читается как «совета нет» — именно так и было.
     var advice: String?
+    /// Код детали из разбора (`PartAdvice`). По нему шторка сохранённого
+    /// прослушивания показывает «что это может быть» и что купить.
+    /// Необязательное по той же причине, что и `advice`: у находок,
+    /// сохранённых до 06.10.2026, его нет — там деталь узнаётся по названию.
+    var part: String?
     var order: Int
     var check: EngineCheck?
 
-    init(title: String, detail: String, advice: String? = nil, order: Int) {
+    init(title: String, detail: String, advice: String? = nil, part: String? = nil, order: Int) {
         self.title = title
         self.detail = detail
         self.advice = advice
+        self.part = part
         self.order = order
     }
 }

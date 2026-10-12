@@ -161,6 +161,15 @@ struct FigmaGroupedTextField: View {
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Figma.labelsPrimary)
                 .keyboardType(keyboardType)
+                // Фокус, подпись клавиши и действие по ней были объявлены,
+                // но к полю не подключены (найдено 08.10.2026): «Далее» на
+                // первой строке ничего не делало. Не последняя строка
+                // передаёт фокус следующей, последняя — зовёт `onSubmit`.
+                .focused($focusedRow, equals: index)
+                .submitLabel(isLast ? submitLabel : .next)
+                .onSubmit {
+                    if isLast { onSubmit?() } else { focusedRow = index + 1 }
+                }
                 .onChange(of: text.wrappedValue) { _, new in
                     guard let format else { return }
                     let masked = format(new)

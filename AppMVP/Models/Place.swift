@@ -1,6 +1,5 @@
 import Foundation
 import SwiftData
-import SwiftUI
 
 /// Что за место на карте. Три вида — те, за которыми водитель сворачивает с
 /// маршрута: где встать, где подкачать и где чиниться.
@@ -43,6 +42,16 @@ enum PlaceKind: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
+    /// Объёмная модель вида из `Assets.xcassets` (рендеры
+    /// `tools/map-icons/render.swift`).
+    var model: String? {
+        switch self {
+        case .parking: "MapIconParking"
+        case .tyre: "MapIconTyre"
+        case .service: "MapIconService"
+        }
+    }
+
     var symbol: String {
         switch self {
         case .parking: "parkingsign"
@@ -50,20 +59,12 @@ enum PlaceKind: String, CaseIterable, Identifiable, Codable, Sendable {
         case .service: "wrench.and.screwdriver.fill"
         }
     }
-
-    var tint: Color {
-        switch self {
-        case .parking: Figma.accentsBlue
-        case .tyre: Figma.accentsGreen
-        case .service: Figma.accentsRed
-        }
-    }
 }
 
 /// Откуда взялось сохранённое место.
 ///
 /// Различие видно на экране: свою точку удаляют, избранный бизнес убирают из
-/// избранного, и в списке они стоят разными разделами. Одним флагом
+/// избранного, и звезда в списке есть только у второго. Одним флагом
 /// `isFavorite` это не описывается — «своя точка, которая не в избранном» и
 /// «избранное, которое не своё» звучат как разные вещи, потому что они и есть
 /// разные вещи.
@@ -76,14 +77,6 @@ enum PlaceOrigin: String, CaseIterable, Identifiable, Codable, Sendable {
     case favorite
 
     var id: String { rawValue }
-
-    /// Заголовок раздела в списке.
-    var section: String {
-        switch self {
-        case .mine: "Мои точки"
-        case .favorite: "Избранное"
-        }
-    }
 }
 
 /// Место, которое пользователь сохранил сам: своя точка или добавленный

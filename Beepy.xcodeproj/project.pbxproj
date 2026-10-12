@@ -11,8 +11,15 @@
 		CA0000010000000000000004 /* UIStateCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000004 /* UIStateCatalog.swift */; };
 		1A0000010000000000000001 /* PartAdvice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000010000000000000001 /* PartAdvice.swift */; };
 		CA0000010000000000000001 /* ServiceMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000001 /* ServiceMath.swift */; };
+		CA0000010000000000000020 /* CloudMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000020 /* CloudMath.swift */; };
 		CA0000010000000000000002 /* NumberFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000002 /* NumberFormat.swift */; };
 		CA0000010000000000000005 /* MapGeo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000005 /* MapGeo.swift */; };
+		CA0000010000000000000021 /* TripMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000021 /* TripMath.swift */; };
+		CA0000010000000000000024 /* TripAuto.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000024 /* TripAuto.swift */; };
+		CA0000010000000000000025 /* TripLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000025 /* TripLink.swift */; };
+		CA0000010000000000000022 /* TripTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000022 /* TripTracker.swift */; };
+		CA0000010000000000000023 /* TripIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000023 /* TripIntents.swift */; };
+		9B0000000000000000000006 /* Trip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000006 /* Trip.swift */; };
 		CA000001000000000000000F /* ListeningSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000F /* ListeningSummary.swift */; };
 		CA000001000000000000000E /* BusinessContacts.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000E /* BusinessContacts.swift */; };
 		CA000001000000000000000C /* ServiceReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000C /* ServiceReminder.swift */; };
@@ -37,6 +44,7 @@
 		9B0000010000000000000002 /* MapScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000002 /* MapScreen.swift */; };
 		9B0000010000000000000005 /* PlacesList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000010000000000000005 /* PlacesList.swift */; };
 		7A0000010000000000000002 /* MoreScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0000010000000000000002 /* MoreScreen.swift */; };
+		7A0000010000000000000003 /* TripSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0000010000000000000003 /* TripSheet.swift */; };
 		AA0000010000000000000001 /* AppMVPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000001 /* AppMVPApp.swift */; };
 		AA0000010000000000000003 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000003 /* Theme.swift */; };
 		AA0000010000000000000006 /* Car.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000006 /* Car.swift */; };
@@ -66,6 +74,8 @@
 		AA00000100000000000000B3 /* MotionRim.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000100000000000000B3 /* MotionRim.swift */; };
 		8A0000010000000000000001 /* AudioLevelMeter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000010000000000000001 /* AudioLevelMeter.swift */; };
 		8A0000010000000000000002 /* SoundOrb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000010000000000000002 /* SoundOrb.swift */; };
+		8A0000010000000000000020 /* SoundCapsule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000010000000000000020 /* SoundCapsule.swift */; };
+		8A0000010000000000000021 /* CloudGlass.metal in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000010000000000000021 /* CloudGlass.metal */; };
 		8A0000010000000000000003 /* IssuesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000010000000000000003 /* IssuesScreen.swift */; };
 		CA0000010000000000000012 /* RecordingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000012 /* RecordingPanel.swift */; };
 		CA0000010000000000000011 /* FindingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000011 /* FindingsSheet.swift */; };
@@ -76,8 +86,15 @@
 		CB0000010000000000000004 /* UIStateCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIStateCatalog.swift; sourceTree = "<group>"; };
 		1B0000010000000000000001 /* PartAdvice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartAdvice.swift; sourceTree = "<group>"; };
 		CB0000010000000000000001 /* ServiceMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceMath.swift; sourceTree = "<group>"; };
+		CB0000010000000000000020 /* CloudMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudMath.swift; sourceTree = "<group>"; };
 		CB0000010000000000000002 /* NumberFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberFormat.swift; sourceTree = "<group>"; };
 		CB0000010000000000000005 /* MapGeo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapGeo.swift; sourceTree = "<group>"; };
+		CB0000010000000000000021 /* TripMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripMath.swift; sourceTree = "<group>"; };
+		CB0000010000000000000024 /* TripAuto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripAuto.swift; sourceTree = "<group>"; };
+		CB0000010000000000000025 /* TripLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripLink.swift; sourceTree = "<group>"; };
+		CB0000010000000000000022 /* TripTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripTracker.swift; sourceTree = "<group>"; };
+		CB0000010000000000000023 /* TripIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripIntents.swift; sourceTree = "<group>"; };
+		9C0000000000000000000006 /* Trip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trip.swift; sourceTree = "<group>"; };
 		CB000001000000000000000F /* ListeningSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningSummary.swift; sourceTree = "<group>"; };
 		CB000001000000000000000E /* BusinessContacts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusinessContacts.swift; sourceTree = "<group>"; };
 		CB000001000000000000000C /* ServiceReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceReminder.swift; sourceTree = "<group>"; };
@@ -101,6 +118,7 @@
 		9C0000010000000000000002 /* MapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapScreen.swift; sourceTree = "<group>"; };
 		9C0000010000000000000005 /* PlacesList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlacesList.swift; sourceTree = "<group>"; };
 		7B0000010000000000000002 /* MoreScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreScreen.swift; sourceTree = "<group>"; };
+		7B0000010000000000000003 /* TripSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000001 /* AppMVPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMVPApp.swift; sourceTree = "<group>"; };
 		BB0000010000000000000003 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		BB0000010000000000000006 /* Car.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Car.swift; sourceTree = "<group>"; };
@@ -132,6 +150,8 @@
 		BB00000100000000000000B3 /* MotionRim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionRim.swift; sourceTree = "<group>"; };
 		8B0000010000000000000001 /* AudioLevelMeter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelMeter.swift; sourceTree = "<group>"; };
 		8B0000010000000000000002 /* SoundOrb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundOrb.swift; sourceTree = "<group>"; };
+		8B0000010000000000000020 /* SoundCapsule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundCapsule.swift; sourceTree = "<group>"; };
+		8B0000010000000000000021 /* CloudGlass.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = CloudGlass.metal; sourceTree = "<group>"; };
 		8B0000010000000000000003 /* IssuesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssuesScreen.swift; sourceTree = "<group>"; };
 		CB0000010000000000000012 /* RecordingPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingPanel.swift; sourceTree = "<group>"; };
 		CB0000010000000000000011 /* FindingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindingsSheet.swift; sourceTree = "<group>"; };
@@ -153,10 +173,14 @@
 				BB0000010000000000000026 /* PlateFormat.swift */,
 				1B0000010000000000000001 /* PartAdvice.swift */,
 				CB0000010000000000000001 /* ServiceMath.swift */,
+				CB0000010000000000000020 /* CloudMath.swift */,
 				CB0000010000000000000002 /* NumberFormat.swift */,
 				CB0000010000000000000003 /* UIState.swift */,
 				CB0000010000000000000004 /* UIStateCatalog.swift */,
 				CB0000010000000000000005 /* MapGeo.swift */,
+				CB0000010000000000000021 /* TripMath.swift */,
+				CB0000010000000000000024 /* TripAuto.swift */,
+				CB0000010000000000000025 /* TripLink.swift */,
 				CB000001000000000000000F /* ListeningSummary.swift */,
 				CB000001000000000000000E /* BusinessContacts.swift */,
 				CB0000010000000000000006 /* MarketPrice.swift */,
@@ -180,6 +204,7 @@
 			isa = PBXGroup;
 			children = (
 				7B0000010000000000000002 /* MoreScreen.swift */,
+				7B0000010000000000000003 /* TripSheet.swift */,
 			);
 			path = More;
 			sourceTree = "<group>";
@@ -242,6 +267,7 @@
 			children = (
 				BB0000010000000000000006 /* Car.swift */,
 				9C0000000000000000000003 /* Place.swift */,
+				9C0000000000000000000006 /* Trip.swift */,
 				9C0000000000000000000005 /* EngineCheck.swift */,
 				BB00000100000000000000A1 /* ServiceRecord.swift */,
 			);
@@ -340,6 +366,8 @@
 				9C0000010000000000000077 /* VehicleLookupKey.swift */,
 				9C0000010000000000000078 /* LocalCarDiagnosis.swift */,
 				CB000001000000000000000C /* ServiceReminder.swift */,
+				CB0000010000000000000022 /* TripTracker.swift */,
+				CB0000010000000000000023 /* TripIntents.swift */,
 				9C000001000000000000007D /* ServiceDocScanner.swift */,
 				9C0000010000000000000001 /* MapKitKey.swift */,
 				9C0000000000000000000001 /* CarDiagnosis.swift */,
@@ -353,6 +381,8 @@
 			isa = PBXGroup;
 			children = (
 				8B0000010000000000000002 /* SoundOrb.swift */,
+				8B0000010000000000000020 /* SoundCapsule.swift */,
+				8B0000010000000000000021 /* CloudGlass.metal */,
 				8B0000010000000000000003 /* IssuesScreen.swift */,
 				CB0000010000000000000012 /* RecordingPanel.swift */,
 				CB0000010000000000000011 /* FindingsSheet.swift */,
@@ -438,8 +468,15 @@
 				AA0000010000000000000001 /* AppMVPApp.swift in Sources */,
 				1A0000010000000000000001 /* PartAdvice.swift in Sources */,
 				CA0000010000000000000001 /* ServiceMath.swift in Sources */,
+				CA0000010000000000000020 /* CloudMath.swift in Sources */,
 				CA0000010000000000000002 /* NumberFormat.swift in Sources */,
 				CA0000010000000000000005 /* MapGeo.swift in Sources */,
+				CA0000010000000000000021 /* TripMath.swift in Sources */,
+				CA0000010000000000000024 /* TripAuto.swift in Sources */,
+				CA0000010000000000000025 /* TripLink.swift in Sources */,
+				CA0000010000000000000022 /* TripTracker.swift in Sources */,
+				CA0000010000000000000023 /* TripIntents.swift in Sources */,
+				9B0000000000000000000006 /* Trip.swift in Sources */,
 				CA000001000000000000000F /* ListeningSummary.swift in Sources */,
 				CA000001000000000000000E /* BusinessContacts.swift in Sources */,
 				CA0000010000000000000006 /* MarketPrice.swift in Sources */,
@@ -481,11 +518,14 @@
 				CA0000010000000000000012 /* RecordingPanel.swift in Sources */,
 				CA0000010000000000000011 /* FindingsSheet.swift in Sources */,
 				8A0000010000000000000002 /* SoundOrb.swift in Sources */,
+				8A0000010000000000000020 /* SoundCapsule.swift in Sources */,
+				8A0000010000000000000021 /* CloudGlass.metal in Sources */,
 				8A0000010000000000000001 /* AudioLevelMeter.swift in Sources */,
 				9B0000010000000000000002 /* MapScreen.swift in Sources */,
 				9B0000010000000000000005 /* PlacesList.swift in Sources */,
 				9B0000000000000000000004 /* MapController.swift in Sources */,
 				7A0000010000000000000002 /* MoreScreen.swift in Sources */,
+				7A0000010000000000000003 /* TripSheet.swift in Sources */,
 				9B0000010000000000000001 /* MapKitKey.swift in Sources */,
 				9B0000010000000000000077 /* VehicleLookupKey.swift in Sources */,
 				9B0000010000000000000078 /* LocalCarDiagnosis.swift in Sources */,
@@ -610,7 +650,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
 				INFOPLIST_FILE = AppMVP/Resources/Info.plist;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Чтобы отправить запись двигателя на сервер разбора в вашей сети";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вашу позицию на карте";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вас на карте и считать километры поездок";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Чтобы слушать двигатель и находить неисправности";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -641,7 +681,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
 				INFOPLIST_FILE = AppMVP/Resources/Info.plist;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Чтобы отправить запись двигателя на сервер разбора в вашей сети";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вашу позицию на карте";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вас на карте и считать километры поездок";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Чтобы слушать двигатель и находить неисправности";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

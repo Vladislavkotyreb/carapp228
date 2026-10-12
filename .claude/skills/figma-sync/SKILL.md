@@ -52,7 +52,13 @@ description: Любая правка интерфейса в коде (SwiftUI-�
 drop.fill 100812, line.3.horizontal.decrease 100713, arrow.up.right 10012F,
 thermometer.medium 1013C3, circle.circle 100A01, square.dashed 100FEB,
 wrench.and.screwdriver.fill 10090B, bolt.fill 1002E6, fan.fill 10104C,
-point.topleft.down.to.point.bottomright.curvepath 1008F1.
+point.topleft.down.to.point.bottomright.curvepath 1008F1,
+magnifyingglass 1002AB, parkingsign 100D62, star 1002C2, star.fill 1002C3,
+location.fill 1002D2, slider.horizontal.3 100306, phone.fill 10033F,
+arrow.triangle.turn.up.right.diamond.fill 10065F, list.bullet 1002F2,
+map.fill 10064B, ellipsis 100360, mappin 1003AA, plus 10017C,
+checkmark.seal 1001FA, exclamationmark.triangle 1001FE, waveform 10066B,
+arrow.triangle.2.circlepath 1002AF.
 
 ## Порядок
 

@@ -100,3 +100,64 @@ enum BusinessContacts {
         host == domain || host.hasSuffix("." + domain)
     }
 }
+
+/// Что Яндекс знает об организации сверх названия и адреса: фото, рейтинг,
+/// часы работы, рубрики. Из этого собирается карточка места в списке.
+///
+/// В базу не сохраняется — как и ссылки для записи: приходит заново с каждым
+/// поиском, и у своей точки, поставленной булавкой, пусто по построению.
+struct PlaceDetails: Equatable, Sendable {
+    /// Шаблон адреса фото: `https://avatars.mds.yandex.net/get-altay/…/%s`,
+    /// на месте `%s` — размер. Так его отдаёт сниппет фото MapKit (снято
+    /// пробой на симуляторе 03.10.2026).
+    var photo: String?
+    /// Все фото из сниппета в том же виде — для ленты в карточке места.
+    /// Первое совпадает с `photo`.
+    var photos: [String] = []
+    /// Оценка от 1 до 5.
+    var rating: Double?
+    /// Сколько оценок за ней стоит.
+    var ratings = 0
+    /// «До 20:00» или «Закрыто до 10:00» — как отдаёт Яндекс.
+    var hours: String?
+    /// Рубрики: «Автосервис, автотехцентр», «Шиномонтаж».
+    var categories: [String] = []
+
+    /// Размеры хранилища фото Яндекса. `large` — 800 px по ширине: карточка
+    /// списка на трёхкратном экране занимает 1100, и следующий размер уже
+    /// вчетверо тяжелее ради разницы, которой на фото фасада не видно.
+    enum PhotoSize: String, Sendable {
+        case medium = "L"
+        case large = "XL"
+    }
+
+    /// Адрес фото нужного размера. `nil`, если шаблона нет, в нём нет места
+    /// под размер или он не по https — такой адрес система всё равно не
+    /// загрузит, а пустая рамка хуже карточки без фото.
+    func photoURL(_ size: PhotoSize) -> URL? {
+        photo.flatMap { Self.url($0, size) }
+    }
+
+    /// Адреса фото для ленты, не больше `limit`: негодные шаблоны и повторы
+    /// выпадают. Сниппет иногда отдаёт десятки снимков — лента из них
+    /// грузила бы мегабайты ради карточки на полэкрана.
+    func photoURLs(_ size: PhotoSize, limit: Int = 8) -> [URL] {
+        var seen = Set<String>()
+        return photos.filter { seen.insert($0).inserted }
+            .compactMap { Self.url($0, size) }
+            .prefix(limit).map { $0 }
+    }
+
+    private static func url(_ template: String, _ size: PhotoSize) -> URL? {
+        guard template.hasPrefix("https://"), template.contains("%s") else { return nil }
+        return URL(string: template.replacingOccurrences(of: "%s", with: size.rawValue))
+    }
+
+    /// «4,9» — с запятой и одним знаком. Без оценок `nil`: ноль звёзд у
+    /// места, которое никто не оценивал, читался бы как приговор.
+    var ratingLabel: String? {
+        guard let rating, rating > 0, ratings > 0 else { return nil }
+        let tenths = Int((rating * 10).rounded())
+        return "\(tenths / 10),\(tenths % 10)"
+    }
+}

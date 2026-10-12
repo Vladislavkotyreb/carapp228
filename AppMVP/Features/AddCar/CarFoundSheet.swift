@@ -143,9 +143,9 @@ struct CarFoundSheet: View {
         // Безрамочность по макету 45854:2921: шторка ЗАЛИВАЕТСЯ цветом фона
         // кадра (средний цвет его рамки) — граница картинки исчезает, машина
         // стоит прямо в шторке. Никаких блюров: ровная заливка.
-        .liquidGlass(in: Self.shape, tint: previewAmbient) {
-            Self.shape.fill(previewAmbient)
-        }
+        // Заливка, а не стекло с тоном — см. `AddServiceChoiceSheet`: на
+        // стекле системная «Закрыть» теряла свой кружок.
+        .background(Self.shape.fill(previewAmbient))
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
             Capsule()
@@ -158,49 +158,9 @@ struct CarFoundSheet: View {
     // MARK: - Toolbar - Top - iPhone
 
     private var toolbar: some View {
-        ZStack {
-            Text("Это ваш автомобиль?")
-                .font(.system(size: 17, weight: .semibold))
-                .tracking(-0.43)
-                .foregroundStyle(Figma.vibrantControlsPrimary)
-
-            HStack {
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        // Кромку круглой кнопки даёт системное стекло
-                        .liquidGlass(in: Circle(), tint: Figma.sheetControl) {
-                            Circle()
-                                .fill(Figma.sheetControl)
-                                .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
-                        }
-                        .contentShape(Circle())
-                        .motionRim(in: Circle())
-                        .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
-                }
-                .accessibilityLabel("Закрыть")
-
-                Spacer()
-
-                // Белая галочка-акцент: в тёмном прототипе она синяя, но акцент
-                // кнопок оставлен белым по прямому указанию пользователя.
-                Button(action: onConfirm) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.black)
-                        .frame(width: 44, height: 44)
-                        .background(Circle().fill(Figma.labelsPrimary))
-                        .contentShape(Circle())
-                }
-                .accessibilityLabel("Это мой автомобиль")
-            }
-        }
-        .buttonStyle(.plain)
-        .frame(height: 44)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 10)
+        SheetBar(title: "Это ваш автомобиль?", onClose: onClose,
+                 confirmLabel: "Это мой автомобиль", onConfirm: onConfirm)
+            .padding(.bottom, 10)
     }
 
     // MARK: - Госномер

@@ -148,7 +148,7 @@ struct AddCarView: View {
                 FigmaGroupedTextField(
                     firstPlaceholder: "Название",
                     first: $name,
-                    secondPlaceholder: "Пробег в км",
+                    secondPlaceholder: "Пробег, км",
                     second: $mileage,
                     secondKeyboardType: .numberPad,
                     secondFormat: NumberFormat.groupedInput,
@@ -206,7 +206,7 @@ struct AddCarView: View {
                             FigmaRowLabel(systemImage: "photo", title: "Выбрать фото")
                         }
 
-                        caption("Сфотографируйте машину спереди для лучшего вида", color: Figma.labelsTertiary)
+                        caption("Сфотографируйте машину спереди", color: Figma.labelsTertiary)
                     }
                 }
             }

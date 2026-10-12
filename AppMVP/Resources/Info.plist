@@ -22,6 +22,25 @@
 		<string>yandexmaps</string>
 		<string>yandexnavi</string>
 	</array>
+	<!--
+	  Автопробег считает километры поездки, когда приложение закрыто: его
+	  будит команда из автоматизации по Bluetooth машины. Для этого нужны
+	  фоновый режим геопозиции и разрешение «Всегда». Без фонового режима
+	  `allowsBackgroundLocationUpdates = true` роняет приложение.
+	-->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Чтобы считать километры поездок, когда Beepy закрыт</string>
+	<!--
+	  Автоопределение поездки спрашивает у датчиков движения, едет телефон
+	  в машине или его несут пешком. Без этой строки первый же запрос к
+	  CMMotionActivityManager роняет приложение.
+	-->
+	<key>NSMotionUsageDescription</key>
+	<string>Чтобы отличать поездку на машине от прогулки</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

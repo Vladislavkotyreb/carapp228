@@ -19,6 +19,9 @@ struct PriceInfoSheet: View {
     var kind: Kind = .price
     /// Текущий пробег — для режима `.odometer`.
     var odometer: Int = 0
+    /// Сколько километров в пробеге — из поездок автопробега, не сверенных
+    /// с приборкой.
+    var trackedKm: Int = 0
     /// Своя цена пользователя, если вводил, — она главнее рыночной.
     let ownPrice: Int?
     /// Средняя рыночная по объявлениям и число объявлений под ней.
@@ -62,9 +65,10 @@ struct PriceInfoSheet: View {
         .padding(.top, 16)
         .frame(height: 420)
         .frame(maxWidth: .infinity)
-        .liquidGlass(in: sheetShape, tint: Figma.sheetBackground) {
-            sheetShape.fill(Figma.sheetBackground)
-        }
+        // Сплошная подложка, а не стекло с тоном: цвет тот же (замер
+        // 28,28,30), но системная «Закрыть» — сама стекло, а стекло на
+        // стекле почти не видно: кружок кнопки терялся (06.10.2026).
+        .background(sheetShape.fill(Figma.sheetBackground))
         .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
         .overlay(alignment: .top) {
             Capsule()
@@ -99,35 +103,9 @@ struct PriceInfoSheet: View {
     // MARK: - Тулбар: заголовок и крестик, как у остальных шторок
 
     private var toolbar: some View {
-        ZStack {
-            Text(kind == .price ? "Цена авто" : "Пробег")
-                .font(.system(size: 17, weight: .semibold))
-                .tracking(-0.43)
-                .foregroundStyle(Figma.vibrantControlsPrimary)
-
-            HStack {
-                Spacer()
-
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .liquidGlass(in: Circle(), tint: Figma.sheetControl) {
-                            Circle()
-                                .fill(Figma.sheetControl)
-                                .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
-                        }
-                        .contentShape(Circle())
-                        .motionRim(in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Закрыть")
-            }
-        }
-        .frame(height: 44)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 10)
+        SheetBar(title: kind == .price ? "Цена авто" : "Пробег", closeSide: .trailing,
+                 onClose: onClose)
+            .padding(.bottom, 10)
     }
 
     // MARK: - Цена с карандашом
@@ -268,32 +246,31 @@ struct PriceInfoSheet: View {
     }
 
     private var explanationTitle: String {
-        if kind == .odometer { return "Пробег вводите сами" }
+        if kind == .odometer { return trackedKm > 0 ? "Пробег примерный" : "Пробег вводите сами" }
         if ownPrice == nil, marketPrice != nil { return "Это средняя цена" }
         if ownPrice != nil { return "Это ваша цена" }
         return "Откуда берётся цена"
     }
 
     private var explanationDetail: String {
+        if kind == .odometer, trackedKm > 0 {
+            return "\(NumberFormat.grouped(trackedKm))\u{00A0}км посчитаны по\u{00A0}поездкам. "
+                 + "Введите пробег с\u{00A0}приборки — «≈» уйдёт."
+        }
         if kind == .odometer {
-            return "От пробега считается, когда пора на следующее ТО. "
-                 + "Обновляйте его карандашом после поездок."
+            return "По\u{00A0}пробегу считается следующее ТО. Обновляйте его после поездок."
         }
         let offers = marketOffers.map { " \(NumberFormat.grouped($0))" } ?? ""
         if ownPrice == nil, marketPrice != nil {
-            return "На основе\(offers) объявлений о продаже похожих авто. "
-                 + "Своя цена вводится карандашом — она заменит среднюю."
+            return "По\(offers) объявлениям о\u{00A0}похожих авто. Введите свою — она заменит среднюю."
         }
         if let ownPrice, ownPrice > 0 {
             if let marketPrice {
-                return "Средняя по объявлениям о продаже похожих авто — "
-                     + "≈\u{00A0}\(NumberFormat.grouped(marketPrice))\u{00A0}₽. "
-                     + "Показывается ваша: она главнее."
+                return "Средняя по\u{00A0}объявлениям — "
+                     + "≈\u{00A0}\(NumberFormat.grouped(marketPrice))\u{00A0}₽."
             }
-            return "Вы ввели её вручную. Изменить можно карандашом."
+            return "Средней по\u{00A0}объявлениям для этой машины нет."
         }
-        return "У машин, добавленных по номеру, считается средняя по "
-             + "объявлениям о продаже похожих авто. Свою цену можно "
-             + "ввести карандашом."
+        return "У\u{00A0}машин, добавленных по\u{00A0}номеру, — средняя по\u{00A0}объявлениям. Или введите свою."
     }
 }
