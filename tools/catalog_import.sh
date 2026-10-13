@@ -57,10 +57,14 @@ if [[ $# -gt 0 ]]; then
 else
   slugs=()
   while IFS= read -r s; do slugs+=("$s"); done < <(
-    python3 - "$REPO" <<'PY'
+    python3 - "$REPO" "$FORCE" <<'PY'
 import json, os, sys
 root = sys.argv[1]
-for name in ("catalog_cars.json", "catalog_cars_next.json"):
+# С --force без списка — только вторая очередь: 75 кадров прода
+# (catalog_cars.json) перезаписываются лишь поимённо, решением человека.
+names = ("catalog_cars_next.json",) if sys.argv[2] == "1" else \
+        ("catalog_cars.json", "catalog_cars_next.json")
+for name in names:
     path = os.path.join(root, "tools", name)
     if os.path.exists(path):
         for car in json.load(open(path, encoding="utf-8")):

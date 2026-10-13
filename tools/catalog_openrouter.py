@@ -271,6 +271,11 @@ def reference_png(slug: str) -> bytes | None:
     raw = os.path.join(RAW, slug + ".png")
     if os.path.exists(raw):
         return open(raw, "rb").read()
+    return heic_png(slug)
+
+
+def heic_png(slug: str) -> bytes | None:
+    """PNG из HEIC каталога — только из проекта, мимо `raw`."""
     heic = os.path.join(ASSETS, slug + ".heic")
     if not os.path.exists(heic):
         return None
@@ -345,12 +350,14 @@ def prod_reference() -> tuple[str, bytes]:
         path = os.path.expanduser(candidate)
         if os.path.exists(path):
             return path, open(path, "rb").read()
-    png = reference_png(PROD_REFERENCE_SLUG)
+    # Прямо из HEIC, мимо `raw`: на маке в `~/beepy-catalog/raw/lexus-rx.png`
+    # лежит Кандинский v1 — мелкая машина на сером ковре, не прод.
+    png = heic_png(PROD_REFERENCE_SLUG)
     if not png:
         raise SystemExit(
             "Нет референса v3: ни ~/beepy-catalog/reference.png, ни "
             f"{PROD_REFERENCE_SLUG}.heic в PNG (нужен sips или pillow-heif).")
-    return PROD_REFERENCE_SLUG + ".heic", png
+    return os.path.join(ASSETS, PROD_REFERENCE_SLUG + ".heic"), png
 
 
 def fit_prod(source: str, dest: str, flip: bool) -> tuple[int, int]:
@@ -438,7 +445,12 @@ def generate(car: dict, key: str, model: str,
         payload["image_config"] = {"aspect_ratio": "3:2"}
     answer = post_curl("/chat/completions", payload, key=key)
 
-    cost = float((answer.get("usage") or {}).get("cost") or 0)
+    reported = (answer.get("usage") or {}).get("cost")
+    if reported is None:
+        # `usage.include` просит цену в каждом ответе; нет её — считаем по
+        # худшему известному, иначе бюджет перестал бы что-либо значить.
+        log(f"{car['slug']}: OpenRouter не прислал цену — считаю ${PROD_PRICE}")
+    cost = float(reported if reported is not None else PROD_PRICE)
     images = ((answer.get("choices") or [{}])[0].get("message") or {}).get("images") or []
     if not images:
         dump = os.path.join("/tmp", f"beepy-openrouter-{car['slug']}.json")
@@ -663,14 +675,24 @@ def main() -> int:
             args.budget = max(0.0, left - 0.05)   # пятак на округления
             log(f"бюджет урезан до остатка: ${args.budget:.2f}")
 
+    # Цена кадра v3 известна заранее, и первый запрос меряется ею: иначе при
+    # бюджете меньше кадра (или урезанном до нуля остатком ключа) один
+    # платный кадр уходил бы мимо потолка.
+    first_price = PROD_PRICE if v3 else 0.0
+    if v3 and args.budget < PROD_PRICE:
+        raise SystemExit(f"Бюджет ${args.budget:.2f} меньше цены одного кадра v3 "
+                         f"(${PROD_PRICE}) — прогон не начат.")
+    log(f"рецепт {args.recipe}, модель {args.model}, "
+        f"образец {forced[0] if forced else 'нет'}, кадры в {args.out}")
+
     spent, made, failed, prices = 0.0, [], [], []
 
     def affordable() -> bool:
         """Хватит ли на ещё один кадр. Сравнивать `spent < budget` мало:
         при остатке в цент прогон всё равно шёл бы за кадром и вылезал за
         бюджет на его полную цену. Цену берём по факту предыдущих, до
-        первого ответа — уступаем, иначе прогон не начнётся вовсе."""
-        next_cost = max(prices) if prices else 0.0
+        первого ответа — цену v3 (у batch2 её нет, и первый уступаем)."""
+        next_cost = max(prices) if prices else first_price
         return spent + next_cost <= args.budget
 
     for car in todo:
