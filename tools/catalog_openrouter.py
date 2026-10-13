@@ -144,7 +144,9 @@ MODEL = "google/gemini-2.5-flash-image"
 # середина восстановлена; найдётся оригинал — заменить целиком.
 # Транскрипт той сессии лежит на маке, оригинал достаётся так:
 #
-#   grep -rhoE 'Recreate the reference.{0,1500}' ~/.claude/projects | sort -u
+# (grep на маке не берёт повтор длиннее 255, поэтому perl):
+#
+#   grep -rl --null 'Recreate the reference' ~/.claude/projects | xargs -0 perl -ne 'print "$1\n" while /(Recreate the reference.{0,1500})/g' | sort -u
 PROD_MODEL = "google/gemini-3.1-flash-image"
 PROD_PROMPT = (
     "Recreate the reference EXACTLY: the same camera angle and height, the "

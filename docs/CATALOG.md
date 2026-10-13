@@ -20,7 +20,7 @@
 |---|---|---|
 | Модель | `google/gemini-3.1-flash-image` через OpenRouter | `PROD_MODEL` в `tools/catalog_openrouter.py` |
 | Референс | Lexus RX на чёрном: `~/beepy-catalog/reference.png` (RX 1251×832 из экспорта пользователя, есть только на маке); без него — кадр `lexus-rx` из каталога. **Не `CarPhoto`**: это покрывало | `prod_reference()` |
-| Промпт | «Recreate the reference EXACTLY… only the car itself changes» + строка машины из списка. Полный текст в журнале не сохранился — `PROD_PROMPT` держит обе фразы дословно, середина восстановлена. Оригинал лежит в транскрипте сессии 06.09 на маке: `grep -rhoE 'Recreate the reference.{0,1500}' ~/.claude/projects \| sort -u` | `PROD_PROMPT` |
+| Промпт | «Recreate the reference EXACTLY… only the car itself changes» + строка машины из списка. Полный текст в журнале не сохранился — `PROD_PROMPT` держит обе фразы дословно, середина восстановлена. Оригинал лежит в транскрипте сессии 06.09 на маке: `grep -rl --null 'Recreate the reference' ~/.claude/projects \| xargs -0 perl -ne 'print "$1\n" while /(Recreate the reference.{0,1500})/g' \| sort -u` (grep на маке не берёт `{0,1500}`) | `PROD_PROMPT` |
 | Формат | 3:2 на выходе модели (`image_config.aspect_ratio`), ширина 1264 — как у всех кадров v3 | `generate()` |
 | Обработка | **Никакой.** Тень и отражение под машиной рисует модель — именно их нет у партии 2. Кадр только обрезается до **1264×841** (у 3:2 лишние строки поровну сверху и снизу) | `fit_prod()` |
 | Ориентация | Морда вправо, как у референса. v3 нарисовал влево один Polo из 75; лечится бесплатно `--recompose --flip --only a,b` | сырьё `<slug>.raw.png` |
