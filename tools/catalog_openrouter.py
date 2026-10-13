@@ -7,16 +7,31 @@
 поэтому бюджет задаётся в долларах и проверяется по тому, что сказал сам
 OpenRouter, а не по нашей оценке цены.
 
+**Два рецепта, и по умолчанию — тот, которым сделан прод.**
+
+`--recipe v3` (по умолчанию) — так сделаны все 75 кадров в приложении
+(журнал 2026-09-06 «каталог v3, финальный», коммит `47c85a0`):
+`google/gemini-3.1-flash-image`, референс — Lexus RX на чёрном, промпт
+«Recreate the reference EXACTLY… only the car itself changes», кадр как
+есть: ни вырезки, ни синтетического пола. Тень и отражение под машиной
+рисует сама модель, поэтому они и похожи на прод.
+
+`--recipe batch2` — то, что ниже описано про образец `CarPhoto`,
+`MASTER_PROMPT` и `compose_hero`. Им сделаны 12 кадров партии 2
+(2026-09-15), и они заметно другие: камера ниже, машина мельче, пол
+плоский. Причина в образце: `CarPhoto` с 2026-09-07 — машина под
+покрывалом, а не RX. Рецепт оставлен для пересборки сырья партии 2.
+
 **Мастер-промпт не переписывается.** `MASTER_PROMPT`, `NEGATIVE_PROMPT` и
 проверка чёрных краёв берутся импортом из `car_image_gen.py` — того же
 файла, которым сделаны 76 кадров в проде. Новый кадр обязан попасть в тот
 же стиль, иначе карусель на главной поедет: часть машин в одном свете,
 часть в другом.
 
-**Образец — ассет главной `CarPhoto`, один на все машины.** Ровно так
-сделаны 64 банановых кадра прода (журнал 2026-09-06): стиль переносится
-с картинки, а машина на ней чужая любому слагу, и копировать модели
-нечего. Первая партия 2026-09-15 шла с образцом «та же марка и кузов»
+**batch2: образец — ассет главной `CarPhoto`, один на все машины.** Так
+сделаны 64 кадра v2 (журнал 2026-09-06), которые v3 в тот же вечер
+заменил целиком; с 2026-09-07 `CarPhoto` — машина под покрывалом, и
+стиль с неё переносится уже не тот. Первая партия 2026-09-15 шла с образцом «та же марка и кузов»
 (`--reference-by-brand`) и получила под именем Camry XV40 семидесятую,
 под Pajero — УАЗ, под Outback — Весту SW: чем ближе образец, тем
 увереннее модель его перерисовывает. Флаг оставлен как памятник.
@@ -28,8 +43,8 @@ OpenRouter, а не по нашей оценке цены.
 3. На каждую — до `--attempts` попыток; кадр с нечёрным периметром
    бракуется (`edges_are_black`), из попыток остаётся лучшая по пику
    яркости краёв.
-4. Сборка кадра как у прода: сырьё сохраняется как `<slug>.raw.png`,
-   машина вырезается Vision (`tools/cutout.swift`, бинарник собирается
+4. Сырьё сохраняется как `<slug>.raw.png`. У v3 кадр дальше только
+   обрезается в 1264×841. У batch2 — сборка: машина вырезается Vision (`tools/cutout.swift`, бинарник собирается
    сам при первом запуске), `compose_hero` кладёт под неё единый пол и
    тень, 1264×841. Вырезка не украшение: без неё отражение из сырья
    считается машиной и ложится чёрной полосой поверх синтетического
@@ -41,7 +56,13 @@ OpenRouter, а не по нашей оценке цены.
 Ключ — в переменной окружения, не в файле: репозиторий публичный.
 
     export OPENROUTER_API_KEY=...
-    python3 tools/catalog_openrouter.py --budget 4.00
+    python3 tools/catalog_openrouter.py --dry-run          # план и промпт
+    python3 tools/catalog_openrouter.py --limit 2          # два кадра, глазами
+    python3 tools/catalog_openrouter.py --budget 4.60      # остальные
+
+Кадры v3 ложатся в `~/beepy-catalog/v3` (`<slug>.raw.png` — ответ модели,
+`<slug>.png` — он же в 1264×841). Морда влево — бесплатно:
+`--recompose --flip --only a,b`.
 
 Проверить, как называется модель на сегодня (имена там меняются):
 
@@ -113,6 +134,39 @@ HERO = os.path.join(REPO, "AppMVP", "Resources", "Assets.xcassets",
 # что там сейчас с картинками на выходе.
 MODEL = "google/gemini-2.5-flash-image"
 
+# ------------------------------------------------------ рецепт прода, v3
+#
+# Записан по журналу 2026-09-06 («каталог v3, финальный»): сам батч
+# `or_batch.py` жил в скретчпаде той сессии и в репозиторий не попал.
+# Модель и референс названы в журнале прямо. Промпт — нет: в журнале
+# только «Recreate the reference EXACTLY… only the car itself changes»,
+# многоточие — его. PROD_PROMPT ниже держит обе фразы дословно, а
+# середина восстановлена; найдётся оригинал — заменить целиком.
+# Транскрипт той сессии лежит на маке, оригинал достаётся так:
+#
+#   grep -rhoE 'Recreate the reference.{0,1500}' ~/.claude/projects | sort -u
+PROD_MODEL = "google/gemini-3.1-flash-image"
+PROD_PROMPT = (
+    "Recreate the reference EXACTLY: the same camera angle and height, the "
+    "same framing and size of the car in the frame, the same black "
+    "background, the same lighting, the same glossy white paint, the same "
+    "shadow and reflection under the car. Only the car itself changes: {car}."
+)
+# Референс v3 — «канонический ~/beepy-catalog/reference.png (RX 1251×832
+# из экспорта пользователя)». Он есть только на маке; где его нет, берётся
+# кадр `lexus-rx` из каталога — это RX, перерисованный тем же рецептом.
+PROD_REFERENCE_FILES = ("~/beepy-catalog/reference.png",
+                        "~/canary-catalog/reference.png")
+PROD_REFERENCE_SLUG = "lexus-rx"
+# Все 75 кадров v3 — 1264×841, как ассет главной. Модель отдаёт 3:2 шире
+# на несколько строк; лишнее срезается поровну сверху и снизу.
+PROD_SIZE = (1264, 841)
+# Цена кадра v3 по факту: $5.09 за 75 кадров (журнал 2026-09-06).
+PROD_PRICE = 0.068
+# Кадры v3 — в своей папке. В `raw` на маке лежат старые PNG первой
+# партии (чужие машины): по ним прогон счёл бы машину готовой и пропустил.
+PROD_OUT = os.path.join(CATALOG_HOME, "v3")
+
 # Что просим сделать с образцом. Стиль показывается картинкой, а не
 # описывается словами заново: слова уже сказаны в мастер-промпте.
 # Про ориентацию отдельно: в партии 2 половина машин вышла мордой влево
@@ -146,6 +200,40 @@ def request(path: str, payload: dict | None = None, key: str = "",
     except urllib.error.HTTPError as error:
         body = error.read().decode("utf-8", "replace")[:500]
         raise SystemExit(f"OpenRouter ответил {error.code}: {body}")
+
+
+class Disconnected(Exception):
+    """Ответ не дошёл. Генерация на сервере могла пройти и списаться."""
+
+
+def post_curl(path: str, payload: dict, key: str, timeout: int = 900) -> dict:
+    """POST за картинкой — curl'ом, не urllib. Журнал 2026-09-07: на
+    длинных ответах urllib дважды падал (timeout, RemoteDisconnected),
+    а генерация на сервере проходила и списывалась; curl дотягивал.
+    Повторов здесь нет намеренно: повтор после обрыва — второй платный
+    кадр. Ключ уходит заголовком через stdin, не аргументом: аргументы
+    видны любому в `ps`."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        body = os.path.join(tmp, "body.json")
+        out = os.path.join(tmp, "out.json")
+        with open(body, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+        result = subprocess.run(
+            ["curl", "-sS", "--max-time", str(timeout), "-o", out,
+             "-w", "%{http_code}", "-H", "@-",
+             "-H", "Content-Type: application/json",
+             "--data-binary", "@" + body, API + path],
+            input=f"Authorization: Bearer {key}\n",
+            capture_output=True, text=True)
+        if result.returncode != 0:
+            raise Disconnected(result.stderr.strip()[-300:])
+        code = result.stdout.strip()
+        text = open(out, encoding="utf-8", errors="replace").read() \
+            if os.path.exists(out) else ""
+        if code != "200":
+            raise SystemExit(f"OpenRouter ответил {code}: {text[:500]}")
+        return json.loads(text)
 
 
 def credits(key: str) -> tuple[float, float | None]:
@@ -249,6 +337,42 @@ def cutout_binary(explicit: str = "") -> str | None:
         return None
 
 
+def prod_reference() -> tuple[str, bytes]:
+    """Референс v3: исходный RX с мака, иначе `lexus-rx` из каталога."""
+    for candidate in PROD_REFERENCE_FILES:
+        path = os.path.expanduser(candidate)
+        if os.path.exists(path):
+            return path, open(path, "rb").read()
+    png = reference_png(PROD_REFERENCE_SLUG)
+    if not png:
+        raise SystemExit(
+            "Нет референса v3: ни ~/beepy-catalog/reference.png, ни "
+            f"{PROD_REFERENCE_SLUG}.heic в PNG (нужен sips или pillow-heif).")
+    return PROD_REFERENCE_SLUG + ".heic", png
+
+
+def fit_prod(source: str, dest: str, flip: bool) -> tuple[int, int]:
+    """Кадр v3 как есть, только в размер прода 1264×841: масштаб, если
+    модель отдала другой, и обрезка лишних строк поровну. Возвращает
+    размер, который отдала модель, — не 3:2 значит, что кадр обрезан
+    заметно и смотреть его надо глазами."""
+    from PIL import Image, ImageOps
+    image = Image.open(source).convert("RGB")
+    given = image.size
+    if flip:
+        image = ImageOps.mirror(image)
+    width, height = PROD_SIZE
+    scale = max(width / image.width, height / image.height)
+    if abs(scale - 1) > 1e-9:
+        image = image.resize((max(width, round(image.width * scale)),
+                              max(height, round(image.height * scale))),
+                             Image.LANCZOS)
+    left = (image.width - width) // 2
+    top = (image.height - height) // 2
+    image.crop((left, top, left + width, top + height)).save(dest)
+    return given
+
+
 def assemble(slug: str, source: str, dest: str, cutout: str | None,
              flip: bool, floor: int, reflection: float = 0.0,
              contact: float = 0.08, shadow: int = 45) -> None:
@@ -282,24 +406,35 @@ def assemble(slug: str, source: str, dest: str, cutout: str | None,
 
 # ---------------------------------------------------------- генерация
 
-def generate(car: dict, key: str, model: str,
-             reference: tuple[str, bytes] | None) -> tuple[bytes, float]:
-    """Один кадр и его цена по версии самого OpenRouter."""
+def prompt_for(car: dict, recipe: str, reference: tuple[str, bytes] | None) -> str:
+    """Текст запроса ровно в том виде, в каком он уйдёт в модель."""
+    if recipe == "v3":
+        return PROD_PROMPT.format(car=car["prompt"])
     text = build_prompt(car["prompt"])
-    content: list[dict] = []
+    return REFERENCE_NOTE + text if reference else text
+
+
+def generate(car: dict, key: str, model: str,
+             reference: tuple[str, bytes] | None,
+             recipe: str = "batch2") -> tuple[bytes, float]:
+    """Один кадр и его цена по версии самого OpenRouter."""
+    content: list[dict] = [{"type": "text", "text": prompt_for(car, recipe, reference)}]
     if reference:
         _, png = reference
-        text = REFERENCE_NOTE + text
         content.append({"type": "image_url", "image_url": {
             "url": "data:image/png;base64," + base64.b64encode(png).decode()}})
-    content.insert(0, {"type": "text", "text": text})
 
-    answer = request("/chat/completions", {
+    payload = {
         "model": model,
         "messages": [{"role": "user", "content": content}],
         "modalities": ["image", "text"],
         "usage": {"include": True},
-    }, key=key)
+    }
+    if recipe == "v3":
+        # Кадры v3 шириной 1264, как у 3:2 на выходе модели; квадрат
+        # пришлось бы обрезать до половины машины.
+        payload["image_config"] = {"aspect_ratio": "3:2"}
+    answer = post_curl("/chat/completions", payload, key=key)
 
     cost = float((answer.get("usage") or {}).get("cost") or 0)
     images = ((answer.get("choices") or [{}])[0].get("message") or {}).get("images") or []
@@ -336,8 +471,11 @@ def recompose(args, cutout: str | None) -> int:
         source = raw_path
         if not os.path.exists(source):
             skipped.append(car["slug"]); continue
-        assemble(car["slug"], source, dest, cutout, args.flip, args.floor,
-                 args.reflection, args.contact, args.shadow)
+        if args.recipe == "v3":
+            fit_prod(source, dest, args.flip)
+        else:
+            assemble(car["slug"], source, dest, cutout, args.flip, args.floor,
+                     args.reflection, args.contact, args.shadow)
         ok, peak = edges_are_black(dest)
         done.append(car["slug"])
         log(f"{car['slug']}: пересобран, края {peak}" + ("" if ok else " — светлые"))
@@ -352,11 +490,20 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--budget", type=float, default=4.0,
                     help="потолок трат в долларах за этот прогон")
-    ap.add_argument("--model", default=MODEL)
+    ap.add_argument("--recipe", choices=("v3", "batch2"), default="v3",
+                    help="v3 — как 75 кадров прода (по умолчанию); batch2 — "
+                         "CarPhoto + MASTER_PROMPT + compose_hero, как партия 2")
+    ap.add_argument("--model", default=None,
+                    help=f"по умолчанию {PROD_MODEL} для v3, {MODEL} для batch2")
     ap.add_argument("--cars", default=CARS_NEXT)
-    ap.add_argument("--out", default=RAW)
-    ap.add_argument("--attempts", type=int, default=2,
-                    help="попыток на машину, пока края не станут чёрными")
+    ap.add_argument("--out", default=None,
+                    help=f"по умолчанию {PROD_OUT} для v3, {RAW} для batch2")
+    # У v3 одна попытка: кадр со светлыми краями (белый фон, как было
+    # с renault-kaptur) уходит в список «проверить глазами», и решение о
+    # повторе за деньги принимает человек по листу, а не скрипт.
+    ap.add_argument("--attempts", type=int, default=None,
+                    help="попыток на машину, пока края не станут чёрными; "
+                         "по умолчанию 1 для v3, 2 для batch2")
     # Ноль, и это не мелочь. Прижатие к чёрному съедает у банановых
     # кадров низ шин и отражение под машиной (яркость 8-17) — первая партия
     # 2026-09-15 вся с плоско срезанными колёсами над чёрной полосой.
@@ -412,12 +559,21 @@ def main() -> int:
                     help="сила тени под днищем (у прода из сырья ~110, "
                          "для синтетики 45 — иначе под машиной ноль)")
     ap.add_argument("--recompose", action="store_true",
-                    help="без сети: пересобрать кадры из уже лежащих в raw "
-                         "(<slug>.raw.png, иначе <slug>.png) через вырезку")
+                    help="без сети: пересобрать кадры из <slug>.raw.png "
+                         "(v3 — обрезка в 1264×841 и --flip, batch2 — вырезка "
+                         "и compose_hero)")
     args = ap.parse_args()
 
+    v3 = args.recipe == "v3"
+    args.model = args.model or (PROD_MODEL if v3 else MODEL)
+    args.out = args.out or (PROD_OUT if v3 else RAW)
+    if args.attempts is None:
+        args.attempts = 1 if v3 else 2
+
     forced: tuple[str, bytes] | None = None
-    if args.reference:
+    if v3 and not args.reference and not args.no_reference:
+        forced = prod_reference()
+    elif args.reference:
         png = reference_png(args.reference)
         if not png:
             raise SystemExit(f"Нет ассета для образца: {args.reference}")
@@ -441,8 +597,9 @@ def main() -> int:
             "    ~/Library/Caches/kandinsky5-venv/bin/python "
             "tools/catalog_openrouter.py ...")
 
-    cutout = None if args.no_cutout else cutout_binary(args.cutout)
-    if not cutout and not args.no_cutout and not args.dry_run:
+    # У v3 вырезки нет: кадр идёт как есть, иначе пропадёт отражение.
+    cutout = None if (args.no_cutout or v3) else cutout_binary(args.cutout)
+    if not v3 and not cutout and not args.no_cutout and not args.dry_run:
         log(f"ВНИМАНИЕ: вырезки нет (нет {CUTOUT_BIN} и не собрался "
             "swiftc) — кадры соберутся с чёрной полосой под колёсами. "
             "Осознанно — добавьте --no-cutout.")
@@ -480,6 +637,14 @@ def main() -> int:
     log(f"список: {len(cars)}, к генерации: {len(todo)}, бюджет: ${args.budget:.2f}")
 
     if args.dry_run:
+        log(f"рецепт {args.recipe}, модель {args.model}, "
+            f"образец {forced[0] if forced else 'нет'}, кадры в {args.out}")
+        if todo:
+            log("промпт первой машины целиком:\n    "
+                + prompt_for(todo[0], args.recipe, forced))
+        if v3:
+            log(f"оценка по цене v3 (${PROD_PRICE}/кадр): "
+                f"${PROD_PRICE * len(todo):.2f} за {len(todo)}")
         for car in todo:
             reference = forced
             if args.reference_by_brand:
@@ -517,19 +682,37 @@ def main() -> int:
         dest = os.path.join(args.out, car["slug"] + ".png")
         best: tuple[int, bytes, str] | None = None
 
-        # Края проверяются у СОБРАННОГО кадра, не у сырья: у сырья они
-        # светлые всегда (27-51), их гасит виньетка сборки. Проверка по
-        # сырью браковала бы каждый кадр и удваивала счёт.
+        # Края проверяются у СОБРАННОГО кадра, не у сырья: у сырья batch2
+        # они светлые всегда (27-51), их гасит виньетка сборки. Проверка по
+        # сырью браковала бы каждый кадр и удваивала счёт. У v3 собранный
+        # кадр и есть сырьё в размере прода — все 75 прошли так же.
         for attempt in range(1, args.attempts + 1):
             if attempt > 1 and not affordable():
                 break
-            png, cost = generate(car, key, args.model, reference)
+            try:
+                png, cost = generate(car, key, args.model, reference, args.recipe)
+            except Disconnected as error:
+                # Без повтора: обрыв не значит, что денег не списали.
+                log(f"{car['slug']}: ответ оборвался ({error}). Генерация могла "
+                    "пройти и списаться — сверить с Activity на openrouter.ai.")
+                log(f"остановлено. сделано: {len(made)}, потрачено ${spent:.4f}; "
+                    "тот же запуск продолжит с этой машины")
+                return 1
+            except SystemExit:
+                log(f"{car['slug']}: остановлено на ошибке ниже. сделано: "
+                    f"{len(made)}, потрачено ${spent:.4f}")
+                raise
             spent += cost
             prices.append(cost)
             tmp_raw = dest + f".try{attempt}.raw.png"
             tmp_out = dest + f".try{attempt}.png"
             open(tmp_raw, "wb").write(png)
-            if args.raw:
+            if v3:
+                given = fit_prod(tmp_raw, tmp_out, args.flip)
+                if abs(given[0] / given[1] - 1.5) > 0.02:
+                    log(f"{car['slug']}: модель отдала {given[0]}×{given[1]}, "
+                        "не 3:2 — кадр обрезан сильно, смотреть глазами")
+            elif args.raw:
                 open(tmp_out, "wb").write(png)
                 finalize(tmp_out, flip=args.flip, floor=args.floor)
             else:

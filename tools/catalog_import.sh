@@ -26,11 +26,29 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # переименования в Beepy 2026-09-22) — старая, чтобы не потерять сырьё.
 CATALOG_HOME="$HOME/beepy-catalog"
 [[ ! -d "$CATALOG_HOME" && -d "$HOME/canary-catalog" ]] && CATALOG_HOME="$HOME/canary-catalog"
-RAW="${BEEPY_RAW:-$CATALOG_HOME/raw}"
+# Кадры v3 (рецепт прода) лежат в своей папке `v3`; если она есть, импорт
+# берёт их. В `raw` на маке остались PNG первой партии с чужими машинами —
+# импорт оттуда по умолчанию вернул бы их в каталог, как 2026-09-17.
+if [[ -n "${BEEPY_RAW:-}" ]]; then RAW="$BEEPY_RAW"
+elif [[ -d "$CATALOG_HOME/v3" ]]; then RAW="$CATALOG_HOME/v3"
+else RAW="$CATALOG_HOME/raw"; fi
 DEST="$REPO/AppMVP/Resources/CarCatalog"
+echo "кадры из: $RAW"
 
-if ! command -v sips >/dev/null; then
-  echo "нет sips — это macOS-инструмент, импорт делается на маке" >&2
+# HEIC — тем же `sips` с качеством 80, что и 76 кадров прода. Без мака
+# (облачная сессия) — pillow-heif с тем же качеством: кодек другой, вид тот
+# же. Питон с pillow-heif — в BEEPY_PY, если он не системный.
+PY="${BEEPY_PY:-python3}"
+if command -v sips >/dev/null; then
+  to_heic() { sips -s format heic -s formatOptions 80 "$1" --out "$2" >/dev/null; }
+elif "$PY" -c "import pillow_heif" 2>/dev/null; then
+  to_heic() {
+    "$PY" -I -c 'import sys, pillow_heif; from PIL import Image
+pillow_heif.register_heif_opener()
+Image.open(sys.argv[1]).convert("RGB").save(sys.argv[2], format="HEIF", quality=80)' "$1" "$2"
+  }
+else
+  echo "нет ни sips (macOS), ни pillow-heif в $PY — HEIC собрать нечем" >&2
   exit 1
 fi
 
@@ -56,7 +74,7 @@ for slug in "${slugs[@]}"; do
   src="$RAW/$slug.png"; dst="$DEST/$slug.heic"
   if [[ -f "$dst" && $FORCE -eq 0 ]]; then kept=$((kept+1)); continue; fi
   if [[ ! -f "$src" ]]; then missing+=("$slug"); continue; fi
-  sips -s format heic -s formatOptions 80 "$src" --out "$dst" >/dev/null
+  to_heic "$src" "$dst"
   echo "  + $slug.heic ($(du -k "$dst" | cut -f1) КБ)"
   made=$((made+1))
 done
