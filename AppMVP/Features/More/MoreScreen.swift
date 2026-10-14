@@ -12,13 +12,15 @@ import SwiftUI
 /// плюс «Автоопределение»: два слова на «авто» рядом читались двумя
 /// функциями (вопрос пользователя 09.10.2026). Экран даёт ещё выключатель
 /// геопозиции, строку с системным доступом, привязку Bluetooth машины
-/// (`TripLink`) и историю; лишнюю поездку удаляет её экран.
+/// (`TripLink`), синхронизацию с сервером (`TripSync`) и историю; лишнюю
+/// поездку удаляет её экран.
 ///
 /// Тексты короткие намеренно (замечание пользователя 08.10.2026: «поменьше
 /// текста, выглядит нейронно»): подпись там, где без неё непонятно, что
 /// делать, и нигде больше.
 struct MoreScreen: View {
     @ObservedObject private var tracker = TripTracker.shared
+    @ObservedObject private var sync = TripSync.shared
     @Query(sort: \Trip.endedAt, order: .reverse) private var trips: [Trip]
     @Query private var cars: [Car]
     @Environment(\.openURL) private var openURL
@@ -39,6 +41,11 @@ struct MoreScreen: View {
     @State private var binding: TripLink.Port?
     /// Нажали «Bluetooth», а привязывать нечего.
     @State private var noBluetooth = false
+    /// Согласие на синхронизацию: открыто, ждёт сервера, чем кончилось.
+    @State private var consentShown = false
+    @State private var consentBusy = false
+    @State private var consentError: String?
+    @State private var confirmWipe = false
 
     private enum Layout {
         static let margin: CGFloat = 16
@@ -64,6 +71,7 @@ struct MoreScreen: View {
 
                 tripCard
                 setup
+                if TripSync.isShipped, TripSync.serverURL != nil { syncSection }
                 history
             }
             .padding(.horizontal, Layout.margin)
@@ -105,6 +113,20 @@ struct MoreScreen: View {
             Button("Отмена", role: .cancel) {}
         } message: { _ in
             Text("Поездки \(chosenCar?.name ?? "машины") будут записываться, только пока он\u{00A0}подключён.")
+        }
+        .sheet(isPresented: $consentShown) {
+            SyncConsentSheet(isBusy: consentBusy, error: consentError, onAgree: agree) { consentShown = false }
+                .presentationDetents(SyncConsentSheet.detents)
+                .presentationDragIndicator(.visible)
+                .interactiveDismissDisabled(consentBusy)
+        }
+        .confirmationDialog("Удалить данные с\u{00A0}сервера?", isPresented: $confirmWipe, titleVisibility: .visible) {
+            Button("Удалить", role: .destructive) {
+                Task { try? await sync.deleteFromServer() }
+            }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Поездки на\u{00A0}телефоне останутся.")
         }
         .alert("Bluetooth не\u{00A0}подключён", isPresented: $noBluetooth) {
             Button("Понятно", role: .cancel) {}
@@ -291,6 +313,93 @@ struct MoreScreen: View {
     /// привязывается.
     private var chosenCar: Car? {
         fleet.first { TripTracker.carID(of: $0) == tripCar } ?? fleet.first
+    }
+
+    // MARK: - Синхронизация
+
+    /// Сохранять поездки на сервере. Включение — только через согласие:
+    /// до него ничего не уходит.
+    private var syncSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("Синхронизация")
+
+            VStack(spacing: 0) {
+                Toggle(isOn: Binding(get: { sync.isOn }, set: { on in
+                    if on {
+                        consentError = nil
+                        consentShown = true
+                    } else {
+                        sync.disable()
+                    }
+                })) {
+                    Text("Сохранять поездки")
+                        .font(.system(size: 17))
+                        .foregroundStyle(Figma.labelsPrimary)
+                }
+                .tint(Figma.accentsGreen)
+                .padding(.horizontal, 16)
+                .frame(height: Layout.row)
+
+                if sync.isOn {
+                    separator
+                    linkRow("Последняя", value: syncStatus, highlighted: false) {
+                        Task { await sync.syncNow() }
+                    }
+                    .accessibilityHint("Синхронизировать сейчас")
+                }
+                if sync.isOn || sync.hasAccount {
+                    separator
+                    Button { confirmWipe = true } label: {
+                        Text("Удалить с\u{00A0}сервера")
+                            .font(.system(size: 17))
+                            .foregroundStyle(Figma.accentsRed)
+                            .padding(.horizontal, 16)
+                            .frame(maxWidth: .infinity, minHeight: Layout.row, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(CardPressStyle())
+                }
+            }
+            .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: Layout.radius))
+
+            Text(sync.isOn
+                 ? "Маршруты, госномер и\u{00A0}VIN остаются на\u{00A0}телефоне."
+                 : "Поездки и\u{00A0}пробег\u{00A0}— на\u{00A0}сервер в\u{00A0}России, чтобы не\u{00A0}потерять их со\u{00A0}сменой телефона.")
+                .font(.system(size: 13))
+                .foregroundStyle(Figma.graysGray)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 16)
+        }
+        .animation(Motion.sheet, value: sync.isOn)
+    }
+
+    private var syncStatus: String {
+        switch sync.status {
+        case .idle: return "Ещё не\u{00A0}было"
+        case .syncing: return "Идёт…"
+        case .failed(let reason): return reason
+        case .done(let at):
+            if Date.now.timeIntervalSince(at) < 60 { return "Только что" }
+            return "в\u{00A0}" + at.formatted(date: .omitted, time: .shortened)
+        }
+    }
+
+    private func agree() {
+        consentBusy = true
+        consentError = nil
+        Task {
+            do {
+                try await sync.enable()
+                consentShown = false
+            } catch TripSync.Failure.offline {
+                consentError = "Нет связи с\u{00A0}сервером"
+            } catch TripSync.Failure.consentOutdated {
+                consentError = "Обновите приложение"
+            } catch {
+                consentError = "Не\u{00A0}получилось. Попробуйте ещё раз."
+            }
+            consentBusy = false
+        }
     }
 
     // MARK: - Bluetooth машины

@@ -72,6 +72,11 @@ enum TripAuto {
     /// — конец, что бы они ни говорили.
     static let idleCap: Double = 1_200
 
+    /// В своей машине (Bluetooth на связи) едем уже от 1,5 м/с чистого
+    /// смещения: пробка ползёт медленнее 18 км/ч, а дрожание GPS на стоянке
+    /// за 20–40 секунд столько не набирает.
+    static let linkedDrift: Double = 1.5
+
     /// Дальше 5 км от места стоянки прямую не дорисовываем: машина, скорее
     /// всего, стояла не там.
     static let maxLead: Double = 5_000
@@ -351,7 +356,17 @@ enum TripAuto {
     /// Едем ли на этом шаге. Датчики уверены в обратном — нет, что бы ни
     /// показывала геопозиция; говорят «в машине» — да; молчат — решает
     /// чистое смещение.
-    static func rolling(_ drift: Drift, motion: Motion?) -> Bool {
+    ///
+    /// `linked` — Bluetooth своей машины на связи. Тогда «идёт» у датчиков
+    /// не довод: телефон в машине. Без этого исключения поездка обрезалась
+    /// по точке старта — датчики весь путь говорили «пешком», и 20 минут
+    /// езды записывались как 173 м (журнал с телефона, 13–14.10.2026).
+    static func rolling(_ drift: Drift, motion: Motion?, linked: Bool = false) -> Bool {
+        if linked {
+            if motion?.mode == .drive { return true }
+            guard let speed = drift.speed else { return true }
+            return speed >= linkedDrift
+        }
         if let motion {
             if motion.sure, motion.mode == .foot || motion.mode == .cycle { return false }
             if motion.mode == .drive { return true }

@@ -1565,6 +1565,25 @@ group("TripLink: привязка Bluetooth машины") {
     check("три минуты стоим в машине — всё же сдаёмся",
           TripAuto.verdict(parked, motion: nil, link: .car("Rio"), now: TripAuto.probeWindow), .away)
 
+    // Езда в своей машине: датчики «идёт» не обрезают поездку (журнал с
+    // телефона 13–14.10.2026: 20 минут езды записались как 173 м).
+    var road = TripAuto.Drift()
+    road.add(fix(0, t: 0)); road.add(fix(90, t: 30))
+    var crawl3 = TripAuto.Drift()
+    crawl3.add(fix(0, t: 0)); crawl3.add(fix(60, t: 30))
+    var jitter = TripAuto.Drift()
+    jitter.add(fix(0, t: 0)); jitter.add(fix(20, t: 30))
+    check("без привязки «идёт» перебивает смещение",
+          TripAuto.rolling(road, motion: foot), false)
+    check("своя машина на связи — «идёт» не довод, 3 м/с — едем",
+          TripAuto.rolling(road, motion: foot, linked: true), true)
+    check("своя машина, пробка 2 м/с — всё ещё едем",
+          TripAuto.rolling(crawl3, motion: foot, linked: true), true)
+    check("своя машина на стоянке, дрожание GPS — не едем",
+          TripAuto.rolling(jitter, motion: nil, linked: true), false)
+    check("своя машина, «в машине» у датчиков — едем и на светофоре",
+          TripAuto.rolling(jitter, motion: TripAuto.Motion(mode: .drive, sure: false), linked: true), true)
+
     check("Bluetooth на месте — поездка идёт", TripLink.lost(since: nil, now: 1_000), false)
     check("мигнул — ещё не конец", TripLink.lost(since: 100, now: 100 + TripLink.linkGap - 1), false)
     check("пропал на минуту — приехали", TripLink.lost(since: 100, now: 100 + TripLink.linkGap), true)
@@ -1606,6 +1625,48 @@ group("TripTrack: маршрут поездки") {
     check("ровно два часа", TripTrack.durationLabel(seconds: 7200), "2\u{00A0}ч")
     check("36 км за 30 минут — 72 км/ч", TripTrack.speedLabel(meters: 36_000, seconds: 1800), "72\u{00A0}км/ч")
     check("короче минуты скорости нет", TripTrack.speedLabel(meters: 500, seconds: 30) == nil, true)
+}
+
+// ---------------------------------------------------------------- SyncPlan
+
+group("SyncPlan: что уходит на сервер") {
+    let carA = SyncPlan.Car(id: UUID(), name: "Mercedes-Benz GL-класс", odometer: 112_421, trackedKm: 5)
+    let carB = SyncPlan.Car(id: UUID(), name: "KIA Rio", odometer: 64_230, trackedKm: 0)
+    let start = Date(timeIntervalSinceReferenceDate: 800_000_000.1234)
+    let trip = SyncPlan.Trip(id: UUID(), carID: carA.id, startedAt: start,
+                             endedAt: start.addingTimeInterval(1_200), meters: 5_400.04, auto: true)
+    let print: (SyncPlan.Car) -> String = SyncPlan.fingerprint
+
+    let first = SyncPlan.outgoing([carA, carB], synced: [:], id: \.id, print: print)
+    check("первая синхронизация — уходит всё", first.changed.count, 2)
+    check("и удалять нечего", first.deleted, [])
+
+    let synced = [carA.id: print(carA), carB.id: print(carB)]
+    check("ничего не менялось — ничего не уходит",
+          SyncPlan.outgoing([carA, carB], synced: synced, id: \.id, print: print).changed.count, 0)
+
+    var driven = carA
+    driven.odometer += 12
+    let edit = SyncPlan.outgoing([driven, carB], synced: synced, id: \.id, print: print)
+    check("пробег вырос — уходит только эта машина", edit.changed.map(\.id), [carA.id])
+
+    let gone = SyncPlan.outgoing([carB], synced: synced, id: \.id, print: print)
+    check("машину удалили — серверу уходит удаление", gone.deleted, [carA.id])
+    check("а не правка", gone.changed.count, 0)
+
+    var echoed = trip
+    echoed.startedAt = Date(timeIntervalSinceReferenceDate: 800_000_000.123)
+    echoed.meters = 5_400.0
+    check("вернувшаяся с сервера поездка не считается изменённой",
+          SyncPlan.fingerprint(echoed), SyncPlan.fingerprint(trip))
+    var moved = trip
+    moved.carID = carB.id
+    check("поездку перенесли на другую машину — отпечаток другой",
+          SyncPlan.fingerprint(moved) == SyncPlan.fingerprint(trip), false)
+
+    check("курсор из цифр", SyncPlan.validCursor("1042"), "1042")
+    check("пустой курсор — с начала", SyncPlan.validCursor("") == nil, true)
+    check("мусор вместо курсора — с начала", SyncPlan.validCursor("12a") == nil, true)
 }
 
 // ---------------------------------------------------------------- CloudMath

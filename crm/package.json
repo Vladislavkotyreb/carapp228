@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "admin:dev": "vite --config vite.admin.config.ts",
+    "admin:build": "tsc -b && vite build --config vite.admin.config.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

@@ -55,6 +55,9 @@ final class Car {
     /// (`TripLink`). Лежит только здесь, на телефоне.
     var bluetoothUID: String?
     var bluetoothName: String?
+    /// Имя машины на сервере синхронизации (`TripSync`). Пусто — машина ещё
+    /// ни разу не уходила на сервер; заводится при первой синхронизации.
+    var syncID: UUID?
 
     init(
         plate: String,

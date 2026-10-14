@@ -627,13 +627,13 @@ struct CarMainView: View {
         }
         // Рыночная цена: раз в неделю на машину, только по полному VIN.
         .task(id: marketPriceKey) {
-            guard AvtoVinCodValuation.isConfigured else { return }
+            guard MarketValuation.isConfigured else { return }
             for car in cars {
                 guard MarketPrice.canEstimate(vin: car.vin),
                       MarketPrice.needsRefresh(updatedAt: car.marketPriceDate, now: .now),
                       let vin = car.vin else { continue }
                 do {
-                    let estimate = try await AvtoVinCodValuation.estimate(vin: vin)
+                    let estimate = try await MarketValuation.estimate(vin: vin)
                     car.marketPrice = estimate.average
                     car.marketOffers = estimate.offers
                     car.marketPriceDate = .now

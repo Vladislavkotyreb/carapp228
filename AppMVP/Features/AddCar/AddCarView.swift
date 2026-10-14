@@ -26,8 +26,9 @@ struct AddCarView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var isSearching = false
 
-    /// Настоящий поиск по базе ОСАГО, когда токен в `VehicleLookupKey`
-    /// заполнен; без него — заглушка с данными из макета.
+    /// Настоящий поиск — через сервер Beepy (`VehicleLookupProvider`); без
+    /// сервера в отладке — прямой запрос с токеном из `VehicleLookupKey`,
+    /// в выпуске — заглушка с данными из макета.
     private let lookup: any VehicleLookup = VehicleLookupProvider.make()
     /// Именно `UIImage`, а не `Image`: из `Image` пикселей не достать, а
     /// снимок надо сохранить в машину. Пока здесь лежал `Image`, выбранное

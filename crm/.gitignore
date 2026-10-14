@@ -11,6 +11,7 @@ node_modules
 # iCloud не синхронизирует папки с суффиксом .nosync; node_modules — ссылка на неё.
 node_modules.nosync
 dist
+dist-admin
 dist-ssr
 *.local
 

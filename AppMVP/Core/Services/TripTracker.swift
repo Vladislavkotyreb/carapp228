@@ -224,6 +224,8 @@ final class TripTracker: NSObject, ObservableObject {
         var auto: Bool
         /// Шла с подключённым Bluetooth своей машины.
         var linked: Bool
+        /// Весь насчитанный путь до обрезки — для журнала.
+        var raw: Double
     }
 
     /// Остановить подсчёт и собрать итог. `cut` — обрезать по последнему
@@ -245,7 +247,8 @@ final class TripTracker: NSObject, ObservableObject {
                             end: trip.progress.last.map {
                                 GeoPoint(latitude: $0.latitude, longitude: $0.longitude)
                             },
-                            auto: trip.tail != nil, linked: trip.link != nil)
+                            auto: trip.tail != nil, linked: trip.link != nil,
+                            raw: trip.progress.meters)
         if cut, let tail = trip.tail {
             closed.meters = tail.meters
             closed.endedAt = Date(timeIntervalSinceReferenceDate: tail.moved)
@@ -267,9 +270,11 @@ final class TripTracker: NSObject, ObservableObject {
         let context = AppStore.container.mainContext
         let fleet = Self.fleet(in: context)
         let car = Self.pick(closed.carID, from: fleet)
-        context.insert(Trip(startedAt: closed.startedAt, endedAt: closed.endedAt, meters: closed.meters,
-                            car: car,
-                            track: closed.route.count > 1 ? TripTrack.encode(closed.route) : nil))
+        let trip = Trip(startedAt: closed.startedAt, endedAt: closed.endedAt, meters: closed.meters,
+                        car: car,
+                        track: closed.route.count > 1 ? TripTrack.encode(closed.route) : nil)
+        trip.auto = closed.auto
+        context.insert(trip)
         if let car {
             let settled = TripMath.settle(meters: closed.meters, carry: car.tripCarry ?? 0)
             car.odometer += settled.km
@@ -277,7 +282,8 @@ final class TripTracker: NSObject, ObservableObject {
             car.trackedKm = (car.trackedKm ?? 0) + settled.km
         }
         try? context.save()
-        TripLog.note("trip end meters=\(Int(closed.meters)) auto=\(closed.auto) audio=\(Self.audioRoute)")
+        TripSync.shared.changed()
+        TripLog.note("trip end meters=\(Int(closed.meters)) raw=\(Int(closed.raw)) auto=\(closed.auto) audio=\(Self.audioRoute)")
 
         // Где закончили — там и стоит машина: вокруг этого места зона, из
         // которой начнётся следующая поездка. Память мест — машины по
@@ -302,7 +308,7 @@ final class TripTracker: NSObject, ObservableObject {
     private func finishAuto() {
         guard let closed = close(cut: true) else { return }
         guard closed.meters >= TripAuto.autoMinTrip else {
-            TripLog.note("trip dropped: short meters=\(Int(closed.meters))")
+            TripLog.note("trip dropped: short meters=\(Int(closed.meters)) raw=\(Int(closed.raw))")
             return
         }
         // Bluetooth своей машины был на связи — это она, датчики не спрашиваем.
@@ -793,7 +799,8 @@ final class TripTracker: NSObject, ObservableObject {
             // точно ехали, — по нему она закончится и обрежется.
             if trip.tail != nil, prior.last != nil {
                 drift.add(sample)
-                if TripAuto.rolling(drift, motion: motion.current) {
+                let linked = trip.link != nil && trip.lostAt == nil
+                if TripAuto.rolling(drift, motion: motion.current, linked: linked) {
                     trip.tail = TripAuto.Tail(moved: sample.time,
                                               alive: max(sample.time, trip.tail?.alive ?? 0),
                                               meters: trip.progress.meters, points: track.count,

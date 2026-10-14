@@ -31,28 +31,96 @@ protocol VehicleLookup: Sendable {
     func lookup(plate: String) async throws -> FoundVehicle
 }
 
+/// Прямые запросы к поставщикам с токеном из приложения — только в отладке:
+/// в выпускной сборке их нет вовсе, и токена в бинарнике тоже (14.10.2026).
 /// Сессия обоих поставщиков: эфемерная, без дискового кэша и кук.
 /// Ответы поиска — госномер и VIN, то есть персональные данные; общий
 /// `URLSession.shared` мог бы отложить их в нешифрованный кэш на диске.
+#if DEBUG
 private let lookupSession: URLSession = {
     let config = URLSessionConfiguration.ephemeral
     config.urlCache = nil
     config.requestCachePolicy = .reloadIgnoringLocalCacheData
     return URLSession(configuration: config)
 }()
+#endif
 
-/// Поставщик для экранов: настоящий, когда токен на месте, и заглушка из
-/// макета, пока его нет, — тот же приём, что у раздела «Карта» без ключа.
-/// AvtoVinCod предпочтительнее: он отдаёт год выпуска и доступен физлицу
-/// без месячных платежей.
+/// Поставщик для экранов. Есть сервер Beepy — поиск идёт через него, и
+/// платный токен в приложение не попадает (решение 14.10.2026). Нет сервера —
+/// в отладочной сборке прежний прямой запрос с токеном из `VehicleLookupKey`
+/// (телефон разработчика, пока сервер не выложен), в выпуске — заглушка из
+/// макета, как раздел «Карта» без ключа.
 enum VehicleLookupProvider {
     static func make() -> any VehicleLookup {
+        if BeepyServer.url != nil { return ServerVehicleLookup() }
+        #if DEBUG
         if VehicleLookupKey.hasAvtoVinCod { return AvtoVinCodLookup() }
         if VehicleLookupKey.hasAPICloud { return RSAVehicleLookup() }
+        #endif
         return StubVehicleLookup()
     }
 }
 
+/// Поиск через сервер Beepy: `POST /v1/vehicles/lookup`. Сервер ходит к
+/// поставщику своим токеном, номер не хранит и держит дневные лимиты.
+struct ServerVehicleLookup: VehicleLookup {
+    func lookup(plate: String) async throws -> FoundVehicle {
+        let compact = PlateFormat.significant(plate)
+        guard !compact.isEmpty else { throw VehicleLookupError.notFound }
+        let (data, code) = try await BeepyServer.post("/v1/vehicles/lookup", ["plate": compact])
+        // 404 — номера нет; 429 лимит, 503 поставщик — недоступность.
+        if code == 404 { throw VehicleLookupError.notFound }
+        guard code == 200, let reply = try? JSONDecoder().decode(Reply.self, from: data) else {
+            throw VehicleLookupError.unavailable
+        }
+        return FoundVehicle(name: reply.name, vin: reply.vin, year: reply.year)
+    }
+
+    private struct Reply: Decodable {
+        let name: String
+        let vin: String?
+        let year: Int?
+    }
+}
+
+/// Рыночная оценка для карточки «Цена авто»: через сервер, а без него — в
+/// отладке прямым запросом к AvtoVinCod.
+enum MarketValuation {
+    static var isConfigured: Bool {
+        if BeepyServer.url != nil { return true }
+        #if DEBUG
+        return AvtoVinCodValuation.isConfigured
+        #else
+        return false
+        #endif
+    }
+
+    static func estimate(vin: String) async throws -> MarketEstimate {
+        guard MarketPrice.canEstimate(vin: vin) else { throw VehicleLookupError.notFound }
+        if BeepyServer.url != nil {
+            let (data, code) = try await BeepyServer.post("/v1/vehicles/price", ["vin": vin])
+            if code == 404 { throw VehicleLookupError.notFound }
+            guard code == 200, let reply = try? JSONDecoder().decode(ServerEstimate.self, from: data) else {
+                throw VehicleLookupError.unavailable
+            }
+            return MarketEstimate(average: reply.average, low: reply.low, high: reply.high, offers: reply.offers)
+        }
+        #if DEBUG
+        return try await AvtoVinCodValuation.estimate(vin: vin)
+        #else
+        throw VehicleLookupError.unavailable
+        #endif
+    }
+
+    private struct ServerEstimate: Decodable {
+        let average: Int
+        let low: Int?
+        let high: Int?
+        let offers: Int?
+    }
+}
+
+#if DEBUG
 /// Поиск через avtovincod.ru, метод `gos2vin`: VIN, марка, модель, год
 /// выпуска. Доступен физлицам и самозанятым, ненайденный номер бесплатный.
 struct AvtoVinCodLookup: VehicleLookup {
@@ -116,6 +184,8 @@ private struct Gos2VinResponse: Decodable {
     let year: Int?
 }
 
+#endif
+
 /// Средняя рыночная цена по объявлениям — то, что показывает карточка
 /// «Цена авто», когда пользователь не вводил свою.
 struct MarketEstimate {
@@ -125,6 +195,7 @@ struct MarketEstimate {
     let offers: Int?
 }
 
+#if DEBUG
 /// Рыночная оценка avtovincod.ru, метод `price`: средняя, минимальная и
 /// максимальная цена и число предложений по VIN. Когда данных по модели
 /// недостаточно, запрос по их тарифам не списывается.
@@ -190,6 +261,9 @@ private struct PriceResponse: Decodable {
     var offersValue: Int? { price?.count ?? offers }
 }
 
+#endif
+
+#if DEBUG
 /// Поиск по базе полисов ОСАГО (НСИС/РСА) через api-cloud.ru — открытый
 /// источник, где по одному госномеру отдают марку с моделью и VIN.
 /// Года выпуска, поколения и пробега там нет; VIN бывает замаскирован
@@ -254,6 +328,8 @@ private struct RSAResponse: Decodable {
         let status: String?
     }
 }
+
+#endif
 
 /// Заглушка до подключения токена: любой корректный номер находит машину
 /// с данными из макета (node 45854:2936).

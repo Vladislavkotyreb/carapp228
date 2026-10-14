@@ -1,0 +1,11 @@
+# Контекст сборки — корень репозитория; внутрь идут только сервер и CRM.
+*
+!server/package.json
+!server/package-lock.json
+!server/src
+!server/migrations
+!crm
+crm/node_modules
+crm/node_modules.nosync
+crm/dist
+crm/dist-admin

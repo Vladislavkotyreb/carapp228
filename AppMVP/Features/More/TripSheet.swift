@@ -91,6 +91,7 @@ enum TripEdits {
         TripSnapshots.remove(for: trip.snapshotKey)
         context.delete(trip)
         try? context.save()
+        TripSync.shared.changed()
         if let end { TripTracker.shared.forgetSpot(at: end) }
     }
 
@@ -107,6 +108,7 @@ enum TripEdits {
         }
         trip.meters = meters
         try? context.save()
+        TripSync.shared.changed()
     }
 
     private nonisolated static func floor(of car: Car) -> Int {

@@ -58,7 +58,8 @@ location.fill 1002D2, slider.horizontal.3 100306, phone.fill 10033F,
 arrow.triangle.turn.up.right.diamond.fill 10065F, list.bullet 1002F2,
 map.fill 10064B, ellipsis 100360, mappin 1003AA, plus 10017C,
 checkmark.seal 1001FA, exclamationmark.triangle 1001FE, waveform 10066B,
-arrow.triangle.2.circlepath 1002AF.
+arrow.triangle.2.circlepath 1002AF, arrow.up.circle 100076, lock 1003A0,
+building.columns 100928.
 
 ## Порядок
 

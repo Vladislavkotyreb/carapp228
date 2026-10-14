@@ -17,6 +17,10 @@
 		CA0000010000000000000021 /* TripMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000021 /* TripMath.swift */; };
 		CA0000010000000000000024 /* TripAuto.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000024 /* TripAuto.swift */; };
 		CA0000010000000000000025 /* TripLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000025 /* TripLink.swift */; };
+		CA0000010000000000000026 /* SyncPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000026 /* SyncPlan.swift */; };
+		CA0000010000000000000027 /* TripSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000027 /* TripSync.swift */; };
+		CA0000010000000000000029 /* BeepyServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000029 /* BeepyServer.swift */; };
+		CA0000010000000000000028 /* SyncConsentSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000028 /* SyncConsentSheet.swift */; };
 		CA0000010000000000000022 /* TripTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000022 /* TripTracker.swift */; };
 		CA0000010000000000000023 /* TripIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000023 /* TripIntents.swift */; };
 		9B0000000000000000000006 /* Trip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000006 /* Trip.swift */; };
@@ -92,6 +96,10 @@
 		CB0000010000000000000021 /* TripMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripMath.swift; sourceTree = "<group>"; };
 		CB0000010000000000000024 /* TripAuto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripAuto.swift; sourceTree = "<group>"; };
 		CB0000010000000000000025 /* TripLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripLink.swift; sourceTree = "<group>"; };
+		CB0000010000000000000026 /* SyncPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPlan.swift; sourceTree = "<group>"; };
+		CB0000010000000000000027 /* TripSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripSync.swift; sourceTree = "<group>"; };
+		CB0000010000000000000029 /* BeepyServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeepyServer.swift; sourceTree = "<group>"; };
+		CB0000010000000000000028 /* SyncConsentSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncConsentSheet.swift; sourceTree = "<group>"; };
 		CB0000010000000000000022 /* TripTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripTracker.swift; sourceTree = "<group>"; };
 		CB0000010000000000000023 /* TripIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripIntents.swift; sourceTree = "<group>"; };
 		9C0000000000000000000006 /* Trip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trip.swift; sourceTree = "<group>"; };
@@ -181,6 +189,7 @@
 				CB0000010000000000000021 /* TripMath.swift */,
 				CB0000010000000000000024 /* TripAuto.swift */,
 				CB0000010000000000000025 /* TripLink.swift */,
+				CB0000010000000000000026 /* SyncPlan.swift */,
 				CB000001000000000000000F /* ListeningSummary.swift */,
 				CB000001000000000000000E /* BusinessContacts.swift */,
 				CB0000010000000000000006 /* MarketPrice.swift */,
@@ -205,6 +214,7 @@
 			children = (
 				7B0000010000000000000002 /* MoreScreen.swift */,
 				7B0000010000000000000003 /* TripSheet.swift */,
+				CB0000010000000000000028 /* SyncConsentSheet.swift */,
 			);
 			path = More;
 			sourceTree = "<group>";
@@ -367,6 +377,8 @@
 				9C0000010000000000000078 /* LocalCarDiagnosis.swift */,
 				CB000001000000000000000C /* ServiceReminder.swift */,
 				CB0000010000000000000022 /* TripTracker.swift */,
+				CB0000010000000000000027 /* TripSync.swift */,
+				CB0000010000000000000029 /* BeepyServer.swift */,
 				CB0000010000000000000023 /* TripIntents.swift */,
 				9C000001000000000000007D /* ServiceDocScanner.swift */,
 				9C0000010000000000000001 /* MapKitKey.swift */,
@@ -474,6 +486,10 @@
 				CA0000010000000000000021 /* TripMath.swift in Sources */,
 				CA0000010000000000000024 /* TripAuto.swift in Sources */,
 				CA0000010000000000000025 /* TripLink.swift in Sources */,
+				CA0000010000000000000026 /* SyncPlan.swift in Sources */,
+				CA0000010000000000000027 /* TripSync.swift in Sources */,
+				CA0000010000000000000029 /* BeepyServer.swift in Sources */,
+				CA0000010000000000000028 /* SyncConsentSheet.swift in Sources */,
 				CA0000010000000000000022 /* TripTracker.swift in Sources */,
 				CA0000010000000000000023 /* TripIntents.swift in Sources */,
 				9B0000000000000000000006 /* Trip.swift in Sources */,
