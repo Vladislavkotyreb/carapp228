@@ -339,9 +339,51 @@ def as_is(src: str, dst: str, flip: bool = False) -> None:
     image = Image.open(src).convert("RGB")
     if flip:
         image = ImageOps.mirror(image)
-    if image.size != (1264, 841):
-        image = image.resize((1264, 841), Image.LANCZOS)
-    image.save(dst)
+    fit(image).save(dst)
+
+
+# Где стоит машина в кадрах прода: медиана по 177 кадрам, доли кадра
+# (кузов ярче 60/255, отражение и пол темнее и в рамку не входят).
+CAR_HEIGHT = 0.743       # высота кузова
+CAR_WIDTH_MAX = 0.92     # шире — машина упрётся в края кадра
+CAR_CENTER_X = 0.509
+CAR_BOTTOM = 0.829       # низ колёс
+
+
+def fit(image, size=(1264, 841)):
+    """В размер прода без искажения. Модель иногда отдаёт 16:9 (1376×768),
+    и прямой resize сжимал машину по горизонтали (bmw-x6-g06, 14.10.2026).
+
+    Такой кадр не растягивается и не вписывается целиком (тогда машина
+    выходит мельче соседей), а масштабируется так, чтобы кузов встал в те же
+    границы, что у кадров прода: та же высота, тот же низ колёс, тот же
+    центр. Ширину ограничивает CAR_WIDTH_MAX. Где сырья не хватает, фон
+    достраивается: по бокам и сверху чёрным (студия там чёрная), снизу —
+    последней строкой с угасанием, чтобы свечение пола не обрывалось."""
+    from PIL import Image
+    w, h = size
+    if image.size == size:
+        return image
+    if abs(image.width / image.height - w / h) < 0.01:
+        return image.resize(size, Image.LANCZOS)
+    body = image.convert("L").point(lambda v: 255 if v > 60 else 0).getbbox()
+    if body is None:
+        raise SystemExit("в кадре не нашлось машины — проверить глазами")
+    bw, bh = body[2] - body[0], body[3] - body[1]
+    scale = min(CAR_HEIGHT * h / bh, CAR_WIDTH_MAX * w / bw)
+    iw, ih = round(image.width * scale), round(image.height * scale)
+    image = image.resize((iw, ih), Image.LANCZOS)
+    left = round(CAR_CENTER_X * w - (body[0] + bw / 2) * scale)
+    top = round(CAR_BOTTOM * h - body[3] * scale)
+    canvas = Image.new("RGB", size, (0, 0, 0))
+    canvas.paste(image, (left, top))
+    band = h - (top + ih)
+    if band > 0:
+        row = image.crop((0, ih - 1, iw, ih))
+        for y in range(band):
+            fade = Image.eval(row, lambda v, k=1 - (y + 1) / band: round(v * k))
+            canvas.paste(fade, (left, top + ih + y))
+    return canvas
 
 
 def main() -> int:
