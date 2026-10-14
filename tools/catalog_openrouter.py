@@ -331,7 +331,7 @@ def recompose(args, cutout: str | None) -> int:
     return 0
 
 
-def as_is(src: str, dst: str, flip: bool = False) -> None:
+def as_is(src: str, dst: str, flip: bool = False, ground: float | None = None) -> None:
     """Кадр модели без сборки: только размер прода 1264×841 и, если надо,
     зеркало. Сборка поверх (вырезка, синтетический пол, отражение) делала
     машину серой и рисовала под ней фальшивое зеркало (14.10.2026)."""
@@ -339,50 +339,72 @@ def as_is(src: str, dst: str, flip: bool = False) -> None:
     image = Image.open(src).convert("RGB")
     if flip:
         image = ImageOps.mirror(image)
-    fit(image).save(dst)
+    fit(image, ground=ground).save(dst)
 
 
-# Где стоит машина в кадрах прода: медиана по 177 кадрам, доли кадра
-# (кузов ярче 60/255, отражение и пол темнее и в рамку не входят).
-CAR_HEIGHT = 0.743       # высота кузова
-CAR_WIDTH_MAX = 0.92     # шире — машина упрётся в края кадра
-CAR_CENTER_X = 0.509
-CAR_BOTTOM = 0.829       # низ колёс
+# Где стоит кузов в кадрах прода: медиана по 177 кадрам, доли кадра.
+# Кузов — строки и столбцы, где ярче 120/255 хотя бы 1.5 % пикселей:
+# одиночные блики отражения на полу так в рамку не попадают. Первая мерка
+# (любой пиксель ярче 60) взяла отражение X6 за низ машины и подняла её
+# на 12 % кадра над соседями (14.10.2026).
+BODY_LEVEL = 120
+BODY_SHARE = 0.015
+CAR_HEIGHT = 0.693       # высота кузова
+CAR_WIDTH_MAX = 0.90     # шире — машина упрётся в края кадра
+CAR_CENTER_X = 0.508
+CAR_BOTTOM = 0.79        # низ кузова
+# Где переднее колесо касается пола — глазами по кропам с сеткой: Monjaro
+# 0.91, X5 0.86, Tiguan 0.84, медиана восьми кадров 0.85. Низ кузова у
+# низкой длинной машины (X6) выше, чем у высокой, поэтому, если касание
+# сырья измерено (поле `ground` в списке машин), ровняется оно.
+CAR_GROUND = 0.85
 
 
-def fit(image, size=(1264, 841)):
+def body_box(image):
+    """Рамка кузова в пикселях: (left, top, right, bottom)."""
+    mask = image.convert("L").point(lambda v: 1 if v > BODY_LEVEL else 0)
+    w, h = mask.size
+    px = mask.load()
+    rows = [y for y in range(h) if sum(px[x, y] for x in range(w)) > BODY_SHARE * w]
+    cols = [x for x in range(w) if sum(px[x, y] for y in range(h)) > BODY_SHARE * h]
+    if not rows or not cols:
+        raise SystemExit("в кадре не нашлось машины — проверить глазами")
+    return cols[0], rows[0], cols[-1] + 1, rows[-1] + 1
+
+
+def fit(image, size=(1264, 841), ground=None):
     """В размер прода без искажения. Модель иногда отдаёт 16:9 (1376×768),
     и прямой resize сжимал машину по горизонтали (bmw-x6-g06, 14.10.2026).
 
     Такой кадр не растягивается и не вписывается целиком (тогда машина
-    выходит мельче соседей), а масштабируется так, чтобы кузов встал в те же
-    границы, что у кадров прода: та же высота, тот же низ колёс, тот же
-    центр. Ширину ограничивает CAR_WIDTH_MAX. Где сырья не хватает, фон
-    достраивается: по бокам и сверху чёрным (студия там чёрная), снизу —
-    последней строкой с угасанием, чтобы свечение пола не обрывалось."""
+    выходит мельче соседей), а масштабируется так, чтобы кузов встал как у
+    кадров прода: тот же центр, та же высота, если позволяет ширина
+    (CAR_WIDTH_MAX), и тот же пол — касание колеса `ground` (доля высоты
+    сырья) на CAR_GROUND, а без замера низ кузова на CAR_BOTTOM. Где сырья не хватает, фон чёрный — студия по
+    краям чёрная; низ сырья перед чёрной полосой угасает, чтобы свечение пола
+    не обрывалось ступенькой."""
     from PIL import Image
     w, h = size
     if image.size == size:
         return image
     if abs(image.width / image.height - w / h) < 0.01:
         return image.resize(size, Image.LANCZOS)
-    body = image.convert("L").point(lambda v: 255 if v > 60 else 0).getbbox()
-    if body is None:
-        raise SystemExit("в кадре не нашлось машины — проверить глазами")
-    bw, bh = body[2] - body[0], body[3] - body[1]
+    left0, top0, right0, bottom0 = body_box(image)
+    bw, bh = right0 - left0, bottom0 - top0
     scale = min(CAR_HEIGHT * h / bh, CAR_WIDTH_MAX * w / bw)
+    floor = bottom0 if ground is None else ground * image.height
     iw, ih = round(image.width * scale), round(image.height * scale)
     image = image.resize((iw, ih), Image.LANCZOS)
-    left = round(CAR_CENTER_X * w - (body[0] + bw / 2) * scale)
-    top = round(CAR_BOTTOM * h - body[3] * scale)
+    left = round(CAR_CENTER_X * w - (left0 + bw / 2) * scale)
+    top = round((CAR_BOTTOM if ground is None else CAR_GROUND) * h - floor * scale)
+    if top + ih < h:
+        fade = min(60, ih - round((bottom0 - top0) * scale))
+        mask = Image.new("L", (iw, ih), 255)
+        for y in range(fade):
+            mask.paste(round(255 * (fade - 1 - y) / fade), (0, ih - fade + y, iw, ih - fade + y + 1))
+        image = Image.composite(image, Image.new("RGB", (iw, ih)), mask)
     canvas = Image.new("RGB", size, (0, 0, 0))
     canvas.paste(image, (left, top))
-    band = h - (top + ih)
-    if band > 0:
-        row = image.crop((0, ih - 1, iw, ih))
-        for y in range(band):
-            fade = Image.eval(row, lambda v, k=1 - (y + 1) / band: round(v * k))
-            canvas.paste(fade, (left, top + ih + y))
     return canvas
 
 
@@ -570,7 +592,7 @@ def main() -> int:
             else:
                 # Кадр модели как есть, только в размер прода 1264×841 —
                 # так сделаны 64 банановых кадра прода (журнал 2026-09-06).
-                as_is(tmp_raw, tmp_out, flip=args.flip)
+                as_is(tmp_raw, tmp_out, flip=args.flip, ground=car.get("ground"))
             os.remove(tmp_raw)
             ok, peak = edges_are_black(tmp_out)
             if best is None or peak < best[0]:

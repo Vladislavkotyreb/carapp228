@@ -109,7 +109,8 @@
   },
   {
     "slug": "vw-touareg",
-    "prompt": "2015 Volkswagen Touareg SUV"
+    "prompt": "2015 Volkswagen Touareg SUV",
+    "ground": 0.906
   },
   {
     "slug": "bmw-5-e60",
@@ -269,7 +270,8 @@
   },
   {
     "slug": "bmw-x5-e70",
-    "prompt": "2010 BMW X5 E70 SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+    "prompt": "2010 BMW X5 E70 SUV, front three-quarter view with the nose of the car pointing to the right side of the frame",
+    "ground": 0.884
   },
   {
     "slug": "bmw-x5-f15",
@@ -285,7 +287,8 @@
   },
   {
     "slug": "bmw-x6-g06",
-    "prompt": "2021 BMW X6 G06 coupe SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+    "prompt": "2021 BMW X6 G06 coupe SUV, front three-quarter view with the nose of the car pointing to the right side of the frame",
+    "ground": 0.903
   },
   {
     "slug": "bmw-x7-g07",
