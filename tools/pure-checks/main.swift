@@ -725,7 +725,7 @@ do {
     check("Camry по году поколения",
           CarCatalog.slug(name: "Toyota Camry", generation: "XV50 (2011-2017)"),
           "toyota-camry-50")
-    check("BMW серии по префиксу", CarCatalog.slug(name: "BMW 320d"), "bmw-3-f30")
+    check("BMW серии по префиксу", CarCatalog.slug(name: "BMW 320d"), "bmw-3-g20")
     check("X5 раньше серий", CarCatalog.slug(name: "BMW X5 30d"), "bmw-x5")
     check("Mazda 3 не ловит CX-5", CarCatalog.slug(name: "Mazda CX-5"), "mazda-cx5")
     check("бренд без модели — nil", CarCatalog.slug(name: "Kia Mohave"), nil)
@@ -770,11 +770,11 @@ do {
           CarCatalog.slug(name: "Mercedes-Benz ML 350"), "mercedes-ml")
     check("BMW 320d 2008 — E90",
           CarCatalog.slug(name: "BMW 320d", generation: "E90 (2005-2012)"), "bmw-3-e90")
-    check("BMW 320d без года — F30",
-          CarCatalog.slug(name: "BMW 320d"), "bmw-3-f30")
+    check("BMW 320d без года — новейшая G20",
+          CarCatalog.slug(name: "BMW 320d"), "bmw-3-g20")
     check("BMW 525 с индексом E60 — E60 при любом годе",
           CarCatalog.slug(name: "BMW 525i E60", generation: "(2015-2017)"), "bmw-5-e60")
-    check("X3 раньше серий", CarCatalog.slug(name: "BMW X3 xDrive20d"), "bmw-x3")
+    check("X3 раньше серий", CarCatalog.slug(name: "BMW X3 xDrive20d"), "bmw-x3-g01")
     check("Pajero Sport — не большой Pajero",
           CarCatalog.slug(name: "Mitsubishi Pajero Sport"), "mitsubishi-pajero-sport")
     check("Pajero без Sport — четвёртый",
@@ -1649,6 +1649,50 @@ group("CarCatalog: вторая очередь вернулась с кадра�
     check("Grand Vitara — две группы", CarCatalog.slug(name: "Suzuki Grand Vitara"), "suzuki-grand-vitara")
     check("Сузуки Гранд Витара", CarCatalog.slug(name: "Сузуки Гранд Витара"), "suzuki-grand-vitara")
     check("просто Vitara — не Grand", CarCatalog.slug(name: "Suzuki Vitara") == nil, true)
+}
+
+group("CarCatalog: BMW по поколениям (14.10.2026)") {
+    func bmw(_ name: String, _ generation: String? = nil) -> String? {
+        CarCatalog.slug(name: name, generation: generation)
+    }
+    check("X5 2004 — E53", bmw("BMW X5 3.0i", "E53 (1999-2006)"), "bmw-x5-e53")
+    check("X5 2010 — E70", bmw("BMW X5 xDrive35i", "(2010-2013)"), "bmw-x5-e70")
+    check("X5 2016 — F15", bmw("BMW X5", "(2016)"), "bmw-x5-f15")
+    check("X5 без года — G05", bmw("BMW X5 30d"), "bmw-x5")
+    check("индекс сильнее года: X5 E70 2019", bmw("BMW X5 E70", "(2019)"), "bmw-x5-e70")
+    check("X6 кириллицей 2012 — E71", bmw("БМВ Х6", "(2012)"), "bmw-x6-e71")
+    check("X6 без года — G06", bmw("BMW X6"), "bmw-x6-g06")
+    check("X7", bmw("BMW X7 M50i"), "bmw-x7-g07")
+    check("X3 2014 — F25, старый слаг", bmw("BMW X3", "(2014)"), "bmw-x3")
+    check("X3 2008 — E83", bmw("BMW X3 2.5si", "(2008)"), "bmw-x3-e83")
+    check("X1 2013 — E84", bmw("BMW X1 sDrive18i", "(2013)"), "bmw-x1-e84")
+    check("X1 без года — U11", bmw("BMW X1"), "bmw-x1-u11")
+    check("X4 2017 — F26", bmw("BMW X4", "(2017)"), "bmw-x4-f26")
+    check("X2", bmw("BMW X2 sDrive20i"), "bmw-x2-f39")
+    check("530d 2019 — G30", bmw("BMW 530d", "(2019)"), "bmw-5-g30")
+    check("523i 2000 — E39", bmw("BMW 523i", "(2000)"), "bmw-5-e39")
+    check("520d без года — G60", bmw("BMW 520d"), "bmw-5-g60")
+    check("525 2006 — E60 по году", bmw("BMW 525i", "(2006)"), "bmw-5-e60")
+    check("730Ld 2012 — F01", bmw("BMW 730Ld", "(2012)"), "bmw-7-f01")
+    check("745i 2004 — E65", bmw("BMW 745i", "(2004)"), "bmw-7-e65")
+    check("740Li 2019 — G11", bmw("BMW 740Li", "(2019)"), "bmw-7-g11")
+    check("318i 2002 — E46", bmw("BMW 318i", "(2002)"), "bmw-3-e46")
+    check("118i 2009 — E87", bmw("BMW 118i", "(2009)"), "bmw-1-e87")
+    check("120i 2015 — F20", bmw("BMW 120i", "(2015)"), "bmw-1-f20")
+    check("420d 2016 — F32", bmw("BMW 420d Gran Coupe", "(2016)"), "bmw-4-f32")
+    check("6 GT", bmw("BMW 630d GT", "(2018)"), "bmw-6-gt-g32")
+    check("6-серия купе 2012 — F13, не GT", bmw("BMW 640i", "(2012)"), "bmw-6-f13")
+    check("6-серия 2008 — кадра нет, nil", bmw("BMW 630i", "(2008)") == nil, true)
+    check("Z4 2012 — E89", bmw("BMW Z4 sDrive23i", "(2012)"), "bmw-z4-e89")
+    check("218i Active Tourer", bmw("BMW 218i Active Tourer", "(2017)"), "bmw-2-f45")
+    check("530d GT 2012 — F07, не седан", bmw("BMW 530d GT", "(2012)"), "bmw-5-gt-f07")
+    check("320d GT — F34, не седан", bmw("BMW 320d GT", "(2015)"), "bmw-3-gt-f34")
+    check("218i Gran Coupe", bmw("BMW 218i Gran Coupe", "(2021)"), "bmw-2-f44")
+    check("840i 2020 — G16", bmw("BMW 840i", "(2020)"), "bmw-8-g16")
+    check("Z4 2020 — G29", bmw("BMW Z4 M40i", "(2020)"), "bmw-z4-g29")
+    check("Z4 2008 — кадра нет, nil", bmw("BMW Z4", "(2008)") == nil, true)
+    check("i4 — свой кадр, не 4-серия", bmw("BMW i4 eDrive40"), "bmw-i4")
+    check("iX", bmw("BMW iX xDrive50"), "bmw-ix")
 }
 
 // ---------------------------------------------------------------- SyncPlan

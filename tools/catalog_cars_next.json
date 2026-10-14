@@ -1,67 +1,422 @@
 [
-  {"slug": "hyundai-accent", "prompt": "2008 Hyundai Accent sedan"},
-  {"slug": "toyota-camry-40", "prompt": "2010 Toyota Camry XV40 sedan"},
-  {"slug": "mercedes-e-w211", "prompt": "2006 Mercedes-Benz E-class W211 sedan"},
-  {"slug": "bmw-3-e90", "prompt": "2008 BMW 3-series E90 sedan"},
-  {"slug": "kia-spectra", "prompt": "2008 Kia Spectra sedan"},
-  {"slug": "chevrolet-aveo", "prompt": "2010 Chevrolet Aveo sedan"},
-  {"slug": "lada-2110", "prompt": "2005 Lada 2110 sedan"},
-  {"slug": "lada-2109", "prompt": "2003 Lada 2109 hatchback"},
-  {"slug": "hyundai-getz", "prompt": "2007 Hyundai Getz hatchback"},
-  {"slug": "kia-sorento", "prompt": "2015 Kia Sorento SUV"},
-  {"slug": "mitsubishi-pajero-sport", "prompt": "2015 Mitsubishi Pajero Sport SUV"},
-  {"slug": "nissan-juke", "prompt": "2013 Nissan Juke crossover"},
-  {"slug": "kia-soul", "prompt": "2016 Kia Soul crossover"},
-  {"slug": "suzuki-grand-vitara", "prompt": "2010 Suzuki Grand Vitara SUV"},
-  {"slug": "subaru-forester", "prompt": "2015 Subaru Forester SUV"},
-  {"slug": "honda-civic", "prompt": "2010 Honda Civic sedan"},
-  {"slug": "honda-accord", "prompt": "2012 Honda Accord sedan"},
-  {"slug": "nissan-teana", "prompt": "2012 Nissan Teana sedan"},
-  {"slug": "nissan-note", "prompt": "2010 Nissan Note hatchback"},
-  {"slug": "ford-mondeo", "prompt": "2013 Ford Mondeo sedan"},
-  {"slug": "opel-insignia", "prompt": "2013 Opel Insignia sedan"},
-  {"slug": "renault-megane", "prompt": "2012 Renault Megane hatchback"},
-  {"slug": "renault-fluence", "prompt": "2012 Renault Fluence sedan"},
-  {"slug": "skoda-fabia", "prompt": "2012 Skoda Fabia hatchback"},
-  {"slug": "skoda-yeti", "prompt": "2014 Skoda Yeti crossover"},
-  {"slug": "skoda-superb", "prompt": "2018 Skoda Superb sedan"},
-  {"slug": "vw-golf", "prompt": "2014 Volkswagen Golf VII hatchback"},
-  {"slug": "vw-touareg", "prompt": "2015 Volkswagen Touareg SUV"},
-  {"slug": "bmw-5-e60", "prompt": "2006 BMW 5-series E60 sedan"},
-  {"slug": "bmw-x3", "prompt": "2016 BMW X3 SUV"},
-  {"slug": "mercedes-c-w204", "prompt": "2011 Mercedes-Benz C-class W204 sedan"},
-  {"slug": "mercedes-ml", "prompt": "2013 Mercedes-Benz ML-Class SUV"},
-  {"slug": "audi-a6-c6", "prompt": "2008 Audi A6 C6 sedan"},
-  {"slug": "audi-q7", "prompt": "2016 Audi Q7 SUV"},
-  {"slug": "volvo-xc60", "prompt": "2016 Volvo XC60 SUV"},
-  {"slug": "hyundai-sonata", "prompt": "2020 Hyundai Sonata sedan"},
-  {"slug": "kia-seltos", "prompt": "2021 Kia Seltos SUV"},
-  {"slug": "kia-optima", "prompt": "2017 Kia Optima sedan"},
-  {"slug": "chery-tiggo4", "prompt": "2022 Chery Tiggo 4 Pro crossover"},
-  {"slug": "chery-tiggo8", "prompt": "2022 Chery Tiggo 8 Pro SUV"},
-  {"slug": "haval-f7", "prompt": "2021 Haval F7 SUV"},
-  {"slug": "haval-dargo", "prompt": "2022 Haval Dargo SUV"},
-  {"slug": "geely-atlas", "prompt": "2023 Geely Atlas SUV"},
-  {"slug": "geely-monjaro", "prompt": "2023 Geely Monjaro SUV"},
-  {"slug": "geely-emgrand", "prompt": "2022 Geely Emgrand sedan"},
-  {"slug": "changan-cs35", "prompt": "2022 Changan CS35 Plus crossover"},
-  {"slug": "changan-cs55", "prompt": "2022 Changan CS55 Plus SUV"},
-  {"slug": "exeed-txl", "prompt": "2022 Exeed TXL SUV"},
-  {"slug": "jetour-x70", "prompt": "2023 Jetour X70 Plus SUV"},
-  {"slug": "omoda-s5", "prompt": "2023 Omoda S5 sedan"},
-  {"slug": "moskvich-3", "prompt": "2023 Moskvich 3 crossover"},
-  {"slug": "uaz-hunter", "prompt": "2018 UAZ Hunter offroad SUV"},
-  {"slug": "mitsubishi-pajero-4", "prompt": "2012 Mitsubishi Pajero IV offroad SUV"},
-  {"slug": "nissan-murano", "prompt": "2012 Nissan Murano SUV"},
-  {"slug": "subaru-outback", "prompt": "2017 Subaru Outback station wagon"},
-  {"slug": "ford-fiesta", "prompt": "2016 Ford Fiesta hatchback"},
-  {"slug": "ford-explorer", "prompt": "2016 Ford Explorer SUV"},
-  {"slug": "opel-corsa", "prompt": "2012 Opel Corsa hatchback"},
-  {"slug": "chevrolet-captiva", "prompt": "2013 Chevrolet Captiva SUV"},
-  {"slug": "chevrolet-cobalt", "prompt": "2014 Chevrolet Cobalt sedan"},
-  {"slug": "hyundai-i30", "prompt": "2010 Hyundai i30 hatchback"},
-  {"slug": "skoda-karoq", "prompt": "2021 Skoda Karoq SUV"},
-  {"slug": "lada-2106", "prompt": "1995 Lada 2106 sedan"},
-  {"slug": "jaecoo-j7", "prompt": "2024 Jaecoo J7 SUV"},
-  {"slug": "belgee-x50", "prompt": "2024 Belgee X50 crossover"}
+  {
+    "slug": "hyundai-accent",
+    "prompt": "2008 Hyundai Accent sedan"
+  },
+  {
+    "slug": "toyota-camry-40",
+    "prompt": "2010 Toyota Camry XV40 sedan"
+  },
+  {
+    "slug": "mercedes-e-w211",
+    "prompt": "2006 Mercedes-Benz E-class W211 sedan"
+  },
+  {
+    "slug": "bmw-3-e90",
+    "prompt": "2008 BMW 3-series E90 sedan"
+  },
+  {
+    "slug": "kia-spectra",
+    "prompt": "2008 Kia Spectra sedan"
+  },
+  {
+    "slug": "chevrolet-aveo",
+    "prompt": "2010 Chevrolet Aveo sedan"
+  },
+  {
+    "slug": "lada-2110",
+    "prompt": "2005 Lada 2110 sedan"
+  },
+  {
+    "slug": "lada-2109",
+    "prompt": "2003 Lada 2109 hatchback"
+  },
+  {
+    "slug": "hyundai-getz",
+    "prompt": "2007 Hyundai Getz hatchback"
+  },
+  {
+    "slug": "kia-sorento",
+    "prompt": "2015 Kia Sorento SUV"
+  },
+  {
+    "slug": "mitsubishi-pajero-sport",
+    "prompt": "2015 Mitsubishi Pajero Sport SUV"
+  },
+  {
+    "slug": "nissan-juke",
+    "prompt": "2013 Nissan Juke crossover"
+  },
+  {
+    "slug": "kia-soul",
+    "prompt": "2016 Kia Soul crossover"
+  },
+  {
+    "slug": "suzuki-grand-vitara",
+    "prompt": "2010 Suzuki Grand Vitara SUV"
+  },
+  {
+    "slug": "subaru-forester",
+    "prompt": "2015 Subaru Forester SUV"
+  },
+  {
+    "slug": "honda-civic",
+    "prompt": "2010 Honda Civic sedan"
+  },
+  {
+    "slug": "honda-accord",
+    "prompt": "2012 Honda Accord sedan"
+  },
+  {
+    "slug": "nissan-teana",
+    "prompt": "2012 Nissan Teana sedan"
+  },
+  {
+    "slug": "nissan-note",
+    "prompt": "2010 Nissan Note hatchback"
+  },
+  {
+    "slug": "ford-mondeo",
+    "prompt": "2013 Ford Mondeo sedan"
+  },
+  {
+    "slug": "opel-insignia",
+    "prompt": "2013 Opel Insignia sedan"
+  },
+  {
+    "slug": "renault-megane",
+    "prompt": "2012 Renault Megane hatchback"
+  },
+  {
+    "slug": "renault-fluence",
+    "prompt": "2012 Renault Fluence sedan"
+  },
+  {
+    "slug": "skoda-fabia",
+    "prompt": "2012 Skoda Fabia hatchback"
+  },
+  {
+    "slug": "skoda-yeti",
+    "prompt": "2014 Skoda Yeti crossover"
+  },
+  {
+    "slug": "skoda-superb",
+    "prompt": "2018 Skoda Superb sedan"
+  },
+  {
+    "slug": "vw-golf",
+    "prompt": "2014 Volkswagen Golf VII hatchback"
+  },
+  {
+    "slug": "vw-touareg",
+    "prompt": "2015 Volkswagen Touareg SUV"
+  },
+  {
+    "slug": "bmw-5-e60",
+    "prompt": "2006 BMW 5-series E60 sedan"
+  },
+  {
+    "slug": "bmw-x3",
+    "prompt": "2016 BMW X3 SUV"
+  },
+  {
+    "slug": "mercedes-c-w204",
+    "prompt": "2011 Mercedes-Benz C-class W204 sedan"
+  },
+  {
+    "slug": "mercedes-ml",
+    "prompt": "2013 Mercedes-Benz ML-Class SUV"
+  },
+  {
+    "slug": "audi-a6-c6",
+    "prompt": "2008 Audi A6 C6 sedan"
+  },
+  {
+    "slug": "audi-q7",
+    "prompt": "2016 Audi Q7 SUV"
+  },
+  {
+    "slug": "volvo-xc60",
+    "prompt": "2016 Volvo XC60 SUV"
+  },
+  {
+    "slug": "hyundai-sonata",
+    "prompt": "2020 Hyundai Sonata sedan"
+  },
+  {
+    "slug": "kia-seltos",
+    "prompt": "2021 Kia Seltos SUV"
+  },
+  {
+    "slug": "kia-optima",
+    "prompt": "2017 Kia Optima sedan"
+  },
+  {
+    "slug": "chery-tiggo4",
+    "prompt": "2022 Chery Tiggo 4 Pro crossover"
+  },
+  {
+    "slug": "chery-tiggo8",
+    "prompt": "2022 Chery Tiggo 8 Pro SUV"
+  },
+  {
+    "slug": "haval-f7",
+    "prompt": "2021 Haval F7 SUV"
+  },
+  {
+    "slug": "haval-dargo",
+    "prompt": "2022 Haval Dargo SUV"
+  },
+  {
+    "slug": "geely-atlas",
+    "prompt": "2023 Geely Atlas SUV"
+  },
+  {
+    "slug": "geely-monjaro",
+    "prompt": "2023 Geely Monjaro SUV"
+  },
+  {
+    "slug": "geely-emgrand",
+    "prompt": "2022 Geely Emgrand sedan"
+  },
+  {
+    "slug": "changan-cs35",
+    "prompt": "2022 Changan CS35 Plus crossover"
+  },
+  {
+    "slug": "changan-cs55",
+    "prompt": "2022 Changan CS55 Plus SUV"
+  },
+  {
+    "slug": "exeed-txl",
+    "prompt": "2022 Exeed TXL SUV"
+  },
+  {
+    "slug": "jetour-x70",
+    "prompt": "2023 Jetour X70 Plus SUV"
+  },
+  {
+    "slug": "omoda-s5",
+    "prompt": "2023 Omoda S5 sedan"
+  },
+  {
+    "slug": "moskvich-3",
+    "prompt": "2023 Moskvich 3 crossover"
+  },
+  {
+    "slug": "uaz-hunter",
+    "prompt": "2018 UAZ Hunter offroad SUV"
+  },
+  {
+    "slug": "mitsubishi-pajero-4",
+    "prompt": "2012 Mitsubishi Pajero IV offroad SUV"
+  },
+  {
+    "slug": "nissan-murano",
+    "prompt": "2012 Nissan Murano SUV"
+  },
+  {
+    "slug": "subaru-outback",
+    "prompt": "2017 Subaru Outback station wagon"
+  },
+  {
+    "slug": "ford-fiesta",
+    "prompt": "2016 Ford Fiesta hatchback"
+  },
+  {
+    "slug": "ford-explorer",
+    "prompt": "2016 Ford Explorer SUV"
+  },
+  {
+    "slug": "opel-corsa",
+    "prompt": "2012 Opel Corsa hatchback"
+  },
+  {
+    "slug": "chevrolet-captiva",
+    "prompt": "2013 Chevrolet Captiva SUV"
+  },
+  {
+    "slug": "chevrolet-cobalt",
+    "prompt": "2014 Chevrolet Cobalt sedan"
+  },
+  {
+    "slug": "hyundai-i30",
+    "prompt": "2010 Hyundai i30 hatchback"
+  },
+  {
+    "slug": "skoda-karoq",
+    "prompt": "2021 Skoda Karoq SUV"
+  },
+  {
+    "slug": "lada-2106",
+    "prompt": "1995 Lada 2106 sedan"
+  },
+  {
+    "slug": "jaecoo-j7",
+    "prompt": "2024 Jaecoo J7 SUV"
+  },
+  {
+    "slug": "belgee-x50",
+    "prompt": "2024 Belgee X50 crossover"
+  },
+  {
+    "slug": "bmw-x5-e53",
+    "prompt": "2004 BMW X5 E53 SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-7-g70",
+    "prompt": "2023 BMW 7 Series G70 sedan, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x5-e70",
+    "prompt": "2010 BMW X5 E70 SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x5-f15",
+    "prompt": "2016 BMW X5 F15 SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x6-e71",
+    "prompt": "2011 BMW X6 E71 coupe SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x6-f16",
+    "prompt": "2017 BMW X6 F16 coupe SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x6-g06",
+    "prompt": "2021 BMW X6 G06 coupe SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x7-g07",
+    "prompt": "2020 BMW X7 G07 SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-5-e39",
+    "prompt": "2001 BMW 5 Series E39 sedan, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-5-g30",
+    "prompt": "2019 BMW 5 Series G30 sedan, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-5-g60",
+    "prompt": "2024 BMW 5 Series G60 sedan, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-3-e46",
+    "prompt": "2003 BMW 3 Series E46 sedan, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-3-g20",
+    "prompt": "2020 BMW 3 Series G20 sedan, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x3-e83",
+    "prompt": "2007 BMW X3 E83 SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x3-g01",
+    "prompt": "2019 BMW X3 G01 SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x1-e84",
+    "prompt": "2012 BMW X1 E84 SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x1-f48",
+    "prompt": "2017 BMW X1 F48 SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x1-u11",
+    "prompt": "2023 BMW X1 U11 SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-7-e65",
+    "prompt": "2006 BMW 7 Series E65 sedan, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-7-f01",
+    "prompt": "2011 BMW 7 Series F01 sedan, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-7-g11",
+    "prompt": "2018 BMW 7 Series G11 sedan, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x4-f26",
+    "prompt": "2016 BMW X4 F26 coupe SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x4-g02",
+    "prompt": "2020 BMW X4 G02 coupe SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-1-e87",
+    "prompt": "2008 BMW 1 Series E87 five-door hatchback, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-1-f20",
+    "prompt": "2016 BMW 1 Series F20 five-door hatchback, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-1-f40",
+    "prompt": "2021 BMW 1 Series F40 five-door hatchback, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-4-f32",
+    "prompt": "2016 BMW 4 Series F36 Gran Coupe, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-4-g26",
+    "prompt": "2022 BMW 4 Series G26 Gran Coupe, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-6-gt-g32",
+    "prompt": "2019 BMW 6 Series GT G32 fastback, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-x2-f39",
+    "prompt": "2019 BMW X2 F39 crossover, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-2-f44",
+    "prompt": "2021 BMW 2 Series Gran Coupe F44 sedan, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-8-g16",
+    "prompt": "2020 BMW 8 Series G16 Gran Coupe, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-z4-g29",
+    "prompt": "2020 BMW Z4 G29 roadster with the roof down, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-i4",
+    "prompt": "2022 BMW i4 G26 electric Gran Coupe, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-ix",
+    "prompt": "2022 BMW iX electric SUV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-6-f13",
+    "prompt": "2014 BMW 6 Series F13 coupe, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-z4-e89",
+    "prompt": "2012 BMW Z4 E89 roadster with the roof down, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-2-f45",
+    "prompt": "2017 BMW 2 Series Active Tourer F45 compact MPV, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-5-gt-f07",
+    "prompt": "2012 BMW 5 Series Gran Turismo F07 hatchback, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  },
+  {
+    "slug": "bmw-3-gt-f34",
+    "prompt": "2015 BMW 3 Series Gran Turismo F34 hatchback, front three-quarter view with the nose of the car pointing to the right side of the frame"
+  }
 ]
