@@ -721,12 +721,15 @@ do {
     check("красный за 1000", ServiceMath.urgency(kmLeft: 999), .urgent)
     check("просроченное — красное", ServiceMath.urgency(kmLeft: 0), .urgent)
 
+    check("карточка ТО: сумма и пробег в первой строке",
+          ServiceMath.cardHeadline(amount: 12_000, mileage: 205_000),
+          "12\u{00A0}000\u{00A0}₽ · 205\u{00A0}000\u{00A0}км")
     check("карточка ТО: работы через запятую",
-          ServiceMath.cardSubtitle(works: ["Замена масла", " Фильтр "], mileage: 9_999), "Замена масла, Фильтр")
-    check("карточка ТО без работ показывает пробег",
-          ServiceMath.cardSubtitle(works: [], mileage: 9_999), "На\u{00A0}9\u{00A0}999\u{00A0}км")
+          ServiceMath.cardSubtitle(works: ["Замена масла", " Фильтр "]), "Замена масла, Фильтр")
+    check("карточка ТО без работ так и говорит",
+          ServiceMath.cardSubtitle(works: []), "Работы не\u{00A0}записаны")
     check("работа без названия — тоже «без работ»",
-          ServiceMath.cardSubtitle(works: ["  "], mileage: 120_000), "На\u{00A0}120\u{00A0}000\u{00A0}км")
+          ServiceMath.cardSubtitle(works: ["  "]), "Работы не\u{00A0}записаны")
 
     check("напоминание с номером",
           ServiceMath.reminderText(name: "Лада Веста", plate: "В 777 ОР 777",

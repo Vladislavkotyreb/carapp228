@@ -75,6 +75,10 @@ struct FigmaTextField: View {
             TextField("", text: $text)
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Figma.labelsPrimary)
+                // Подсказка нарисована своим `Text` поверх, а у самого поля
+                // заголовка нет — VoiceOver читал его безымянным «текстовым
+                // полем» (найдено при подготовке к App Store 14.10.2026).
+                .accessibilityLabel(placeholder)
                 .keyboardType(keyboardType)
                 .textInputAutocapitalization(autocapitalization)
                 .autocorrectionDisabled()
@@ -160,6 +164,7 @@ struct FigmaGroupedTextField: View {
             TextField("", text: text)
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Figma.labelsPrimary)
+                .accessibilityLabel(placeholder)
                 .keyboardType(keyboardType)
                 // Фокус, подпись клавиши и действие по ней были объявлены,
                 // но к полю не подключены (найдено 08.10.2026): «Далее» на

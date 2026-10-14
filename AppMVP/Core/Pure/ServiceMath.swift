@@ -78,13 +78,19 @@ enum ServiceMath {
         }
     }
 
-    /// Вторая строка карточки ТО: работы через запятую. У записи без работ —
-    /// пробег: иначе карточка стояла пустой, с одним «0 ₽» (найдено
-    /// 08.10.2026), а пробег — единственное, что такая запись сообщает.
-    static func cardSubtitle(works: [String], mileage: Int) -> String {
+    /// Первая строка карточки ТО: сумма и пробег, на котором ТО прошли, —
+    /// как «Прослушивание · 120 000 км» у карточки прослушивания. Пробег
+    /// раньше был виден только у записи без работ (просьба пользователя
+    /// 14.10.2026).
+    static func cardHeadline(amount: Int, mileage: Int) -> String {
+        "\(NumberFormat.grouped(amount))\u{00A0}₽ · \(NumberFormat.grouped(mileage))\u{00A0}км"
+    }
+
+    /// Вторая строка карточки ТО: работы через запятую. Без работ — так и
+    /// сказать: пробег теперь в первой строке, и повторять его незачем.
+    static func cardSubtitle(works: [String]) -> String {
         let titles = works.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        return titles.isEmpty ? "На\u{00A0}\(NumberFormat.grouped(mileage))\u{00A0}км"
-                              : titles.joined(separator: ", ")
+        return titles.isEmpty ? "Работы не\u{00A0}записаны" : titles.joined(separator: ", ")
     }
 
     /// Текст напоминания. Номер подставляется только если он есть: у машины,

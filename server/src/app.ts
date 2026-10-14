@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { Config } from "./config.ts";
 import type { Db } from "./db.ts";
 import { adminRoutes } from "./admin.ts";
+import { PRIVACY_HTML } from "./privacy.ts";
 import { hashToken, newToken } from "./secrets.ts";
 import { sync, syncRequest } from "./sync.ts";
 import { plateSchema, vinSchema, type Estimate, type FoundVehicle, type Outcome, type VehicleProvider } from "./vehicles.ts";
@@ -18,6 +19,19 @@ const registerRequest = z.object({
     appVersion: z.string().max(32),
   }),
 });
+
+/** Сколько дней хранится журнал поиска по номеру — столько обещает
+ *  политика конфиденциальности (`privacy.ts`). */
+export const LOOKUP_LOG_DAYS = 90;
+
+/** Стереть записи журнала поиска старше срока. Зовётся при старте и раз в
+ *  сутки (`main.ts`); возвращает, сколько стёрто. */
+export async function purgeLookupLog(db: Db): Promise<number> {
+  const rows = await db.query<{ id: string }>(
+    `delete from lookup_log where at < now() - interval '${LOOKUP_LOG_DAYS} days' returning id`,
+  );
+  return rows.length;
+}
 
 export function createApp(db: Db, config: Config, vehicles: VehicleProvider | null = null) {
   const app = new Hono<Env>();
@@ -38,6 +52,9 @@ export function createApp(db: Db, config: Config, vehicles: VehicleProvider | nu
     console.error(`${c.req.method} ${c.req.path}:`, error.message);
     return c.json({ error: "internal" }, 500);
   });
+
+  /** Политика конфиденциальности: ссылка из App Store и из «Ещё». */
+  app.get("/privacy", (c) => c.html(PRIVACY_HTML));
 
   app.get("/v1/health", async (c) => {
     await db.query("select 1");

@@ -46,6 +46,7 @@ struct MoreScreen: View {
     @State private var consentBusy = false
     @State private var consentError: String?
     @State private var confirmWipe = false
+    @State private var licensesShown = false
 
     private enum Layout {
         static let margin: CGFloat = 16
@@ -73,6 +74,7 @@ struct MoreScreen: View {
                 setup
                 if TripSync.isShipped, TripSync.serverURL != nil { syncSection }
                 history
+                about
             }
             .padding(.horizontal, Layout.margin)
             .padding(.top, 8)
@@ -113,6 +115,10 @@ struct MoreScreen: View {
             Button("Отмена", role: .cancel) {}
         } message: { _ in
             Text("Поездки \(chosenCar?.name ?? "машины") будут записываться, только пока он\u{00A0}подключён.")
+        }
+        .sheet(isPresented: $licensesShown) {
+            LicensesSheet { licensesShown = false }
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $consentShown) {
             SyncConsentSheet(isBusy: consentBusy, error: consentError, onAgree: agree) { consentShown = false }
@@ -586,6 +592,41 @@ struct MoreScreen: View {
         guard let trip = trips.first(where: { $0.snapshotKey == details.snapshotKey }) else { return }
         TripEdits.remove(trip, in: modelContext)
     }
+
+    // MARK: - О приложении
+
+    /// Политика конфиденциальности и лицензии — App Store требует ссылку на
+    /// политику внутри приложения, MIT и Apache — тексты лицензий в каждой
+    /// копии. Внизу версия: по ней сверяют сборку при жалобе.
+    private var about: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("О\u{00A0}приложении")
+
+            VStack(spacing: 0) {
+                if let privacy = BeepyServer.privacyURL {
+                    linkRow("Политика конфиденциальности", value: "", highlighted: false) {
+                        openURL(privacy)
+                    }
+                    separator
+                }
+                linkRow("Лицензии", value: "", highlighted: false) { licensesShown = true }
+            }
+            .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: Layout.radius))
+
+            Text("Версия \(Self.version)")
+                .font(.system(size: 13))
+                .foregroundStyle(Figma.graysGray)
+                .padding(.horizontal, 16)
+        }
+    }
+
+    /// «1.0.0 (1)» — версия и номер сборки из бандла.
+    private static let version: String = {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info?["CFBundleVersion"] as? String ?? "—"
+        return "\(short) (\(build))"
+    }()
 
     // MARK: - Общее
 

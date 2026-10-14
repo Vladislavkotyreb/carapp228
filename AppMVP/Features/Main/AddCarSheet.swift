@@ -31,7 +31,9 @@ struct AddCarSheet: View {
 
             VStack(spacing: 0) {
                 VStack(spacing: 32) {
-                    FigmaSegmentedControl(titles: ["По номеру", "По названию"], selection: $tab)
+                    if VehicleLookupProvider.isAvailable {
+                        FigmaSegmentedControl(titles: ["По номеру", "По названию"], selection: $tab)
+                    }
 
                     VStack(spacing: 24) {
                         if tab == 0 {

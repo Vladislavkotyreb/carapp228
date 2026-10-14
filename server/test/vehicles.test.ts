@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import { createApp } from "../src/app.ts";
+import { createApp, LOOKUP_LOG_DAYS, purgeLookupLog } from "../src/app.ts";
 import { CONSENT_VERSION, type Config } from "../src/config.ts";
 import { migrate, openPglite, type Db } from "../src/db.ts";
 import { prettyName, type VehicleProvider } from "../src/vehicles.ts";
@@ -111,6 +111,28 @@ describe("прокси поиска по госномеру", () => {
     });
     assert.equal(res.status, 503);
     assert.deepEqual(await res.json(), { error: "not_configured" });
+  });
+
+  test("журнал поиска чистится по сроку из политики, свежие записи целы", async () => {
+    await db.query("delete from lookup_log");
+    await db.query(
+      `insert into lookup_log (at, kind, outcome) values
+         (now() - interval '${LOOKUP_LOG_DAYS + 1} days', 'plate', 'found'),
+         (now() - interval '${LOOKUP_LOG_DAYS - 1} days', 'plate', 'found'),
+         (now(), 'price', 'not_found')`,
+    );
+    assert.equal(await purgeLookupLog(db), 1);
+    const [{ left }] = await db.query<{ left: number }>("select count(*)::int as left from lookup_log");
+    assert.equal(left, 2);
+  });
+
+  test("политика конфиденциальности отдаётся страницей", async () => {
+    const res = await app.request("/privacy");
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type") ?? "", /text\/html/);
+    const html = await res.text();
+    assert.match(html, /Политика конфиденциальности Beepy/);
+    assert.match(html, new RegExp(`не дольше ${LOOKUP_LOG_DAYS} дней`));
   });
 
   test("название машины как в приложении", () => {

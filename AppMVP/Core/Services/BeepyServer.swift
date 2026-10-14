@@ -26,6 +26,18 @@ enum BeepyServer {
         #endif
     }
 
+    /// Политика конфиденциальности: `BeepyPrivacyURL` из Info.plist, иначе
+    /// страница `/privacy` сервера (`server/src/privacy.ts`). Нет ни того,
+    /// ни другого — строки в «Ещё» нет; App Store без неё сборку не примет,
+    /// поэтому к выкладке адрес обязателен (docs/APPSTORE.md).
+    static var privacyURL: URL? {
+        if let value = Bundle.main.object(forInfoDictionaryKey: "BeepyPrivacyURL") as? String,
+           !value.isEmpty, let url = URL(string: value) {
+            return url
+        }
+        return url?.appending(path: "privacy")
+    }
+
     /// Токен установки для поиска по госномеру: случайный, без согласия и
     /// без персональных данных — по нему сервер считает лимиты. Заводится
     /// при первом поиске.

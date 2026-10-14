@@ -21,7 +21,14 @@ enum DiagnosisEndpoint {
     /// ```
     /// Именно `--host 0.0.0.0`: по умолчанию сервер слушает 127.0.0.1 и с
     /// телефона недоступен. Пустая строка здесь возвращает работу на заглушку.
+    ///
+    /// Только в отладке: в выпуске адрес домашней сети разработчика ни у кого
+    /// не откроется, а разбор и так идёт на устройстве (`LocalDiagnosis`).
+    #if DEBUG
     static let baseURL = "http://192.168.1.141:8077"
+    #else
+    static let baseURL = ""
+    #endif
 
     static var isConfigured: Bool { !baseURL.isEmpty }
 }
@@ -164,7 +171,7 @@ enum DiagnosisError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notConfigured: "Сервер диагностики не настроен"
+        case .notConfigured: "Разбор сейчас недоступен"
         case .badAddress: "Неверный адрес сервера"
         case .server(let text): text
         case .transport: "Сервер диагностики недоступен"

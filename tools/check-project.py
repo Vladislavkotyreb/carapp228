@@ -11,6 +11,8 @@ import collections, json, os, subprocess, sys, tempfile
 
 PBX = "Beepy.xcodeproj/project.pbxproj"
 SRC = "AppMVP"
+# Исходники тестовых таргетов — та же проверка «на диске ↔ в проекте».
+SOURCE_DIRS = (SRC, "BeepyTests", "BeepyUITests")
 
 def main() -> int:
     root = subprocess.run(["git", "rev-parse", "--show-toplevel"],
@@ -68,10 +70,11 @@ def main() -> int:
     # 3. Каждый .swift на диске проект собирает, и наоборот.
     names = set(compiled.values())
     on_disk = []
-    for dirpath, _, files in os.walk(SRC):
-        on_disk += [(os.path.join(dirpath, f), f) for f in files if f.endswith(".swift")]
+    for root in SOURCE_DIRS:
+        for dirpath, _, files in os.walk(root):
+            on_disk += [(os.path.join(dirpath, f), f) for f in files if f.endswith(".swift")]
     missing = sorted(p for p, f in on_disk if f not in names)
-    check(not missing, f"все .swift из {SRC}/ собираются ({len(missing)} мимо проекта)")
+    check(not missing, f"все .swift из {', '.join(SOURCE_DIRS)} собираются ({len(missing)} мимо проекта)")
     for x in missing:
         print("        НЕ СОБИРАЕТСЯ:", x)
 

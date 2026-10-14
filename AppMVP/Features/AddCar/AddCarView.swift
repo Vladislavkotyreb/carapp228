@@ -13,7 +13,8 @@ struct AddCarView: View {
     /// и по завершении просто закрывается, не сбрасывая уже добавленную.
     var onFinish: (() -> Void)?
 
-    @State private var tab = 0
+    /// Без поиска по номеру (выпуск без сервера) — сразу «По названию».
+    @State private var tab = VehicleLookupProvider.isAvailable ? 0 : 1
     @State private var plate = ""
     @State private var name = ""
     @State private var mileage = ""
@@ -61,7 +62,9 @@ struct AddCarView: View {
                     // уничтожает вьюху вместе с нажатой кнопкой и её
                     // @Namespace, и переезд пилюли ломается.
                     VStack(spacing: 32) {
-                        segmentedControl
+                        if VehicleLookupProvider.isAvailable {
+                            segmentedControl
+                        }
 
                         if tab == 0 { byPlate } else { byName }
                     }
@@ -124,16 +127,11 @@ struct AddCarView: View {
 
     private var byPlate: some View {
         VStack(spacing: 8) {
-            FigmaTextField(
-                placeholder: "В 777 ОР 777",
-                text: $plate,
-                placeholderColor: fieldError == nil ? Figma.labelsQuaternary : Figma.labelsTertiary,
-                format: PlateFormat.format,
-                autocapitalization: .characters,
-                submitLabel: .go,
-                onSubmit: submit
-            )
-            .shake(shake)
+            // Номерная рамка, как в шторке «Добавить авто» на главной: первый
+            // экран стоял на старом поле, и два входа выглядели по-разному
+            // (замечание пользователя 15.10.2026).
+            PlateInputField(text: $plate, onSubmit: submit)
+                .shake(shake)
 
             if let fieldError {
                 caption(fieldError.message, color: Figma.accentsRed)

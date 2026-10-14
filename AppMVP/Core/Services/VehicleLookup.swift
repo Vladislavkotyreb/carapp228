@@ -48,16 +48,37 @@ private let lookupSession: URLSession = {
 /// Поставщик для экранов. Есть сервер Beepy — поиск идёт через него, и
 /// платный токен в приложение не попадает (решение 14.10.2026). Нет сервера —
 /// в отладочной сборке прежний прямой запрос с токеном из `VehicleLookupKey`
-/// (телефон разработчика, пока сервер не выложен), в выпуске — заглушка из
-/// макета, как раздел «Карта» без ключа.
+/// (телефон разработчика, пока сервер не выложен) или заглушка из макета для
+/// съёмки. В выпуске без сервера поиска нет вовсе: заглушка добавила бы
+/// человеку выдуманную машину (найдено при подготовке к App Store 14.10.2026).
 enum VehicleLookupProvider {
+    /// Показывать ли вкладку «По номеру». В выпуске — только с сервером.
+    static var isAvailable: Bool {
+        if BeepyServer.url != nil { return true }
+        #if DEBUG
+        return true
+        #else
+        return false
+        #endif
+    }
+
     static func make() -> any VehicleLookup {
         if BeepyServer.url != nil { return ServerVehicleLookup() }
         #if DEBUG
         if VehicleLookupKey.hasAvtoVinCod { return AvtoVinCodLookup() }
         if VehicleLookupKey.hasAPICloud { return RSAVehicleLookup() }
-        #endif
         return StubVehicleLookup()
+        #else
+        return UnavailableVehicleLookup()
+        #endif
+    }
+}
+
+/// Выпуск без сервера: вкладки нет, но если поиск всё же позовут — честный
+/// отказ, а не данные из макета.
+struct UnavailableVehicleLookup: VehicleLookup {
+    func lookup(plate: String) async throws -> FoundVehicle {
+        throw VehicleLookupError.unavailable
     }
 }
 

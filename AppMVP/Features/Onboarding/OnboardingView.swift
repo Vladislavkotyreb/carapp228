@@ -1,4 +1,3 @@
-import AuthenticationServices
 import SwiftUI
 
 /// Онбординг Beepy — Figma «1 флоу: онбординг + добавление машины» (node 45822:3994).
@@ -10,29 +9,16 @@ struct OnboardingView: View {
     @State private var step = 0
     @State private var goingForward = true
 
-    private let pages: [SurveyPage] = [
-        // опрос/1 — node 45822:4018
-        SurveyPage(
-            title: "Отмечай любимые места ",
-            description: "Заправки, автомойки, СТО.\nПоможем сохранить любимое место \nне только в памяти, но и на карте",
-            primaryTitle: "Далее",
-            hasSkip: true
-        ),
-        // опрос/2 — node 45825:2235
-        SurveyPage(
-            title: "Следи за звуками\nиз машины",
-            description: "Любой стук, гул теперь под контролем. \nПодскажем возможные причины \nпри помощи ИИ.",
-            primaryTitle: "Круто, а что ещё есть?",
-            hasSkip: true
-        ),
-        // опрос/3 — node 45826:2283
-        SurveyPage(
-            title: "Записывай \nрезультаты ТО",
-            description: "Записывай пробег, работы и сканируй документы. А мы подскажем дату следующего ТО.",
-            primaryTitle: "Отлично, погнали!",
-            hasSkip: false
-        )
-    ]
+    /// Страницы — то, что приложение умеет сейчас, а не макетный набор
+    /// «любимые места / звуки / ТО» (просьба пользователя 15.10.2026).
+    private let pages = SurveyPage.pages(plateLookup: VehicleLookupProvider.isAvailable)
+
+    /// Иллюстрация страницы: между точками страниц (71.5 + 44) и заголовком
+    /// (529.5) — с воздухом сверху и снизу.
+    private enum Visual {
+        static let top: CGFloat = 140
+        static let height: CGFloat = 350
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -80,13 +66,28 @@ struct OnboardingView: View {
             // Декоративная подложка из макета (45822:4013) снята: она была
             // светлым пятном под светлый фон, на чёрном читалась бы как блик.
             // Тёмного онбординга в прототипе нет — вернуть вместе с его нодой.
+            // Пустая верхняя половина приветствия — место машины: та же
+            // картинка, что у машины без кадра каталога на главной.
+            Image("CarPhoto")
+                .resizable()
+                .scaledToFit()
+                .frame(height: Visual.height)
+                .modifier(OnboardingRise())
+                .accessibilityHidden(true)
+                .figmaBlock(x: 16, width: 370, y: Visual.top)
+
             title("Привет!")
+                .modifier(OnboardingRise(delay: 0.15))
                 .figmaBlock(x: 32, width: 338, y: 528.75)
 
             description("Beepy — сервис, который поможет тебе держать всё самое важное \nдля автомобиля под контролем")
+                .modifier(OnboardingRise(delay: 0.25))
                 .figmaBlock(x: 32, width: 338, y: 586.75)
 
-            AppleSignInButton(onCompletion: handleAppleSignIn)
+            // На месте «Войти с Apple» из макета: входа нет, пока нет
+            // аккаунтов и сервера, а кнопка входа, которая ничего не делает,
+            // не проходит ревью App Store (решение пользователя 14.10.2026).
+            GlassProminentButton(title: "Начать", action: advance)
                 .figmaBlock(x: 32, width: 338, y: 730.75)
         }
     }
@@ -104,10 +105,16 @@ struct OnboardingView: View {
                 .frame(maxWidth: .infinity)
                 .offset(y: 71.5)
 
+            OnboardingVisual(feature: page.feature)
+                .frame(height: Visual.height)
+                .figmaBlock(x: 16, width: 370, y: Visual.top)
+
             title(page.title)
+                .modifier(OnboardingRise(delay: 0.15))
                 .figmaBlock(x: 16, width: 370, y: 529.5)
 
             description(page.description)
+                .modifier(OnboardingRise(delay: 0.25))
                 .figmaBlock(x: 16, width: 370, y: 625.5)
 
             // Кнопки стоят в координатах макета: первая на 730.5, вторая на
@@ -151,15 +158,6 @@ struct OnboardingView: View {
 
     // MARK: - Переходы
 
-    /// Аккаунта пока нет: данные лежат локально на устройстве, поэтому вход
-    /// ничего не даёт и флоу просто продолжается. Привязка Apple ID появится
-    /// вместе с сервером — см. docs/BACKEND.md.
-    private func handleAppleSignIn(_ result: Result<ASAuthorizationAppleIDCredential, Error>) {
-        // TODO: при переходе на сервер — отправлять credential.identityToken
-        // на бэкенд для проверки и заводить учётную запись.
-        advance()
-    }
-
     private func advance() {
         goingForward = true
         if step < pages.count {
@@ -175,10 +173,37 @@ struct OnboardingView: View {
 }
 
 private struct SurveyPage {
+    let feature: OnboardingFeature
     let title: String
     let description: String
-    let primaryTitle: String
-    let hasSkip: Bool
+    var primaryTitle = "Далее"
+    var hasSkip = true
+
+    /// «Машина по номеру» — только когда поиск есть: в выпуске без сервера
+    /// страница обещала бы то, чего в приложении нет. Последняя страница —
+    /// без «Пропустить» и с «Отлично, погнали!», какой бы она ни была.
+    static func pages(plateLookup: Bool) -> [SurveyPage] {
+        var pages = [
+            SurveyPage(feature: .trips,
+                       title: "Пробег считается сам",
+                       description: "Beepy замечает поездку и\u{00A0}прибавляет километры. С\u{00A0}Bluetooth машины\u{00A0}— только твои поездки."),
+            SurveyPage(feature: .sound,
+                       title: "Слушай мотор",
+                       description: "Запиши звук двигателя\u{00A0}— Beepy подскажет, на\u{00A0}что посмотреть. Разбор идёт прямо на\u{00A0}телефоне.",
+                       primaryTitle: "Круто, а\u{00A0}что ещё?"),
+            SurveyPage(feature: .service,
+                       title: "ТО вовремя",
+                       description: "Сколько осталось до\u{00A0}ТО, напоминание и\u{00A0}запись в\u{00A0}сервис рядом."),
+        ]
+        if plateLookup {
+            pages.append(SurveyPage(feature: .plate,
+                                    title: "Машина по\u{00A0}номеру",
+                                    description: "Введи госномер\u{00A0}— марку, модель и\u{00A0}цену найдём сами."))
+        }
+        pages[pages.count - 1].primaryTitle = "Отлично, погнали!"
+        pages[pages.count - 1].hasSkip = false
+        return pages
+    }
 }
 
 #Preview {

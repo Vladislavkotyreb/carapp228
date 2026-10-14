@@ -21,6 +21,7 @@
 		CA0000010000000000000027 /* TripSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000027 /* TripSync.swift */; };
 		CA0000010000000000000029 /* BeepyServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000029 /* BeepyServer.swift */; };
 		CA0000010000000000000028 /* SyncConsentSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000028 /* SyncConsentSheet.swift */; };
+		AA0000010000000000000F02 /* LicensesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F02 /* LicensesSheet.swift */; };
 		CA0000010000000000000022 /* TripTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000022 /* TripTracker.swift */; };
 		CA0000010000000000000023 /* TripIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000023 /* TripIntents.swift */; };
 		9B0000000000000000000006 /* Trip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0000000000000000000006 /* Trip.swift */; };
@@ -55,10 +56,12 @@
 		AA000001000000000000000A /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000000A /* AppState.swift */; };
 		AA000001000000000000000B /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000000B /* RootView.swift */; };
 		AA000001000000000000000C /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000000C /* OnboardingView.swift */; };
+		AA0000010000000000000F04 /* OnboardingVisuals.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F04 /* OnboardingVisuals.swift */; };
 		AA0000010000000000000015 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000015 /* Assets.xcassets */; };
+		AA0000010000000000000F01 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F01 /* PrivacyInfo.xcprivacy */; };
+		AA0000010000000000000F03 /* Licenses.txt in Resources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F03 /* Licenses.txt */; };
 		AA0000010000000000000018 /* OnboardingButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000017 /* OnboardingButtons.swift */; };
 		AA0000010000000000000019 /* PageIndicatorDots.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000018 /* PageIndicatorDots.swift */; };
-		AA000001000000000000001B /* AppleSignInButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000001A /* AppleSignInButton.swift */; };
 		AA000001000000000000001C /* FormControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000001C /* FormControls.swift */; };
 		AA000001000000000000001D /* AddCarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000001D /* AddCarView.swift */; };
 		AA000001000000000000001E /* CarFoundSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000001E /* CarFoundSheet.swift */; };
@@ -83,7 +86,27 @@
 		8A0000010000000000000003 /* IssuesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0000010000000000000003 /* IssuesScreen.swift */; };
 		CA0000010000000000000012 /* RecordingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000012 /* RecordingPanel.swift */; };
 		CA0000010000000000000011 /* FindingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000011 /* FindingsSheet.swift */; };
+		TA0000010000000000000011 /* StoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TA0000010000000000000001 /* StoreTests.swift */; };
+		TA0000010000000000000012 /* ReleaseReadinessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TA0000010000000000000002 /* ReleaseReadinessTests.swift */; };
+		TB0000010000000000000011 /* FlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB0000010000000000000001 /* FlowTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		TA0000010000000000000050 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = GG0000010000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FF0000010000000000000001;
+			remoteInfo = Beepy;
+		};
+		TB0000010000000000000050 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = GG0000010000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FF0000010000000000000001;
+			remoteInfo = Beepy;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		CB0000010000000000000003 /* UIState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIState.swift; sourceTree = "<group>"; };
@@ -100,6 +123,7 @@
 		CB0000010000000000000027 /* TripSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripSync.swift; sourceTree = "<group>"; };
 		CB0000010000000000000029 /* BeepyServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeepyServer.swift; sourceTree = "<group>"; };
 		CB0000010000000000000028 /* SyncConsentSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncConsentSheet.swift; sourceTree = "<group>"; };
+		BB0000010000000000000F02 /* LicensesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicensesSheet.swift; sourceTree = "<group>"; };
 		CB0000010000000000000022 /* TripTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripTracker.swift; sourceTree = "<group>"; };
 		CB0000010000000000000023 /* TripIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripIntents.swift; sourceTree = "<group>"; };
 		9C0000000000000000000006 /* Trip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trip.swift; sourceTree = "<group>"; };
@@ -133,11 +157,12 @@
 		BB000001000000000000000A /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		BB000001000000000000000B /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		BB000001000000000000000C /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		BB0000010000000000000F04 /* OnboardingVisuals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingVisuals.swift; sourceTree = "<group>"; };
 		BB0000010000000000000015 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BB0000010000000000000F01 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		BB0000010000000000000F03 /* Licenses.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Licenses.txt; sourceTree = "<group>"; };
 		BB0000010000000000000017 /* OnboardingButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingButtons.swift; sourceTree = "<group>"; };
 		BB0000010000000000000018 /* PageIndicatorDots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageIndicatorDots.swift; sourceTree = "<group>"; };
-		BB000001000000000000001A /* AppleSignInButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInButton.swift; sourceTree = "<group>"; usesTabs = 0; };
-		BB000001000000000000001B /* AppMVP.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AppMVP.entitlements; sourceTree = "<group>"; };
 		BB000001000000000000001C /* FormControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormControls.swift; sourceTree = "<group>"; };
 		BB000001000000000000001D /* AddCarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCarView.swift; sourceTree = "<group>"; };
 		BB000001000000000000001E /* CarFoundSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarFoundSheet.swift; sourceTree = "<group>"; };
@@ -163,6 +188,11 @@
 		8B0000010000000000000003 /* IssuesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssuesScreen.swift; sourceTree = "<group>"; };
 		CB0000010000000000000012 /* RecordingPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingPanel.swift; sourceTree = "<group>"; };
 		CB0000010000000000000011 /* FindingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindingsSheet.swift; sourceTree = "<group>"; };
+		TA0000010000000000000001 /* StoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreTests.swift; sourceTree = "<group>"; };
+		TA0000010000000000000002 /* ReleaseReadinessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseReadinessTests.swift; sourceTree = "<group>"; };
+		TA0000010000000000000020 /* BeepyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BeepyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		TB0000010000000000000001 /* FlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowTests.swift; sourceTree = "<group>"; };
+		TB0000010000000000000020 /* BeepyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BeepyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -171,6 +201,20 @@
 			files = (
 				9A0000010000000000000003 /* YandexMapsMobileFull in Frameworks */,
 			);
+		};
+		TA0000010000000000000041 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		TB0000010000000000000041 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -215,6 +259,7 @@
 				7B0000010000000000000002 /* MoreScreen.swift */,
 				7B0000010000000000000003 /* TripSheet.swift */,
 				CB0000010000000000000028 /* SyncConsentSheet.swift */,
+				BB0000010000000000000F02 /* LicensesSheet.swift */,
 			);
 			path = More;
 			sourceTree = "<group>";
@@ -223,6 +268,8 @@
 			isa = PBXGroup;
 			children = (
 				EE0000010000000000000002 /* AppMVP */,
+				TA0000010000000000000030 /* BeepyTests */,
+				TB0000010000000000000030 /* BeepyUITests */,
 				EE0000010000000000000099 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -244,7 +291,6 @@
 			isa = PBXGroup;
 			children = (
 				BB0000010000000000000001 /* AppMVPApp.swift */,
-				BB000001000000000000001B /* AppMVP.entitlements */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -297,6 +343,8 @@
 			isa = PBXGroup;
 			children = (
 				BB0000010000000000000015 /* Assets.xcassets */,
+				BB0000010000000000000F01 /* PrivacyInfo.xcprivacy */,
+				BB0000010000000000000F03 /* Licenses.txt */,
 				9C0000010000000000000079 /* ClapMelFrontend.mlmodelc */,
 				9C000001000000000000007A /* ClapAudioEncoder.mlmodelc */,
 				9C000001000000000000007B /* DiagnosisSupport.json */,
@@ -319,7 +367,6 @@
 			children = (
 				BB0000010000000000000017 /* OnboardingButtons.swift */,
 				BB0000010000000000000018 /* PageIndicatorDots.swift */,
-				BB000001000000000000001A /* AppleSignInButton.swift */,
 				BB000001000000000000001C /* FormControls.swift */,
 				BB000001000000000000001F /* FloatingTabBar.swift */,
 				BB0000010000000000000024 /* LiquidGlass.swift */,
@@ -335,6 +382,7 @@
 			isa = PBXGroup;
 			children = (
 				BB000001000000000000000C /* OnboardingView.swift */,
+				BB0000010000000000000F04 /* OnboardingVisuals.swift */,
 			);
 			path = Onboarding;
 			sourceTree = "<group>";
@@ -365,6 +413,8 @@
 			isa = PBXGroup;
 			children = (
 				BB0000010000000000000099 /* Beepy.app */,
+				TA0000010000000000000020 /* BeepyTests.xctest */,
+				TB0000010000000000000020 /* BeepyUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -402,6 +452,23 @@
 			path = Issues;
 			sourceTree = "<group>";
 		};
+		TA0000010000000000000030 /* BeepyTests */ = {
+			isa = PBXGroup;
+			children = (
+				TA0000010000000000000001 /* StoreTests.swift */,
+				TA0000010000000000000002 /* ReleaseReadinessTests.swift */,
+			);
+			path = BeepyTests;
+			sourceTree = "<group>";
+		};
+		TB0000010000000000000030 /* BeepyUITests */ = {
+			isa = PBXGroup;
+			children = (
+				TB0000010000000000000001 /* FlowTests.swift */,
+			);
+			path = BeepyUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -423,6 +490,42 @@
 			productReference = BB0000010000000000000099 /* Beepy.app */;
 			productType = "com.apple.product-type.application";
 		};
+		TA0000010000000000000060 /* BeepyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = TA0000010000000000000070 /* Build configuration list for PBXNativeTarget "BeepyTests" */;
+			buildPhases = (
+				TA0000010000000000000040 /* Sources */,
+				TA0000010000000000000041 /* Frameworks */,
+				TA0000010000000000000042 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				TA0000010000000000000051 /* PBXTargetDependency */,
+			);
+			name = BeepyTests;
+			productName = BeepyTests;
+			productReference = TA0000010000000000000020 /* BeepyTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		TB0000010000000000000060 /* BeepyUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = TB0000010000000000000070 /* Build configuration list for PBXNativeTarget "BeepyUITests" */;
+			buildPhases = (
+				TB0000010000000000000040 /* Sources */,
+				TB0000010000000000000041 /* Frameworks */,
+				TB0000010000000000000042 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				TB0000010000000000000051 /* PBXTargetDependency */,
+			);
+			name = BeepyUITests;
+			productName = BeepyUITests;
+			productReference = TB0000010000000000000020 /* BeepyUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -435,6 +538,14 @@
 				TargetAttributes = {
 					FF0000010000000000000001 = {
 						CreatedOnToolsVersion = 15.0;
+					};
+					TA0000010000000000000060 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = FF0000010000000000000001;
+					};
+					TB0000010000000000000060 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = FF0000010000000000000001;
 					};
 				};
 			};
@@ -456,6 +567,8 @@
 			projectRoot = "";
 			targets = (
 				FF0000010000000000000001 /* Beepy */,
+				TA0000010000000000000060 /* BeepyTests */,
+				TB0000010000000000000060 /* BeepyUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -465,11 +578,27 @@
 			isa = PBXResourcesBuildPhase;
 			files = (
 				AA0000010000000000000015 /* Assets.xcassets in Resources */,
+				AA0000010000000000000F01 /* PrivacyInfo.xcprivacy in Resources */,
+				AA0000010000000000000F03 /* Licenses.txt in Resources */,
 				9B0000010000000000000079 /* ClapMelFrontend.mlmodelc in Resources */,
 				9B000001000000000000007A /* ClapAudioEncoder.mlmodelc in Resources */,
 				9B000001000000000000007B /* DiagnosisSupport.json in Resources */,
 				9B000001000000000000007E /* CarCatalog in Resources */,
 			);
+		};
+		TA0000010000000000000042 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		TB0000010000000000000042 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
@@ -490,6 +619,7 @@
 				CA0000010000000000000027 /* TripSync.swift in Sources */,
 				CA0000010000000000000029 /* BeepyServer.swift in Sources */,
 				CA0000010000000000000028 /* SyncConsentSheet.swift in Sources */,
+				AA0000010000000000000F02 /* LicensesSheet.swift in Sources */,
 				CA0000010000000000000022 /* TripTracker.swift in Sources */,
 				CA0000010000000000000023 /* TripIntents.swift in Sources */,
 				9B0000000000000000000006 /* Trip.swift in Sources */,
@@ -511,9 +641,9 @@
 				AA000001000000000000000A /* AppState.swift in Sources */,
 				AA000001000000000000000B /* RootView.swift in Sources */,
 				AA000001000000000000000C /* OnboardingView.swift in Sources */,
+				AA0000010000000000000F04 /* OnboardingVisuals.swift in Sources */,
 				AA0000010000000000000018 /* OnboardingButtons.swift in Sources */,
 				AA0000010000000000000019 /* PageIndicatorDots.swift in Sources */,
-				AA000001000000000000001B /* AppleSignInButton.swift in Sources */,
 				AA000001000000000000001C /* FormControls.swift in Sources */,
 				AA000001000000000000001D /* AddCarView.swift in Sources */,
 				AA000001000000000000001E /* CarFoundSheet.swift in Sources */,
@@ -549,7 +679,37 @@
 				9B0000000000000000000001 /* CarDiagnosis.swift in Sources */,
 			);
 		};
+		TA0000010000000000000040 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				TA0000010000000000000011 /* StoreTests.swift in Sources */,
+				TA0000010000000000000012 /* ReleaseReadinessTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		TB0000010000000000000040 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				TB0000010000000000000011 /* FlowTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		TA0000010000000000000051 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FF0000010000000000000001 /* Beepy */;
+			targetProxy = TA0000010000000000000050 /* PBXContainerItemProxy */;
+		};
+		TB0000010000000000000051 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FF0000010000000000000001 /* Beepy */;
+			targetProxy = TB0000010000000000000050 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		II0000010000000000000001 /* Debug configuration for PBXProject "Beepy" */ = {
@@ -681,7 +841,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -696,7 +856,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
 				INFOPLIST_FILE = AppMVP/Resources/Info.plist;
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Чтобы отправить запись двигателя на сервер разбора в вашей сети";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Чтобы показать вас на карте и считать километры поездок";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Чтобы слушать двигатель и находить неисправности";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -712,7 +871,75 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		TA0000010000000000000071 /* Debug configuration for PBXNativeTarget "BeepyTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5BK4R35RB8;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vladislavkotyrev.appmvp.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Beepy.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Beepy";
+			};
+			name = Debug;
+		};
+		TA0000010000000000000072 /* Release configuration for PBXNativeTarget "BeepyTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vladislavkotyrev.appmvp.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Beepy.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Beepy";
+			};
+			name = Release;
+		};
+		TB0000010000000000000071 /* Debug configuration for PBXNativeTarget "BeepyUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5BK4R35RB8;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vladislavkotyrev.appmvp.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Beepy;
+			};
+			name = Debug;
+		};
+		TB0000010000000000000072 /* Release configuration for PBXNativeTarget "BeepyUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vladislavkotyrev.appmvp.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Beepy;
 			};
 			name = Release;
 		};
@@ -732,6 +959,22 @@
 			buildConfigurations = (
 				II0000010000000000000001 /* Debug configuration for PBXProject "Beepy" */,
 				II0000010000000000000002 /* Release configuration for PBXProject "Beepy" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		TA0000010000000000000070 /* Build configuration list for PBXNativeTarget "BeepyTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				TA0000010000000000000071 /* Debug configuration for PBXNativeTarget "BeepyTests" */,
+				TA0000010000000000000072 /* Release configuration for PBXNativeTarget "BeepyTests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		TB0000010000000000000070 /* Build configuration list for PBXNativeTarget "BeepyUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				TB0000010000000000000071 /* Debug configuration for PBXNativeTarget "BeepyUITests" */,
+				TB0000010000000000000072 /* Release configuration for PBXNativeTarget "BeepyUITests" */,
 			);
 			defaultConfigurationName = Release;
 		};

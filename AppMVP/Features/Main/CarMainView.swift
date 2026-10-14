@@ -80,7 +80,7 @@ struct CarMainView: View {
     /// Раньше это были пять булевых — 32 сочетания, законных шесть.
     /// Что правят, лежит отдельно в `editingRecord`: это данные, а не окно.
     @State private var sheet: CarSheet = .closed
-    @State private var carTab = 0
+    @State private var carTab = VehicleLookupProvider.isAvailable ? 0 : 1
     @State private var carPlate = ""
     @State private var carName = ""
     @State private var carMileage = ""
@@ -2242,15 +2242,19 @@ struct CarMainView: View {
     /// заголовок группы.
     private func serviceCardBody(_ record: ServiceRecord) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("\(NumberFormat.grouped(record.amount))\u{00A0}₽")
+            Text(ServiceMath.cardHeadline(amount: record.amount, mileage: record.mileage))
                 .font(.system(size: 15, weight: .semibold))
                 // Трекинг снят по той же причине, что у даты и значений плиток.
                 .foregroundStyle(.white)
+                // Сумма с пробегом длиннее одной суммы: строка ужимается, а
+                // не переносится — высота 20 второй строки не вместит.
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .frame(height: 20)
 
             // Две строки по 18 — так работы и стоят в макете; у записи с одной
             // работой строка остаётся сверху, а карточка держит свои 96.
-            Text(ServiceMath.cardSubtitle(works: record.works.map(\.title), mileage: record.mileage))
+            Text(ServiceMath.cardSubtitle(works: record.works.map(\.title)))
                 .font(.system(size: 13))
                 .tracking(-0.08)
                 .figmaLineHeight(18, fontSize: 13)

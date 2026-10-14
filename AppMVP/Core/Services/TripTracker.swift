@@ -35,15 +35,90 @@ enum TripCar {
 /// Действие запускается, когда окна ещё нет, и взять контейнер из окружения
 /// SwiftUI ему неоткуда.
 enum AppStore {
+    static let schema = Schema([Car.self, ServiceRecord.self, ServiceWorkItem.self,
+                                Place.self, EngineCheck.self, EngineFinding.self, Trip.self])
+
+    /// Что пришлось сделать, чтобы база открылась. `nil` — открылась как есть.
+    enum Recovery { case movedAside, inMemory }
+    private(set) static var recovery: Recovery?
+
     static let container: ModelContainer = {
-        do {
-            return try ModelContainer(for: Car.self, ServiceRecord.self, ServiceWorkItem.self,
-                                      Place.self, EngineCheck.self, EngineFinding.self, Trip.self)
-        } catch {
-            fatalError("База не открылась: \(error)")
-        }
+        #if DEBUG
+        if UITestLaunch.isActive { return UITestLaunch.container() }
+        #endif
+        let (container, recovery) = open(at: ModelConfiguration(schema: schema).url)
+        AppStore.recovery = recovery
+        return container
     }()
+
+    /// Открыть базу по адресу. Раньше неоткрывшаяся база роняла приложение
+    /// на старте — `fatalError`, и так при каждом запуске: из такого цикла
+    /// человек не выйдет, а ревью App Store отклоняет падение на запуске.
+    /// Теперь сломанный файл откладывается рядом (`….broken-<время>`, данные
+    /// из него можно достать), и открывается новая база; не вышло и так —
+    /// база в памяти, чтобы приложение хотя бы запустилось. Проверяется
+    /// `BeepyTests/StoreTests` на испорченном файле.
+    static func open(at url: URL) -> (ModelContainer, Recovery?) {
+        let config = ModelConfiguration(schema: schema, url: url)
+        if let container = try? ModelContainer(for: schema, configurations: config) {
+            return (container, nil)
+        }
+        moveAside(url)
+        if let container = try? ModelContainer(for: schema, configurations: config) {
+            return (container, .movedAside)
+        }
+        return (inMemory(), .inMemory)
+    }
+
+    static func inMemory() -> ModelContainer {
+        do {
+            return try ModelContainer(for: schema, configurations:
+                ModelConfiguration(schema: schema, isStoredInMemoryOnly: true))
+        } catch {
+            // Не открылась и в памяти — сломана сама схема моделей, это
+            // ошибка сборки, а не данных; её ловит `BeepyTests`.
+            fatalError("Схема базы не собирается: \(error)")
+        }
+    }
+
+    /// Файл базы и его спутники (`-wal`, `-shm`) — в сторону, с отметкой времени.
+    private static func moveAside(_ url: URL) {
+        let stamp = Int(Date().timeIntervalSince1970)
+        for suffix in ["", "-wal", "-shm"] {
+            let file = URL(fileURLWithPath: url.path + suffix)
+            let target = URL(fileURLWithPath: url.path + ".broken-\(stamp)" + suffix)
+            try? FileManager.default.moveItem(at: file, to: target)
+        }
+    }
 }
+
+#if DEBUG
+/// Запуск из UI-тестов (`BeepyUITests`): база в памяти, чтобы прогон не
+/// трогал данные симулятора и начинался с чистого листа. С `-beepy-seed` —
+/// машина с одной записью ТО. Только в отладке: в выпуске этих ключей нет.
+enum UITestLaunch {
+    static var isActive: Bool { ProcessInfo.processInfo.arguments.contains("-beepy-ui-test") }
+
+    static func container() -> ModelContainer {
+        let container = AppStore.inMemory()
+        if ProcessInfo.processInfo.arguments.contains("-beepy-seed") {
+            // Жёлтая зона, не красная: в красной главная просит разрешение на
+            // уведомления, и системный алерт перекрыл бы экран теста.
+            let car = Car(plate: "", name: "Lada Vesta", odometer: 120_000)
+            let record = ServiceRecord(date: .now, mileage: 115_000)
+            record.works = [ServiceWorkItem(title: "Замена масла", amount: 4_500)]
+            record.car = car
+            // Свой контекст, а не `mainContext`: тот привязан к главному
+            // актору, а контейнер собирается в статическом инициализаторе.
+            let context = ModelContext(container)
+            context.insert(car)
+            context.insert(record)
+            try? context.save()
+        }
+        return container
+    }
+}
+#endif
 
 /// Автопробег: считает километры поездки и прибавляет их к пробегу машины.
 ///

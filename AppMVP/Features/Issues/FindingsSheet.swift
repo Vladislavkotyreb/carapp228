@@ -695,7 +695,13 @@ enum DiagnosisCards {
         }
         #endif
         guard canDiagnose, let recording else {
+            #if DEBUG
             return .findings(IssuesStub.findings)
+            #else
+            // В выпуске выдуманные находки показывать нельзя: без моделей
+            // или без записи — честный отказ.
+            return failure(DiagnosisError.notConfigured)
+            #endif
         }
         do {
             // Локальный разбор первым: модели лежат в бандле, сеть не

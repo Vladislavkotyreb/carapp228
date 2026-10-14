@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { serve } from "@hono/node-server";
-import { createApp } from "./app.ts";
+import { createApp, purgeLookupLog } from "./app.ts";
 import { configFromEnv } from "./config.ts";
 import { migrate, openPglite, openPostgres, type Db } from "./db.ts";
 import { providerFromEnv } from "./vehicles.ts";
@@ -33,7 +33,19 @@ const server = serve({ fetch: app.fetch, port: config.port, hostname: process.en
   console.log(`Beepy server: http://${info.address}:${info.port} (база: ${config.databaseUrl ? "Postgres" : "PGlite"})`);
 });
 
+// Журнал поиска по номеру — не дольше срока из политики конфиденциальности.
+const purge = async () => {
+  const removed = await purgeLookupLog(db).catch((error) => {
+    console.error("чистка журнала поиска:", error.message);
+    return 0;
+  });
+  if (removed) console.log(`журнал поиска: стёрто ${removed} старых записей`);
+};
+await purge();
+const purgeTimer = setInterval(purge, 24 * 3600_000);
+
 const stop = async () => {
+  clearInterval(purgeTimer);
   server.close();
   await db.close();
   process.exit(0);

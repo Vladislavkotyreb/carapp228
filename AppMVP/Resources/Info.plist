@@ -46,5 +46,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!--
+	  Шифрование — только системное (HTTPS через URLSession, Keychain): это
+	  исключение из экспортных правил США, и App Store Connect не будет
+	  спрашивать о нём при каждой сборке.
+	-->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
