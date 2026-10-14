@@ -331,6 +331,19 @@ def recompose(args, cutout: str | None) -> int:
     return 0
 
 
+def as_is(src: str, dst: str, flip: bool = False) -> None:
+    """Кадр модели без сборки: только размер прода 1264×841 и, если надо,
+    зеркало. Сборка поверх (вырезка, синтетический пол, отражение) делала
+    машину серой и рисовала под ней фальшивое зеркало (14.10.2026)."""
+    from PIL import Image, ImageOps
+    image = Image.open(src).convert("RGB")
+    if flip:
+        image = ImageOps.mirror(image)
+    if image.size != (1264, 841):
+        image = image.resize((1264, 841), Image.LANCZOS)
+    image.save(dst)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--budget", type=float, default=4.0,
@@ -361,7 +374,11 @@ def main() -> int:
     ap.add_argument("--reference", default="",
                     help="слаг из прода как образец для всех машин прогона")
     ap.add_argument("--raw", action="store_true",
-                    help="без сборки кадра 3:2 — только сырой квадрат")
+                    help="оставлен для совместимости: кадр модели как есть — теперь по умолчанию")
+    ap.add_argument("--compose", action="store_true",
+                    help="собрать кадр через вырезку и compose_hero (синтетический пол и "
+                         "отражение). НЕ для каталога: 14.10.2026 пользователь забраковал — "
+                         "машина сереет, снизу фальшивое зеркало. Прод 06.09 — кадры как есть")
     ap.add_argument("--only", default="",
                     help="слаги через запятую: перегенерить только их")
     ap.add_argument("--force", action="store_true",
@@ -416,8 +433,10 @@ def main() -> int:
             "    ~/Library/Caches/kandinsky5-venv/bin/python "
             "tools/catalog_openrouter.py ...")
 
-    cutout = None if args.no_cutout else cutout_binary(args.cutout)
-    if not cutout and not args.no_cutout and not args.dry_run:
+    # Вырезка нужна только сборке (--compose, --recompose); каталог — без неё.
+    cutout = (cutout_binary(args.cutout)
+              if (args.compose or args.recompose) and not args.no_cutout else None)
+    if (args.compose or args.recompose) and not cutout and not args.no_cutout and not args.dry_run:
         log("ВНИМАНИЕ: вырезки нет (нет ~/canary-catalog/cutout и не собрался "
             "swiftc) — кадры соберутся с чёрной полосой под колёсами. "
             "Осознанно — добавьте --no-cutout.")
@@ -504,11 +523,12 @@ def main() -> int:
             tmp_raw = dest + f".try{attempt}.raw.png"
             tmp_out = dest + f".try{attempt}.png"
             open(tmp_raw, "wb").write(png)
-            if args.raw:
-                open(tmp_out, "wb").write(png)
-                finalize(tmp_out, flip=args.flip, floor=args.floor)
-            else:
+            if args.compose:
                 assemble(car["slug"], tmp_raw, tmp_out, cutout, args.flip, args.floor, args.reflection)
+            else:
+                # Кадр модели как есть, только в размер прода 1264×841 —
+                # так сделаны 64 банановых кадра прода (журнал 2026-09-06).
+                as_is(tmp_raw, tmp_out, flip=args.flip)
             os.remove(tmp_raw)
             ok, peak = edges_are_black(tmp_out)
             if best is None or peak < best[0]:
