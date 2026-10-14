@@ -22,6 +22,8 @@ struct PriceInfoSheet: View {
     /// Сколько километров в пробеге — из поездок автопробега, не сверенных
     /// с приборкой.
     var trackedKm: Int = 0
+    /// Пробеги записей ТО: ниже последнего пробег не сохранить.
+    var serviceMileages: [Int] = []
     /// Своя цена пользователя, если вводил, — она главнее рыночной.
     let ownPrice: Int?
     /// Средняя рыночная по объявлениям и число объявлений под ней.
@@ -127,7 +129,7 @@ struct PriceInfoSheet: View {
 
                 Button {
                     draft = kind == .odometer
-                        ? NumberFormat.grouped(odometer)
+                        ? NumberFormat.mileageDraft(odometer)
                         : ownPrice.map(NumberFormat.grouped) ?? ""
                     editing = true
                     focused = true
@@ -181,7 +183,9 @@ struct PriceInfoSheet: View {
             // тот же морф, что в номерной рамке (просьба пользователя).
             MorphingNumberField(
                 text: Binding(get: { draft },
-                              set: { draft = NumberFormat.groupedInput($0) }),
+                              set: { draft = kind == .odometer
+                                        ? NumberFormat.mileageInput($0)
+                                        : NumberFormat.groupedInput($0) }),
                 suffix: kind == .price ? "₽" : "км",
                 focused: $focused)
 
@@ -192,14 +196,30 @@ struct PriceInfoSheet: View {
             } label: {
                 Image(systemName: "checkmark")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(problem == nil ? Color.black : Figma.labelsTertiary)
                     .frame(width: 44, height: 44)
-                    .background(Circle().fill(.white))
+                    .background(Circle().fill(problem == nil ? Color.white : Figma.fillsTertiary))
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
+            // Пробег, который сломает расчёт ТО, не сохраняется: причина —
+            // в карточке под полем, галочка гаснет.
+            .disabled(problem != nil)
             .accessibilityLabel("Сохранить цену")
         }
+    }
+
+    /// Что не так с вводом пробега; у цены проверок нет.
+    private var problem: ServiceMath.OdometerProblem? {
+        guard kind == .odometer, editing else { return nil }
+        return ServiceMath.odometerProblem(NumberFormat.digits(draft),
+                                           serviceMileages: serviceMileages)
+    }
+
+    /// Причину показываем, когда в поле что-то есть: стёртое поле посреди
+    /// ввода — не ошибка, хотя галочка на нём и погашена.
+    private var shownProblem: ServiceMath.OdometerProblem? {
+        draft.isEmpty ? nil : problem
     }
 
     private var headline: String {
@@ -229,12 +249,12 @@ struct PriceInfoSheet: View {
     /// цен — что делать дальше.
     private var explanation: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(explanationTitle)
+            Text(shownProblem?.title ?? explanationTitle)
                 .font(.system(size: 17, weight: .semibold))
                 .tracking(-0.43)
-                .foregroundStyle(.white)
+                .foregroundStyle(shownProblem == nil ? Color.white : Figma.accentsRed)
 
-            Text(explanationDetail)
+            Text(shownProblem?.detail ?? explanationDetail)
                 .font(.system(size: 15))
                 .figmaLineHeight(20, fontSize: 15)
                 .foregroundStyle(Figma.graysGray)

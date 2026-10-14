@@ -51,7 +51,7 @@ struct AddCarSheet: View {
                                 secondPlaceholder: "Пробег, км",
                                 second: $mileage,
                                 secondKeyboardType: .numberPad,
-                                secondFormat: NumberFormat.groupedInput,
+                                secondFormat: NumberFormat.mileageInput,
                                 thirdPlaceholder: "Цена авто, ₽",
                                 third: $price,
                                 thirdKeyboardType: .numberPad,

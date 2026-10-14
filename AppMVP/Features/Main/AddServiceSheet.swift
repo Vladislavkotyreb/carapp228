@@ -53,7 +53,7 @@ struct AddServiceSheet: View {
                     separator
 
                     fieldRow("Пробег", text: $mileage, keyboard: .numberPad,
-                             format: NumberFormat.groupedInput)
+                             format: NumberFormat.mileageInput)
                 }
                 .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 26))
 

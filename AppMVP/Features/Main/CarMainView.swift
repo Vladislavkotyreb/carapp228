@@ -481,6 +481,7 @@ struct CarMainView: View {
                 kind: .odometer,
                 odometer: car?.odometer ?? 0,
                 trackedKm: car?.trackedKm ?? 0,
+                serviceMileages: car?.services.map(\.mileage) ?? [],
                 ownPrice: car?.price,
                 marketPrice: car?.marketPrice,
                 marketOffers: car?.marketOffers,

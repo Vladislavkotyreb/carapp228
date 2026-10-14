@@ -35,6 +35,25 @@ enum NumberFormat {
         return grouped(value)
     }
 
+    /// Та же маска для пробега, с потолком `ServiceMath.maxMileage`: цифра,
+    /// которая выводит за потолок, просто не печатается — как лишняя цифра
+    /// сверх девяти у `groupedInput`.
+    /// Что подставить в поле правки пробега. Пробег выше потолка не
+    /// подставляется: маска молча урезала бы его (9 000 010 → 900 001), и
+    /// галочка, нажатая не глядя, сохранила бы чужое число.
+    static func mileageDraft(_ value: Int) -> String {
+        value <= ServiceMath.maxMileage ? grouped(value) : ""
+    }
+
+    static func mileageInput(_ raw: String) -> String {
+        var onlyDigits = String(raw.filter(\.isNumber).prefix(9))
+        while let value = Int(onlyDigits), value > ServiceMath.maxMileage {
+            onlyDigits.removeLast()
+        }
+        guard let value = Int(onlyDigits) else { return "" }
+        return grouped(value)
+    }
+
     /// Целое из того, что напечатал человек: всё, кроме цифр, отбрасывается.
     ///
     /// `nil` означает «цифр нет вовсе» либо «не влезло в `Int`» — вызывающий

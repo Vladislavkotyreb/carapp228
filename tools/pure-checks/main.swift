@@ -73,6 +73,28 @@ group("ServiceMath") {
                                      serviceMileages: [40_000, 50_000, 45_000]), 8_000)
     check("ровно на интервале — 0",
           ServiceMath.kmUntilService(odometer: 60_000, serviceMileages: [50_000]), 0)
+    check("ТО на пробеге выше одометра — не больше интервала",
+          ServiceMath.kmUntilService(odometer: 210_001,
+                                     serviceMileages: [0, 0, 100_000_000]), 10_000)
+    check("…и полоса тогда пустая, как у только что обслуженной",
+          ServiceMath.progress(odometer: 210_001, serviceMileages: [100_000_000]), 0)
+
+    check("правка пробега: не меньше последнего ТО",
+          ServiceMath.odometerProblem(150_000, serviceMileages: [100_000, 160_000]),
+          .belowService(160_000))
+    check("правка пробега: ровно как на ТО — можно",
+          ServiceMath.odometerProblem(160_000, serviceMileages: [160_000]), nil)
+    check("правка пробега: без истории ТО ограничения снизу нет",
+          ServiceMath.odometerProblem(5, serviceMileages: []), nil)
+    check("правка пробега: пустое поле при истории ТО — ноль, нельзя",
+          ServiceMath.odometerProblem(nil, serviceMileages: [5_000]), .belowService(5_000))
+    check("правка пробега: выше потолка нельзя",
+          ServiceMath.odometerProblem(ServiceMath.maxMileage + 1, serviceMileages: []), .tooHigh)
+    check("правка пробега: потолок сам по себе можно",
+          ServiceMath.odometerProblem(ServiceMath.maxMileage, serviceMileages: []), nil)
+    check("правка пробега: ТО записано выше потолка — называем это ТО",
+          ServiceMath.odometerProblem(210_001, serviceMileages: [100_000_000]),
+          .belowService(100_000_000))
 
     check("прогресс: половина", ServiceMath.progress(odometer: 55_000,
                                                      serviceMileages: [50_000]), 0.5)
@@ -201,6 +223,18 @@ group("NumberFormat") {
           NumberFormat.groupedInput("абв"), "")
     check("десятая цифра не влезает",
           NumberFormat.groupedInput("1234567890"), NumberFormat.grouped(123_456_789))
+    check("маска пробега: цифра сверх потолка не печатается",
+          NumberFormat.mileageInput("2000001"), NumberFormat.grouped(200_000))
+    check("маска пробега: потолок печатается",
+          NumberFormat.mileageInput("2000000"), NumberFormat.grouped(2_000_000))
+    check("маска пробега: вставка 100 000 000 обрезается до семи цифр под потолком",
+          NumberFormat.mileageInput("100000000"), NumberFormat.grouped(1_000_000))
+    check("маска пробега: обычный пробег как есть",
+          NumberFormat.mileageInput("210001"), NumberFormat.grouped(210_001))
+    check("правка пробега: текущий выше потолка в поле не подставляется",
+          NumberFormat.mileageDraft(9_000_010), "")
+    check("правка пробега: обычный текущий подставляется",
+          NumberFormat.mileageDraft(210_001), NumberFormat.grouped(210_001))
 
     let nbsp = "\u{00A0}"
     check("разряды через неразрывный пробел",

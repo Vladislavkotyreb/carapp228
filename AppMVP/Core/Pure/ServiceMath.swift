@@ -20,9 +20,13 @@ enum ServiceMath {
     /// «ТО через N км» — остаток до следующего сервиса.
     ///
     /// Не бывает отрицательным: просроченное ТО показывает 0, а не долг.
+    /// И не бывает больше интервала: запись ТО на пробеге выше одометра
+    /// (одометр поправили вниз руками) давала «ТО через 99 799 999 км»
+    /// (найдено 14.10.2026). Такие данные читаются как «только что из
+    /// сервиса» — так же их понимает полоса в `progress`.
     static func kmUntilService(odometer: Int, serviceMileages: [Int]) -> Int {
         let last = lastServiceMileage(odometer: odometer, serviceMileages: serviceMileages)
-        return max(0, last + interval - odometer)
+        return min(interval, max(0, last + interval - odometer))
     }
 
     /// Доля интервала, которую уже проехали: 0…1 для полосы прогресса.
@@ -141,5 +145,46 @@ enum ServiceMath {
     /// Одометр после сохранения ТО: он не может быть меньше пробега записи.
     static func odometerAfterService(current: Int, serviceMileage: Int) -> Int {
         max(current, serviceMileage)
+    }
+
+    /// Потолок пробега при вводе. На телефоне пользователя нашлись 101 000 000
+    /// и 646 464 646 км (14.10.2026) — тестовый ввод, который потом считался
+    /// всерьёз. Два миллиона — с запасом даже для грузовика.
+    static let maxMileage = 2_000_000
+
+    /// Почему введённый пробег нельзя сохранить.
+    enum OdometerProblem: Equatable {
+        /// Меньше пробега на последнем ТО: тогда «ТО через» считалось от
+        /// записи из будущего (99 799 999 км, 14.10.2026). Внутри — пробег
+        /// этого ТО, его называем человеку.
+        case belowService(Int)
+        /// Больше `maxMileage`.
+        case tooHigh
+
+        var title: String {
+            switch self {
+            case .belowService: "Меньше, чем на\u{00A0}последнем ТО"
+            case .tooHigh: "Слишком большой пробег"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .belowService(let last):
+                "Последнее ТО записано на\u{00A0}\(NumberFormat.grouped(last))\u{00A0}км. "
+                    + "Если там ошибка — исправьте запись в\u{00A0}истории."
+            case .tooHigh:
+                "Больше \(NumberFormat.grouped(maxMileage))\u{00A0}км не\u{00A0}принимаем — проверьте цифры."
+            }
+        }
+    }
+
+    /// Проверка ручной правки пробега. Пустое поле — это ноль: сохранение
+    /// пишет в одометр ноль, и для истории ТО он такой же неверный.
+    static func odometerProblem(_ value: Int?, serviceMileages: [Int]) -> OdometerProblem? {
+        let value = value ?? 0
+        if value > maxMileage { return .tooHigh }
+        if let last = serviceMileages.max(), value < last { return .belowService(last) }
+        return nil
     }
 }

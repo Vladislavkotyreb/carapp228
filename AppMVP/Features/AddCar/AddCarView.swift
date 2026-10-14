@@ -152,7 +152,7 @@ struct AddCarView: View {
                     secondPlaceholder: "Пробег, км",
                     second: $mileage,
                     secondKeyboardType: .numberPad,
-                    secondFormat: NumberFormat.groupedInput,
+                    secondFormat: NumberFormat.mileageInput,
                     submitLabel: .go,
                     onSubmit: submit
                 )
