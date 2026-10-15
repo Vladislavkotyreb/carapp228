@@ -1,0 +1,39 @@
+# Сервер и Postgres локально — так же, как они встанут на площадке в РФ.
+#   cd server && docker compose up --build
+# Пароли — из server/.env (не коммитится), образец — .env.example.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: beepy
+      POSTGRES_USER: beepy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в server/.env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beepy -d beepy"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # Наружу база не смотрит: к ней ходит только сервер.
+
+  server:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://beepy:${POSTGRES_PASSWORD}@db:5432/beepy
+      ADMIN_LOGIN: ${ADMIN_LOGIN:-admin}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      # Локально без HTTPS; на площадке перед сервером стоит nginx с TLS,
+      # и cookie админки ходят только по нему.
+      ADMIN_SECURE_COOKIES: ${ADMIN_SECURE_COOKIES:-0}
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:8787:8787"
+
+volumes:
+  pgdata:

@@ -13,25 +13,38 @@ enum ServiceReminder {
         "service-due-" + id
     }
 
-    /// Ставит или снимает напоминание. `kmLeft` меньше порога — уведомление
-    /// уходит через минуту (мгновенное показалось бы системным сбоем, а не
-    /// напоминанием); иначе прошлое снимается.
+    private static func markKey(for id: String) -> String {
+        "service.reminder." + id
+    }
+
+    /// Имя машины для напоминаний — по дате добавления, в микросекундах.
+    /// `persistentModelID.hashValue` сюда не годится: хэш в Swift свой у
+    /// каждого запуска, и одна машина получала новый идентификатор
+    /// уведомления при каждом открытии приложения (лог 08.10.2026).
+    static func key(createdAt: Date) -> String {
+        String(Int(createdAt.timeIntervalSinceReferenceDate * 1_000_000))
+    }
+
+    /// Ставит или снимает напоминание. Когда и о чём напоминать, решает
+    /// `ServiceMath.reminderStep`; уведомление уходит через минуту
+    /// (мгновенное показалось бы системным сбоем, а не напоминанием).
     static func update(id: String, name: String, plate: String, kmLeft: Int) async {
         let center = UNUserNotificationCenter.current()
         let key = identifier(for: id)
 
-        guard ServiceMath.urgency(kmLeft: kmLeft) == .urgent else {
-            center.removePendingNotificationRequests(withIdentifiers: [key])
+        let stage: ServiceMath.ReminderStage
+        switch ServiceMath.reminderStep(kmLeft: kmLeft, mark: mark(for: id), now: .now) {
+        case .clear:
+            forget(id: id)
             return
+        case .wait:
+            return
+        case .send(let next):
+            stage = next
         }
 
         let granted = await authorized(center)
         guard granted else { return }
-
-        // Пока предыдущее напоминание про эту же машину висит в очереди,
-        // второе не заводим: иначе каждый пересчёт плодил бы дубли.
-        let pending = await center.pendingNotificationRequests()
-        guard !pending.contains(where: { $0.identifier == key }) else { return }
 
         let content = UNMutableNotificationContent()
         content.title = "Пора на ТО"
@@ -41,9 +54,38 @@ enum ServiceReminder {
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 60,
                                                         repeats: false)
-        try? await center.add(UNNotificationRequest(identifier: key,
-                                                    content: content,
-                                                    trigger: trigger))
+        // Идентификатор тот же, что у прошлого: висящее в очереди и уже
+        // показанное заменяются, а не копятся.
+        do {
+            try await center.add(UNNotificationRequest(identifier: key,
+                                                       content: content,
+                                                       trigger: trigger))
+            setMark(.init(stage: stage, sentAt: .now), for: id)
+        } catch {
+            // Не поставилось — отметки нет, следующий расчёт попробует снова.
+        }
+    }
+
+    /// Машину удалили или зона перестала быть красной: напоминание из
+    /// очереди уходит, отметка — тоже.
+    static func forget(id: String) {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: [identifier(for: id)])
+        setMark(nil, for: id)
+    }
+
+    private static func mark(for id: String) -> ServiceMath.ReminderMark? {
+        guard let data = UserDefaults.standard.data(forKey: markKey(for: id)) else { return nil }
+        return try? JSONDecoder().decode(ServiceMath.ReminderMark.self, from: data)
+    }
+
+    private static func setMark(_ mark: ServiceMath.ReminderMark?, for id: String) {
+        let key = markKey(for: id)
+        guard let mark, let data = try? JSONEncoder().encode(mark) else {
+            UserDefaults.standard.removeObject(forKey: key)
+            return
+        }
+        UserDefaults.standard.set(data, forKey: key)
     }
 
     private static func authorized(_ center: UNUserNotificationCenter) async -> Bool {

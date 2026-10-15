@@ -13,7 +13,8 @@ struct AddCarView: View {
     /// и по завершении просто закрывается, не сбрасывая уже добавленную.
     var onFinish: (() -> Void)?
 
-    @State private var tab = 0
+    /// Без поиска по номеру (выпуск без сервера) — сразу «По названию».
+    @State private var tab = VehicleLookupProvider.isAvailable ? 0 : 1
     @State private var plate = ""
     @State private var name = ""
     @State private var mileage = ""
@@ -26,8 +27,9 @@ struct AddCarView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var isSearching = false
 
-    /// Настоящий поиск по базе ОСАГО, когда токен в `VehicleLookupKey`
-    /// заполнен; без него — заглушка с данными из макета.
+    /// Настоящий поиск — через сервер Beepy (`VehicleLookupProvider`); без
+    /// сервера в отладке — прямой запрос с токеном из `VehicleLookupKey`,
+    /// в выпуске — заглушка с данными из макета.
     private let lookup: any VehicleLookup = VehicleLookupProvider.make()
     /// Именно `UIImage`, а не `Image`: из `Image` пикселей не достать, а
     /// снимок надо сохранить в машину. Пока здесь лежал `Image`, выбранное
@@ -60,7 +62,9 @@ struct AddCarView: View {
                     // уничтожает вьюху вместе с нажатой кнопкой и её
                     // @Namespace, и переезд пилюли ломается.
                     VStack(spacing: 32) {
-                        segmentedControl
+                        if VehicleLookupProvider.isAvailable {
+                            segmentedControl
+                        }
 
                         if tab == 0 { byPlate } else { byName }
                     }
@@ -123,16 +127,11 @@ struct AddCarView: View {
 
     private var byPlate: some View {
         VStack(spacing: 8) {
-            FigmaTextField(
-                placeholder: "В 777 ОР 777",
-                text: $plate,
-                placeholderColor: fieldError == nil ? Figma.labelsQuaternary : Figma.labelsTertiary,
-                format: PlateFormat.format,
-                autocapitalization: .characters,
-                submitLabel: .go,
-                onSubmit: submit
-            )
-            .shake(shake)
+            // Номерная рамка, как в шторке «Добавить авто» на главной: первый
+            // экран стоял на старом поле, и два входа выглядели по-разному
+            // (замечание пользователя 15.10.2026).
+            PlateInputField(text: $plate, onSubmit: submit)
+                .shake(shake)
 
             if let fieldError {
                 caption(fieldError.message, color: Figma.accentsRed)
@@ -148,10 +147,10 @@ struct AddCarView: View {
                 FigmaGroupedTextField(
                     firstPlaceholder: "Название",
                     first: $name,
-                    secondPlaceholder: "Пробег в км",
+                    secondPlaceholder: "Пробег, км",
                     second: $mileage,
                     secondKeyboardType: .numberPad,
-                    secondFormat: NumberFormat.groupedInput,
+                    secondFormat: NumberFormat.mileageInput,
                     submitLabel: .go,
                     onSubmit: submit
                 )
@@ -206,7 +205,7 @@ struct AddCarView: View {
                             FigmaRowLabel(systemImage: "photo", title: "Выбрать фото")
                         }
 
-                        caption("Сфотографируйте машину спереди для лучшего вида", color: Figma.labelsTertiary)
+                        caption("Сфотографируйте машину спереди", color: Figma.labelsTertiary)
                     }
                 }
             }

@@ -33,7 +33,7 @@ FIX_PREFIXES = ("AppMVP/", "docs/", "tools/", "inbox/")
 
 # Сюда разбор не лезет: ручной pbxproj ломается молча, а Xcode на битом
 # проекте падает сообщениями, которые не намекают на причину.
-NEVER = ("Canary.xcodeproj/",)
+NEVER = ("Beepy.xcodeproj/",)
 
 
 def frontmatter(text):

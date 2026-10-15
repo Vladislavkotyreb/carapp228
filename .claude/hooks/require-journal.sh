@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PreToolUse-заслонка на Bash, только для этого проекта (Canary / carapp228).
+# PreToolUse-заслонка на Bash, только для этого проекта (Beepy / carapp228).
 # Проверяет `git commit` по трём пунктам и блокирует его (exit 2), если хоть
 # один не сошёлся. stderr возвращается агенту как причина отказа.
 #
@@ -23,8 +23,11 @@
 set -uo pipefail
 
 journal="docs/JOURNAL.md"
-pbx="Canary.xcodeproj/project.pbxproj"
+pbx="Beepy.xcodeproj/project.pbxproj"
 src_root="AppMVP"
+# Исходники проекта: приложение и тестовые таргеты (с 15.10.2026).
+src_roots=(AppMVP BeepyTests BeepyUITests)
+src_re="^(AppMVP|BeepyTests|BeepyUITests)/"
 
 # plutil есть только в macOS. В облачной сессии на Linux его нет, и «не нашёл
 # команду» — это не «битый plist»: заслонка здесь падает открытой, как и на
@@ -50,10 +53,10 @@ if [[ "${1:-}" == "--audit" ]]; then
   while IFS= read -r file; do
     base="${file##*/}"
     in_sources "$base" || { echo "НЕ СОБИРАЕТСЯ: $file"; bad=1; }
-  done < <(find "$src_root" -name '*.swift' | sort)
+  done < <(find "${src_roots[@]}" -name '*.swift' 2>/dev/null | sort)
   while IFS= read -r base; do
     [[ -z "$base" ]] && continue
-    find "$src_root" -name "$base" -print -quit | grep -q . \
+    find "${src_roots[@]}" -name "$base" -print -quit 2>/dev/null | grep -q . \
       || { echo "НЕТ ФАЙЛА, а в проекте есть: $base"; bad=1; }
   done < <(sources_list)
   if have_plutil; then
@@ -61,7 +64,7 @@ if [[ "${1:-}" == "--audit" ]]; then
   else
     echo "plutil недоступен — проверка plist пропущена (не macOS?)."
   fi
-  [[ $bad -eq 0 ]] && echo "Ревизия чистая: $(find "$src_root" -name '*.swift' | wc -l | tr -d ' ') файлов, все в проекте, plist цел."
+  [[ $bad -eq 0 ]] && echo "Ревизия чистая: $(find "${src_roots[@]}" -name '*.swift' 2>/dev/null | wc -l | tr -d ' ') файлов, все в проекте, plist цел."
   exit $bad
 fi
 
@@ -121,7 +124,7 @@ problems=""
 # --- 1. Запись в журнале -----------------------------------------------------
 # Код — это AppMVP/, tools/ и сам проект. Коммит одних доков не требует записи:
 # он часто и есть эта запись.
-code_changed="$(printf '%s\n' "$changed" | grep -E "^($src_root/|tools/|.*\.pbxproj$)" | head -1)"
+code_changed="$(printf '%s\n' "$changed" | grep -E "^(AppMVP/|BeepyTests/|BeepyUITests/|server/src/|tools/|.*\.pbxproj$)" | head -1)"
 if [[ -n "$code_changed" ]]; then
   if ! printf '%s\n' "$changed" | grep -qx "$journal"; then
     # Запись за сегодня уже закоммичена: CLAUDE.md просит коммиты размером
@@ -163,7 +166,7 @@ if [[ -f "$pbx" ]]; then
     base="${file##*/}"
     in_sources "$base" || missing="$missing
   – $file"
-  done < <(printf '%s\n' "$changed" | grep -E "^${src_root}/.*\.swift$")
+  done < <(printf '%s\n' "$changed" | grep -E "${src_re}.*\.swift$")
 
   if [[ -n "$missing" ]]; then
     problems="$problems
@@ -181,7 +184,7 @@ if [[ -f "$pbx" ]]; then
     base="${file##*/}"
     if in_sources "$base"; then stale="$stale
   – $base"; fi
-  done < <(printf '%s\n' "$deleted" | grep -E "^${src_root}/.*\.swift$")
+  done < <(printf '%s\n' "$deleted" | grep -E "${src_re}.*\.swift$")
 
   if [[ -n "$stale" ]]; then
     problems="$problems

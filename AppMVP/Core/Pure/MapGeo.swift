@@ -3,7 +3,7 @@ import Foundation
 /// Точка на земле в терминах чистого слоя: два числа и ничего больше.
 /// `CLLocationCoordinate2D` сюда не заходит — CoreLocation остаётся снаружи,
 /// как и всё, что тянет за собой систему.
-struct GeoPoint: Equatable, Sendable {
+struct GeoPoint: Equatable, Sendable, Codable {
     let latitude: Double
     let longitude: Double
 
@@ -20,6 +20,7 @@ struct GeoPoint: Equatable, Sendable {
 /// поиска Яндекса ещё раз, уже как найденное место, и без сверки он вставал бы
 /// на карту второй точкой поверх себя же, а в списке — второй строкой.
 enum MapGeo {
+
     /// Средний радиус Земли, метры.
     private static let earthRadius: Double = 6_371_000
 
@@ -38,6 +39,57 @@ enum MapGeo {
         // `min(1,…)` — от накопленной ошибки: на противоположных точках
         // подкоренное выражение вылезает за единицу, и `asin` даёт NaN.
         return 2 * earthRadius * asin(min(1, sqrt(a)))
+    }
+
+    /// Куда смотреть карте, когда геопозиции нет: в середину сохранённых мест,
+    /// а без них — на Москву. Без этого карта открывалась на весь материк,
+    /// и поиск «в видимой области» шёл по всему глобусу.
+    static func fallbackCenter(saved: [GeoPoint]) -> GeoPoint {
+        guard !saved.isEmpty else { return moscow }
+        let count = Double(saved.count)
+        return GeoPoint(latitude: saved.map(\.latitude).reduce(0, +) / count,
+                        longitude: saved.map(\.longitude).reduce(0, +) / count)
+    }
+
+    static let moscow = GeoPoint(latitude: 55.7558, longitude: 37.6173)
+
+    /// Номер ближайшей к `origin` точки или `nil`, если точек нет.
+    ///
+    /// Считаем сами, а не берём первую из выдачи: Яндекс сортирует по
+    /// релевантности, и первым там стоит известная сеть, а не сервис за углом.
+    static func nearest(to origin: GeoPoint, among points: [GeoPoint]) -> Int? {
+        points.indices.min { meters(from: origin, to: points[$0])
+                             < meters(from: origin, to: points[$1]) }
+    }
+
+    /// Подходит ли место под то, что набрано в поиске шторки: каждое слово
+    /// запроса есть в названии или адресе. Без регистра и «ё».
+    static func matches(query: String, title: String, subtitle: String?) -> Bool {
+        let fold = { (text: String) in
+            text.lowercased().replacingOccurrences(of: "ё", with: "е")
+        }
+        let words = fold(query).split(whereSeparator: { $0.isWhitespace })
+        guard !words.isEmpty else { return true }
+        let hay = fold(title + " " + (subtitle ?? ""))
+        return words.allSatisfy { hay.contains($0) }
+    }
+
+    /// По чему два найденных места считаются одним: название и адрес. Один
+    /// сервис приходит и на запрос «СТО», и на «шиномонтаж», а текстовый
+    /// поиск отдаёт одну организацию несколькими карточками — в списке это
+    /// одинаковые строки подряд, различить которые нечем.
+    static func duplicateKey(title: String, subtitle: String?) -> String {
+        let fold = { (text: String) in
+            text.lowercased().replacingOccurrences(of: "ё", with: "е")
+                .split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+        }
+        return fold(title) + "|" + fold(subtitle ?? "")
+    }
+
+    /// Первое из одинаковых остаётся, порядок остальных не меняется.
+    static func unique<Item>(_ items: [Item], by key: (Item) -> String) -> [Item] {
+        var seen = Set<String>()
+        return items.filter { seen.insert(key($0)).inserted }
     }
 
     /// Подпись расстояния в строке списка: «350 м», «1,2 км», «15 км».

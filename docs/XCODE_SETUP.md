@@ -23,10 +23,10 @@ xcodebuild -version
 
 ## Открыть проект
 
-Проект называется `Canary.xcodeproj`, схема — `AppMVP`. Из папки проекта:
+Проект называется `Beepy.xcodeproj`, схема — `AppMVP`. Из папки проекта:
 
 ```bash
-open Canary.xcodeproj
+open Beepy.xcodeproj
 ```
 
 ## Первый запуск

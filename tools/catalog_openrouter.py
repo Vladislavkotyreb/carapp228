@@ -168,7 +168,7 @@ def reference_png(slug: str) -> bytes | None:
     heic = os.path.join(ASSETS, slug + ".heic")
     if not os.path.exists(heic):
         return None
-    out = os.path.join("/tmp", f"canary-ref-{slug}.png")
+    out = os.path.join("/tmp", f"beepy-ref-{slug}.png")
     try:
         subprocess.run(["sips", "-s", "format", "png", heic, "--out", out],
                        check=True, capture_output=True)
@@ -286,7 +286,7 @@ def generate(car: dict, key: str, model: str,
     cost = float((answer.get("usage") or {}).get("cost") or 0)
     images = ((answer.get("choices") or [{}])[0].get("message") or {}).get("images") or []
     if not images:
-        dump = os.path.join("/tmp", f"canary-openrouter-{car['slug']}.json")
+        dump = os.path.join("/tmp", f"beepy-openrouter-{car['slug']}.json")
         with open(dump, "w", encoding="utf-8") as f:
             json.dump(answer, f, ensure_ascii=False, indent=2)
         raise SystemExit(
@@ -331,6 +331,83 @@ def recompose(args, cutout: str | None) -> int:
     return 0
 
 
+def as_is(src: str, dst: str, flip: bool = False, ground: float | None = None) -> None:
+    """Кадр модели без сборки: только размер прода 1264×841 и, если надо,
+    зеркало. Сборка поверх (вырезка, синтетический пол, отражение) делала
+    машину серой и рисовала под ней фальшивое зеркало (14.10.2026)."""
+    from PIL import Image, ImageOps
+    image = Image.open(src).convert("RGB")
+    if flip:
+        image = ImageOps.mirror(image)
+    fit(image, ground=ground).save(dst)
+
+
+# Где стоит кузов в кадрах прода: медиана по 177 кадрам, доли кадра.
+# Кузов — строки и столбцы, где ярче 120/255 хотя бы 1.5 % пикселей:
+# одиночные блики отражения на полу так в рамку не попадают. Первая мерка
+# (любой пиксель ярче 60) взяла отражение X6 за низ машины и подняла её
+# на 12 % кадра над соседями (14.10.2026).
+BODY_LEVEL = 120
+BODY_SHARE = 0.015
+CAR_HEIGHT = 0.693       # высота кузова
+CAR_WIDTH_MAX = 0.90     # шире — машина упрётся в края кадра
+CAR_CENTER_X = 0.508
+CAR_BOTTOM = 0.79        # низ кузова
+# Где переднее колесо касается пола — глазами по кропам с сеткой: Monjaro
+# 0.91, X5 0.86, Tiguan 0.84, медиана восьми кадров 0.85. Низ кузова у
+# низкой длинной машины (X6) выше, чем у высокой, поэтому, если касание
+# сырья измерено (поле `ground` в списке машин), ровняется оно.
+CAR_GROUND = 0.85
+
+
+def body_box(image):
+    """Рамка кузова в пикселях: (left, top, right, bottom)."""
+    mask = image.convert("L").point(lambda v: 1 if v > BODY_LEVEL else 0)
+    w, h = mask.size
+    px = mask.load()
+    rows = [y for y in range(h) if sum(px[x, y] for x in range(w)) > BODY_SHARE * w]
+    cols = [x for x in range(w) if sum(px[x, y] for y in range(h)) > BODY_SHARE * h]
+    if not rows or not cols:
+        raise SystemExit("в кадре не нашлось машины — проверить глазами")
+    return cols[0], rows[0], cols[-1] + 1, rows[-1] + 1
+
+
+def fit(image, size=(1264, 841), ground=None):
+    """В размер прода без искажения. Модель иногда отдаёт 16:9 (1376×768),
+    и прямой resize сжимал машину по горизонтали (bmw-x6-g06, 14.10.2026).
+
+    Такой кадр не растягивается и не вписывается целиком (тогда машина
+    выходит мельче соседей), а масштабируется так, чтобы кузов встал как у
+    кадров прода: тот же центр, та же высота, если позволяет ширина
+    (CAR_WIDTH_MAX), и тот же пол — касание колеса `ground` (доля высоты
+    сырья) на CAR_GROUND, а без замера низ кузова на CAR_BOTTOM. Где сырья не хватает, фон чёрный — студия по
+    краям чёрная; низ сырья перед чёрной полосой угасает, чтобы свечение пола
+    не обрывалось ступенькой."""
+    from PIL import Image
+    w, h = size
+    if image.size == size:
+        return image
+    if abs(image.width / image.height - w / h) < 0.01:
+        return image.resize(size, Image.LANCZOS)
+    left0, top0, right0, bottom0 = body_box(image)
+    bw, bh = right0 - left0, bottom0 - top0
+    scale = min(CAR_HEIGHT * h / bh, CAR_WIDTH_MAX * w / bw)
+    floor = bottom0 if ground is None else ground * image.height
+    iw, ih = round(image.width * scale), round(image.height * scale)
+    image = image.resize((iw, ih), Image.LANCZOS)
+    left = round(CAR_CENTER_X * w - (left0 + bw / 2) * scale)
+    top = round((CAR_BOTTOM if ground is None else CAR_GROUND) * h - floor * scale)
+    if top + ih < h:
+        fade = min(60, ih - round((bottom0 - top0) * scale))
+        mask = Image.new("L", (iw, ih), 255)
+        for y in range(fade):
+            mask.paste(round(255 * (fade - 1 - y) / fade), (0, ih - fade + y, iw, ih - fade + y + 1))
+        image = Image.composite(image, Image.new("RGB", (iw, ih)), mask)
+    canvas = Image.new("RGB", size, (0, 0, 0))
+    canvas.paste(image, (left, top))
+    return canvas
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--budget", type=float, default=4.0,
@@ -361,7 +438,11 @@ def main() -> int:
     ap.add_argument("--reference", default="",
                     help="слаг из прода как образец для всех машин прогона")
     ap.add_argument("--raw", action="store_true",
-                    help="без сборки кадра 3:2 — только сырой квадрат")
+                    help="оставлен для совместимости: кадр модели как есть — теперь по умолчанию")
+    ap.add_argument("--compose", action="store_true",
+                    help="собрать кадр через вырезку и compose_hero (синтетический пол и "
+                         "отражение). НЕ для каталога: 14.10.2026 пользователь забраковал — "
+                         "машина сереет, снизу фальшивое зеркало. Прод 06.09 — кадры как есть")
     ap.add_argument("--only", default="",
                     help="слаги через запятую: перегенерить только их")
     ap.add_argument("--force", action="store_true",
@@ -416,8 +497,10 @@ def main() -> int:
             "    ~/Library/Caches/kandinsky5-venv/bin/python "
             "tools/catalog_openrouter.py ...")
 
-    cutout = None if args.no_cutout else cutout_binary(args.cutout)
-    if not cutout and not args.no_cutout and not args.dry_run:
+    # Вырезка нужна только сборке (--compose, --recompose); каталог — без неё.
+    cutout = (cutout_binary(args.cutout)
+              if (args.compose or args.recompose) and not args.no_cutout else None)
+    if (args.compose or args.recompose) and not cutout and not args.no_cutout and not args.dry_run:
         log("ВНИМАНИЕ: вырезки нет (нет ~/canary-catalog/cutout и не собрался "
             "swiftc) — кадры соберутся с чёрной полосой под колёсами. "
             "Осознанно — добавьте --no-cutout.")
@@ -504,11 +587,12 @@ def main() -> int:
             tmp_raw = dest + f".try{attempt}.raw.png"
             tmp_out = dest + f".try{attempt}.png"
             open(tmp_raw, "wb").write(png)
-            if args.raw:
-                open(tmp_out, "wb").write(png)
-                finalize(tmp_out, flip=args.flip, floor=args.floor)
-            else:
+            if args.compose:
                 assemble(car["slug"], tmp_raw, tmp_out, cutout, args.flip, args.floor, args.reflection)
+            else:
+                # Кадр модели как есть, только в размер прода 1264×841 —
+                # так сделаны 64 банановых кадра прода (журнал 2026-09-06).
+                as_is(tmp_raw, tmp_out, flip=args.flip, ground=car.get("ground"))
             os.remove(tmp_raw)
             ok, peak = edges_are_black(tmp_out)
             if best is None or peak < best[0]:

@@ -121,26 +121,16 @@ private struct PlainCapsuleStyle: ButtonStyle {
     }
 }
 
-/// «Button - Content Area», Style = Bordered (`45883:4144` в макете): капсула
-/// 370×50 с подложкой и лейблом акцентного цвета.
-///
-/// Отдельный стиль, а не `.background()` на лейбле: подложка, нажатое
-/// состояние и цель касания — свойства кнопки, а не текста внутри неё.
-/// С прежней `.buttonStyle(.plain)` кнопка на палец не отвечала.
-struct ContentAreaStyle: ButtonStyle {
-    let tint: Color
-    let fill: Color
-
-    @Environment(\.isEnabled) private var isEnabled
+/// Нажатие карточки-кнопки: то же гашение и сжатие, что у остальных кнопок
+/// проекта, без своей подложки — её рисует сама карточка. С `.plain`
+/// карточка на палец не отвечала, и было не понять, нажимается ли она.
+struct CardPressStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(tint)
-            .background(fill, in: Capsule())
-            .opacity(isEnabled ? (configuration.isPressed ? 0.6 : 1) : 0.4)
+            .opacity(configuration.isPressed ? 0.6 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(Motion.tabPress, value: configuration.isPressed)
-            .contentShape(Capsule())
     }
 }

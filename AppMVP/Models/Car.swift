@@ -31,6 +31,34 @@ final class Car {
     @Relationship(deleteRule: .cascade, inverse: \ServiceRecord.car)
     var services: [ServiceRecord]
 
+    /// Прослушивания мотора этой машины. Удалили машину — её прослушивания
+    /// уходят вместе с ней: без машины они ничего не рассказывают сервису.
+    /// Прослушивания, сохранённые до 25.09.2026, машины не знают и в этот
+    /// список не попадают — они остаются в общей истории «Ошибок».
+    @Relationship(deleteRule: .cascade, inverse: \EngineCheck.car)
+    var checks: [EngineCheck]
+
+    /// Поездки автопробега. Уходят вместе с машиной, как и прослушивания.
+    @Relationship(deleteRule: .cascade, inverse: \Trip.car)
+    var trips: [Trip] = []
+
+    /// Метры поездок, не дотянувшие до целого километра: пробег целый, и
+    /// хвост ждёт следующей поездки (`TripMath.settle`). Необязательное —
+    /// у машин, добавленных до автопробега, его нет.
+    var tripCarry: Double?
+    /// Сколько километров в пробеге набежало из поездок с тех пор, как его
+    /// в последний раз ввели руками. Больше нуля — пробег показывается с «≈».
+    var trackedKm: Int?
+    /// Bluetooth машины (или CarPlay), к которому привязан автопробег:
+    /// идентификатор выхода звука от системы и его имя для экрана. Пусто —
+    /// машина не привязана, и её поездки решают геопозиция и датчики
+    /// (`TripLink`). Лежит только здесь, на телефоне.
+    var bluetoothUID: String?
+    var bluetoothName: String?
+    /// Имя машины на сервере синхронизации (`TripSync`). Пусто — машина ещё
+    /// ни разу не уходила на сервер; заводится при первой синхронизации.
+    var syncID: UUID?
+
     init(
         plate: String,
         name: String,
@@ -50,6 +78,7 @@ final class Car {
         self.photo = photo
         self.createdAt = createdAt
         self.services = []
+        self.checks = []
     }
 }
 
@@ -57,5 +86,10 @@ extension Car {
     /// История ТО от свежих к старым — в этом порядке карточки идут в макете.
     var sortedServices: [ServiceRecord] {
         services.sorted { $0.date > $1.date }
+    }
+
+    /// Последнее прослушивание этой машины или `nil`, если её не слушали.
+    var lastCheck: EngineCheck? {
+        checks.max { $0.date < $1.date }
     }
 }

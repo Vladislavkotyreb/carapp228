@@ -1,8 +1,8 @@
-# Тестирование Canary на реальном iPhone
+# Тестирование Beepy на реальном iPhone
 
-Проект — `Canary.xcodeproj`, схема `AppMVP`, bundle ID
+Проект — `Beepy.xcodeproj`, схема `AppMVP`, bundle ID
 `com.vladislavkotyrev.appmvp`, deployment target iOS 17.0.
-На домашнем экране приложение подписано **Canary**.
+На домашнем экране приложение подписано **Beepy**.
 
 ## Ограничения бесплатного Apple ID
 
@@ -62,14 +62,14 @@ xcrun devicectl list devices -j /dev/stdout | grep udid
 
 ```sh
 UDID=00008130-000A38DA0E04001C
-DD=~/Library/Developer/Xcode/DerivedData/canary-device
+DD=~/Library/Developer/Xcode/DerivedData/beepy-device
 
-xcodebuild -project Canary.xcodeproj -scheme AppMVP -configuration Debug \
+xcodebuild -project Beepy.xcodeproj -scheme AppMVP -configuration Debug \
   -destination "id=$UDID" -allowProvisioningUpdates \
   -derivedDataPath "$DD" build
 
 xcrun devicectl device install app --device "$UDID" \
-  "$DD/Build/Products/Debug-iphoneos/Canary.app"
+  "$DD/Build/Products/Debug-iphoneos/Beepy.app"
 
 xcrun devicectl device process launch --device "$UDID" \
   com.vladislavkotyrev.appmvp
@@ -80,7 +80,7 @@ xcrun devicectl device process launch --device "$UDID" \
 > атрибут `com.apple.FinderInfo`. Подпись падает с
 > `resource fork, Finder information, or similar detritus not allowed`.
 > Поэтому `-derivedDataPath` указывает наружу, в `~/Library/Developer/Xcode`.
-> Если всё-таки собрали внутрь — помогает `xattr -cr путь/к/Canary.app`.
+> Если всё-таки собрали внутрь — помогает `xattr -cr путь/к/Beepy.app`.
 
 При первом запуске iPhone откажется запускать приложение с ошибкой про
 недоверенный профиль. Лечится один раз:

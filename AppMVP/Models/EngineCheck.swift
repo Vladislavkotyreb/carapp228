@@ -14,11 +14,23 @@ import SwiftData
 final class EngineCheck {
     var date: Date
 
+    /// Какую машину слушали. Необязательное, и не только ради миграции: у
+    /// прослушиваний, сохранённых до 25.09.2026, машины нет вовсе, а выдумать
+    /// её задним числом нельзя — машин могло быть две.
+    var car: Car?
+
+    /// Пробег в момент прослушивания — снимок одометра, а не ссылка на него.
+    /// Сервису «на 56 400 км» говорит больше даты: по нему видно, сколько
+    /// проехали после ТО и сколько — с тех пор, как мотор начал шуметь.
+    var mileage: Int?
+
     @Relationship(deleteRule: .cascade, inverse: \EngineFinding.check)
     var findings: [EngineFinding]
 
-    init(date: Date = .now) {
+    init(date: Date = .now, car: Car? = nil, mileage: Int? = nil) {
         self.date = date
+        self.car = car
+        self.mileage = mileage
         self.findings = []
     }
 }
@@ -44,13 +56,19 @@ final class EngineFinding {
     /// SwiftData добавляет молча только то, что может оставить пустым. Пусто
     /// читается как «совета нет» — именно так и было.
     var advice: String?
+    /// Код детали из разбора (`PartAdvice`). По нему шторка сохранённого
+    /// прослушивания показывает «что это может быть» и что купить.
+    /// Необязательное по той же причине, что и `advice`: у находок,
+    /// сохранённых до 06.10.2026, его нет — там деталь узнаётся по названию.
+    var part: String?
     var order: Int
     var check: EngineCheck?
 
-    init(title: String, detail: String, advice: String? = nil, order: Int) {
+    init(title: String, detail: String, advice: String? = nil, part: String? = nil, order: Int) {
         self.title = title
         self.detail = detail
         self.advice = advice
+        self.part = part
         self.order = order
     }
 }

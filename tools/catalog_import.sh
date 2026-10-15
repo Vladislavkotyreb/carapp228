@@ -22,7 +22,7 @@ FORCE=0
 if [[ "${1:-}" == "--force" ]]; then FORCE=1; shift; fi
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RAW="${CANARY_RAW:-$HOME/canary-catalog/raw}"
+RAW="${BEEPY_RAW:-$HOME/canary-catalog/raw}"
 DEST="$REPO/AppMVP/Resources/CarCatalog"
 
 if ! command -v sips >/dev/null; then

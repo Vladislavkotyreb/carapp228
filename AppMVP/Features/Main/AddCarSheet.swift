@@ -31,7 +31,9 @@ struct AddCarSheet: View {
 
             VStack(spacing: 0) {
                 VStack(spacing: 32) {
-                    FigmaSegmentedControl(titles: ["По номеру", "По названию"], selection: $tab)
+                    if VehicleLookupProvider.isAvailable {
+                        FigmaSegmentedControl(titles: ["По номеру", "По названию"], selection: $tab)
+                    }
 
                     VStack(spacing: 24) {
                         if tab == 0 {
@@ -48,10 +50,10 @@ struct AddCarSheet: View {
                             FigmaGroupedTextField(
                                 firstPlaceholder: "Название",
                                 first: $name,
-                                secondPlaceholder: "Пробег в км",
+                                secondPlaceholder: "Пробег, км",
                                 second: $mileage,
                                 secondKeyboardType: .numberPad,
-                                secondFormat: NumberFormat.groupedInput,
+                                secondFormat: NumberFormat.mileageInput,
                                 thirdPlaceholder: "Цена авто, ₽",
                                 third: $price,
                                 thirdKeyboardType: .numberPad,
@@ -154,7 +156,7 @@ struct AddCarSheet: View {
             }
 
             if photo == nil {
-                Text("Сфотографируйте машину спереди для лучшего вида")
+                Text("Сфотографируйте машину спереди")
                     .font(.system(size: 12))
                     .figmaLineHeight(16, fontSize: 12)
                     .foregroundStyle(Figma.labelsTertiary)
@@ -177,47 +179,8 @@ struct AddCarSheet: View {
     }
 
     private var toolbar: some View {
-        ZStack {
-            Text("Добавление авто")
-                .font(.system(size: 17, weight: .semibold))
-                .tracking(-0.43)
-                .foregroundStyle(Figma.vibrantControlsPrimary)
-
-            HStack {
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        // Кромку круглой кнопки даёт системное стекло
-                        .liquidGlass(in: Circle(), tint: Figma.sheetControl) {
-                            Circle()
-                                .fill(Figma.sheetControl)
-                                .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 0.5))
-                        }
-                        .contentShape(Circle())
-                        .motionRim(in: Circle())
-                        .shadow(color: .black.opacity(0.02), radius: 7.5, y: 8)
-                }
-                .accessibilityLabel("Закрыть")
-
-                Spacer()
-
-                // Белая галочка вместо синей из прототипа: акцент кнопок белый.
-                Button(action: submit) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.black)
-                        .frame(width: 44, height: 44)
-                        .background(Circle().fill(Figma.labelsPrimary))
-                        .contentShape(Circle())
-                }
-                .accessibilityLabel("Добавить авто")
-            }
-        }
-        .buttonStyle(.plain)
-        .frame(height: 44)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 10)
+        SheetBar(title: "Добавление авто", onClose: onClose,
+                 confirmLabel: "Добавить авто", onConfirm: submit)
+            .padding(.bottom, 10)
     }
 }

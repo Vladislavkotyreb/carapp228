@@ -18,6 +18,10 @@ struct AppMVPApp: App {
             // сам он этого не сделает.
             YMKMapKit.sharedInstance().onStart()
         }
+        // Автоопределение поездок слушает сигналы системы — выход из зоны,
+        // значимое перемещение. Ради них система запускает приложение в фоне,
+        // и принять сигнал должен уже готовый трекер: окна в этот момент нет.
+        _ = TripTracker.shared
     }
 
     @StateObject private var appState = AppState()
@@ -46,7 +50,8 @@ struct AppMVPApp: App {
         }
         // Локальное хранилище на устройстве: данные машины и ТО никуда
         // не уходят, пока не появится сервер в РФ (docs/BACKEND.md).
-        .modelContainer(for: [Car.self, ServiceRecord.self, ServiceWorkItem.self,
-                             Place.self, EngineCheck.self, EngineFinding.self])
+        // Контейнер общий с действиями «Команд» (`AppStore`): автопробег
+        // пишет в ту же базу, когда окна приложения нет.
+        .modelContainer(AppStore.container)
     }
 }

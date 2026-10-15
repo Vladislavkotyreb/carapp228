@@ -34,6 +34,11 @@ enum PartAdvice {
             "Проверить люфт шкива и\u{00A0}подтёки антифриза под помпой"
         case "ac_compressor":
             "Проверить, уходит ли звук при выключенном кондиционере"
+        case "accessories":
+            // Общая корзина разбора «что-то из навесного»: какой именно узел,
+            // он не назвал. Совета не было вовсе — карточка выходила без
+            // объяснения (найдено проверкой 06.10.2026).
+            "Послушать спереди мотора на холостых: ремень, ролики, генератор, помпа"
         case "exhaust":
             "Осмотреть глушитель и\u{00A0}гофру на прогар, проверить подвесы"
         case "turbo":
@@ -83,6 +88,10 @@ enum PartAdvice {
             ["Помпа", "Антифриз", "Прокладка помпы"]
         case "ac_compressor":
             ["Компрессор кондиционера", "Ремень привода", "Шкив компрессора"]
+        case "accessories":
+            // Только то, что меняют при любом шуме навесного: узел не назван,
+            // и генератор с помпой здесь были бы догадкой.
+            ["Ремень навесного", "Ролик натяжной"]
         case "exhaust":
             ["Гофра глушителя", "Подвесы глушителя", "Прокладка приёмной трубы"]
         case "turbo":
@@ -112,6 +121,93 @@ enum PartAdvice {
         }
     }
 
+    /// «Что это может быть» — вторая строка находки в шторке. Не диагноз, а
+    /// перевод названия детали на язык звука: что обычно так звучит и почему.
+    /// Одна-две фразы: под ними ещё лента того, что можно купить.
+    static func meaning(_ part: String) -> String? {
+        switch part {
+        case "engine_internal", "rod_knock":
+            "Глухой стук изнутри мотора, растёт с\u{00A0}оборотами. Так звучат изношенные вкладыши или шатун — ездить с\u{00A0}этим опасно."
+        case "valvetrain":
+            "Цокот сверху мотора, чаще на холодную. Обычно это гидрокомпенсаторы, зазоры клапанов или нехватка масла."
+        case "low_oil":
+            "Масла мало или оно старое: мотор начинает шуршать и\u{00A0}стучать сверху. Самое дешёвое, что стоит проверить первым."
+        case "fuel_ignition":
+            "Мотор троит или неровно работает на холостых. Чаще всего виноваты свечи, катушки или забитый фильтр."
+        case "fuel_pump":
+            "Гул или вой из-под заднего сиденья. Насос изнашивается и\u{00A0}хуже держит давление топлива."
+        case "belt":
+            "Свист или визг спереди, сильнее на холодную и\u{00A0}при повороте руля. Ремень растянулся или ролики износились."
+        case "alternator":
+            "Вой или гул спереди, растёт с\u{00A0}оборотами. Шумят подшипники генератора или его шкив."
+        case "water_pump":
+            "Шуршание или гул спереди мотора. Помпа гоняет антифриз — её подшипник со временем начинает шуметь и\u{00A0}течь."
+        case "ac_compressor":
+            "Гул или щелчки при включённом кондиционере. Компрессор или его муфта изнашиваются."
+        case "accessories":
+            "Шум спереди мотора от\u{00A0}того, что крутит приводной ремень: генератор, помпа, компрессор, ролики. Какой именно узел — покажет осмотр."
+        case "exhaust":
+            "Рокот или дребезг снизу, громче на разгоне. Прогорел глушитель, гофра или ослабли подвесы."
+        case "turbo":
+            "Свист или вой на разгоне. Изнашивается вал турбины или травят патрубки наддува."
+        case "cv_joint", "cv_axle":
+            "Хруст в\u{00A0}повороте на разгоне. Обычно это ШРУС: порвался пыльник, ушла смазка."
+        case "differential":
+            "Вой в\u{00A0}накате или под нагрузкой. Изнашиваются шестерни или не хватает масла в\u{00A0}редукторе."
+        case "suspension":
+            "Стук на неровностях. Износились стойки, опорные подшипники или сайлентблоки."
+        case "mounts":
+            "Удар или вибрация при трогании и\u{00A0}переключении. Опоры мотора просели и\u{00A0}перестали гасить толчки."
+        case "power_steering":
+            "Вой при повороте руля. Мало жидкости ГУР или изнашивается насос."
+        case "brakes":
+            "Скрип или скрежет при торможении. Колодки стёрлись, диски пошли бороздами."
+        case "wheel_bearing", "bad_wheal_bearing":
+            "Гул, который растёт со скоростью и\u{00A0}меняется в\u{00A0}поворотах. Изнашивается ступичный подшипник."
+        case "wheel_tire", "tires":
+            "Гул или вибрация от колёс. Неравномерный износ шин или сбита балансировка."
+        case "transmission":
+            "Вой, толчки или скрежет при переключениях. Старое масло в\u{00A0}коробке или износ её деталей."
+        case "cooling_other":
+            "Мотор перегревается, вентилятор шумит или не включается. Термостат, антифриз или патрубки."
+        default:
+            nil
+        }
+    }
+
+    /// Значок SF Symbols для карточки расходника. Строка, а не `Image`: слой
+    /// чистый. Подбор по ключевому слову — список расходников выше свободный.
+    static func symbol(forItem item: String) -> String {
+        let text = item.lowercased()
+        let table: [(String, String)] = [
+            ("масло", "drop.fill"), ("жидкость", "drop.fill"), ("антифриз", "drop.fill"),
+            ("смазка", "drop.fill"), ("фильтр", "line.3.horizontal.decrease"),
+            ("свеч", "bolt.fill"), ("катушк", "bolt.fill"), ("генератор", "bolt.fill"),
+            ("регулятор", "bolt.fill"), ("ремень", "arrow.triangle.2.circlepath"),
+            ("ролик", "circle.circle"), ("подшипник", "circle.circle"), ("шкив", "circle.circle"),
+            ("шин", "circle.dashed"), ("колод", "square.stack.3d.down.forward"),
+            ("диск", "circle.dashed"), ("прокладк", "square.dashed"), ("сальник", "square.dashed"),
+            ("пыльник", "square.dashed"), ("патрубк", "point.topleft.down.to.point.bottomright.curvepath"),
+            ("гофр", "point.topleft.down.to.point.bottomright.curvepath"),
+            ("насос", "fan.fill"), ("помп", "fan.fill"), ("компрессор", "fan.fill"),
+            ("турбин", "fan.fill"), ("термостат", "thermometer.medium")
+        ]
+        return table.first { text.contains($0.0) }?.1 ?? "wrench.and.screwdriver.fill"
+    }
+
+    /// Поиск расходника в Яндекс Маркете — с названием машины, если результаты
+    /// прикреплены к ней: «Помпа Kia Rio» находит нужное, просто «Помпа» — нет.
+    /// Номер машины в запрос не идёт никогда: это персональные данные.
+    static func searchURL(item: String, carName: String?) -> URL? {
+        let query = [item.replacingOccurrences(of: "\u{00A0}", with: " "), carName]
+            .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        var components = URLComponents(string: "https://market.yandex.ru/search")
+        components?.queryItems = [URLQueryItem(name: "text", value: query)]
+        return components?.url
+    }
+
     /// Готовая строка для карточки: проверка и первые два расходника.
     ///
     /// Два, а не весь список: карточка узкая, а длинное перечисление читается
@@ -124,5 +220,104 @@ enum PartAdvice {
         case (nil, false):       return "Обычно меняют: " + items
         case (nil, true):        return nil
         }
+    }
+}
+
+// MARK: - Словарь разбора
+//
+// Переехал сюда из `Core/Services/CarDiagnosis.swift` 06.10.2026: это словарь
+// без состояния и сети, а в чистом слое его проверяет `run-pure-checks.sh`.
+
+/// Русские названия для словаря `cardiag`. Списки взяты из
+/// `pipeline/build.py`: шесть зон и семейства неисправностей, разложенные по
+/// ним. Держим полностью, а не «что попалось»: незнакомое семейство иначе
+/// доедет до экрана английским идентификатором вроде `wheel_bearing`.
+enum DiagnosisVocabulary {
+    /// Зона, к которой пайплайн относит семейство. Раскладка та же, что в
+    /// `_REGION` из `pipeline/build.py`, — сервер присылает зоны отдельным
+    /// списком, но там они общие для всей записи, а на карточке нужна своя.
+    static func zone(forPart key: String) -> String {
+        switch key {
+        case "engine_internal", "rod_knock", "valvetrain", "low_oil",
+             "fuel_ignition", "fuel_pump":
+            "Двигатель"
+        case "belt", "alternator", "water_pump", "ac_compressor", "accessories":
+            "Навесное оборудование"
+        case "exhaust", "turbo":
+            "Выпускная система"
+        case "cv_axle", "cv_joint", "differential":
+            "Трансмиссия"
+        case "suspension", "power_steering":
+            "Подвеска и рулевое"
+        case "brakes", "wheel_bearing", "bad_wheal_bearing", "wheel_tire", "tires":
+            "Тормоза и колёса"
+        case "transmission":
+            "Трансмиссия"
+        case "cooling_other":
+            "Система охлаждения"
+        case "mounts":
+            "Опоры двигателя"
+        default:
+            "Не определено"
+        }
+    }
+
+    static func part(_ key: String) -> String {
+        switch key {
+        case "engine_internal": "Внутри двигателя"
+        case "rod_knock": "Стук шатунных вкладышей"
+        case "valvetrain": "Газораспределительный механизм"
+        case "low_oil": "Низкий уровень масла"
+        case "fuel_ignition": "Топливо и зажигание"
+        case "fuel_pump": "Топливный насос"
+        case "belt": "Ремень привода"
+        case "alternator": "Генератор"
+        case "water_pump": "Помпа"
+        case "ac_compressor": "Компрессор кондиционера"
+        case "accessories": "Навесное оборудование"
+        case "exhaust": "Выпускная система"
+        case "turbo": "Турбина"
+        case "cv_joint": "ШРУС"
+        case "cv_axle": "Приводной вал"
+        case "differential": "Дифференциал"
+        case "suspension": "Подвеска"
+        case "power_steering": "Усилитель руля"
+        case "brakes": "Тормоза"
+        // Два класса ступичного подшипника — не опечатка здесь, а опечатка в
+        // разметке самой модели: в ней рядом живут `wheel_bearing` и
+        // `bad_wheal_bearing`. Оба ведём в одно название.
+        case "wheel_bearing", "bad_wheal_bearing": "Ступичный подшипник"
+        case "wheel_tire", "tires": "Колёса и шины"
+        case "transmission": "Коробка передач"
+        case "cooling_other": "Система охлаждения"
+        case "mounts": "Опоры двигателя"
+        case "other": "Что-то другое"
+        case "none": "Ничего определённого"
+        default: key
+        }
+    }
+
+    /// Коды деталей, у которых есть название. Нужен обратный поиск «название
+    /// → код» для находок, сохранённых без кода.
+    static let partCodes = [
+        "engine_internal", "rod_knock", "valvetrain", "low_oil", "fuel_ignition",
+        "fuel_pump", "belt", "alternator", "water_pump", "ac_compressor", "accessories",
+        "exhaust", "turbo", "cv_joint", "cv_axle", "differential", "suspension",
+        "power_steering", "brakes", "wheel_bearing", "wheel_tire", "transmission",
+        "cooling_other", "mounts"
+    ]
+
+    /// Код детали по её названию — для находок, сохранённых до того, как
+    /// код стали писать в базу. `extra` — названия не из словаря (заглушка
+    /// разбора): пары «название — код». Нет совпадения — `nil`, и находка
+    /// остаётся карточкой без «что это может быть».
+    ///
+    /// У двух кодов бывает одно название («Ступичный подшипник»); берётся
+    /// первый по `partCodes` — совет у них общий.
+    static func partCode(forTitle title: String,
+                         extra: [(title: String, code: String)] = []) -> String? {
+        let wanted = title.trimmingCharacters(in: .whitespaces)
+        if let code = partCodes.first(where: { part($0) == wanted }) { return code }
+        return extra.first { $0.title == wanted }?.code
     }
 }
