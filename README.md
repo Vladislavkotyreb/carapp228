@@ -96,3 +96,8 @@ tools/test-all.sh           # без Xcode — SKIP_XCODE=1
 | [docs/DIAGNOSIS.md](docs/DIAGNOSIS.md) | Разбор звука: модель, пороги, сверка с сервером |
 | [docs/BACKEND.md](docs/BACKEND.md) | Сервер и хранение данных в РФ |
 | [docs/DECISIONS.md](docs/DECISIONS.md), [docs/TRAPS.md](docs/TRAPS.md), [docs/JOURNAL.md](docs/JOURNAL.md) | Решения, грабли, хроника |
+
+## Контакты
+
+- Telegram — [@vldnt222](https://t.me/vldnt222)
+- Почта — [написать письмо](mailto:kotvlad2016@gmail.com?subject=Beepy) (kotvlad2016@gmail.com)
