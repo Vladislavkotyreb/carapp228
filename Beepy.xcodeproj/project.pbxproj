@@ -88,6 +88,7 @@
 		CA0000010000000000000011 /* FindingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000011 /* FindingsSheet.swift */; };
 		TA0000010000000000000011 /* StoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TA0000010000000000000001 /* StoreTests.swift */; };
 		TA0000010000000000000012 /* ReleaseReadinessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TA0000010000000000000002 /* ReleaseReadinessTests.swift */; };
+		TA0000010000000000000013 /* DiagnosisTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TA0000010000000000000003 /* DiagnosisTests.swift */; };
 		TB0000010000000000000011 /* FlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB0000010000000000000001 /* FlowTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -190,6 +191,7 @@
 		CB0000010000000000000011 /* FindingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindingsSheet.swift; sourceTree = "<group>"; };
 		TA0000010000000000000001 /* StoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreTests.swift; sourceTree = "<group>"; };
 		TA0000010000000000000002 /* ReleaseReadinessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseReadinessTests.swift; sourceTree = "<group>"; };
+		TA0000010000000000000003 /* DiagnosisTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosisTests.swift; sourceTree = "<group>"; };
 		TA0000010000000000000020 /* BeepyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BeepyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		TB0000010000000000000001 /* FlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowTests.swift; sourceTree = "<group>"; };
 		TB0000010000000000000020 /* BeepyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BeepyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -457,6 +459,7 @@
 			children = (
 				TA0000010000000000000001 /* StoreTests.swift */,
 				TA0000010000000000000002 /* ReleaseReadinessTests.swift */,
+				TA0000010000000000000003 /* DiagnosisTests.swift */,
 			);
 			path = BeepyTests;
 			sourceTree = "<group>";
@@ -685,6 +688,7 @@
 			files = (
 				TA0000010000000000000011 /* StoreTests.swift in Sources */,
 				TA0000010000000000000012 /* ReleaseReadinessTests.swift in Sources */,
+				TA0000010000000000000013 /* DiagnosisTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
