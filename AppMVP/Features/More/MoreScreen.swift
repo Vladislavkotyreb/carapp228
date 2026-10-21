@@ -163,7 +163,12 @@ struct MoreScreen: View {
                 // Без геопозиции включать нечего — переключателя нет, как и
                 // кнопки ниже.
                 if locationOn {
-                    Toggle(isOn: Binding(get: { autoOn }, set: { tracker.setAuto($0) })) {
+                    Toggle(isOn: Binding(get: { autoOn }, set: { on in
+                        tracker.setAuto(on)
+                        // «Поездка началась» придёт уведомлением — спросить сейчас,
+                        // с экрана: из фона вопрос не покажется.
+                        if on { TripNotice.requestPermission() }
+                    })) {
                         Text("Автопробег")
                     }
                     .labelsHidden()
@@ -222,9 +227,7 @@ struct MoreScreen: View {
         guard locationOn, autoOn else {
             return "Считает километры поездок и\u{00A0}обновляет пробег"
         }
-        return tracker.access.worksFromCommand
-            ? "Записывает поездки сам. Лишнюю\u{00A0}можно\u{00A0}удалить."
-            : "Нужен доступ «Всегда»"
+        return tracker.access.autoNote(bound: chosenCar.flatMap(TripTracker.bond) != nil)
     }
 
     // MARK: - Настройка
@@ -456,6 +459,9 @@ struct MoreScreen: View {
         car.bluetoothName = port.name
         try? modelContext.save()
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        TripNotice.requestPermission()
+        // Привязали, сидя в машине: выход уже подключён, смены не будет.
+        tracker.linkChanged()
     }
 
     private func unbind(_ car: Car) {

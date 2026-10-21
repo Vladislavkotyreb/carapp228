@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UserNotifications
 import YandexMapsMobile
 
 @main
@@ -21,6 +22,9 @@ struct AppMVPApp: App {
         // Автоопределение поездок слушает сигналы системы — выход из зоны,
         // значимое перемещение. Ради них система запускает приложение в фоне,
         // и принять сигнал должен уже готовый трекер: окна в этот момент нет.
+        // Баннеры «Поездка началась» и напоминания о ТО — и при открытом
+        // приложении: без делегата система их на переднем плане глотает.
+        UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
         _ = TripTracker.shared
     }
 

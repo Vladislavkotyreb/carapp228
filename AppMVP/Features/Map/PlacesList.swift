@@ -72,7 +72,6 @@ struct PlacesList: View {
         static let textGap: CGFloat = 4
         static let photoGap: CGFloat = 12
         static let between: CGFloat = 24
-        static let tagHeight: CGFloat = 24
         static let icon: CGFloat = 44
     }
 
@@ -249,7 +248,7 @@ struct PlacesList: View {
                 .lineLimit(2)
 
             if !details.categories.isEmpty {
-                tags(details.categories)
+                PlaceTags(categories: details.categories)
                     .padding(.top, Card.textGap)
             }
         }
@@ -262,26 +261,6 @@ struct PlacesList: View {
         let distance = row.meters.map { MapGeo.distanceLabel(meters: $0) }
         let parts = [row.pin.details.hours, distance].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-
-    /// Рубрики Яндекса — серыми метками в одну строку; что не влезло,
-    /// листается вбок, как у образца.
-    private func tags(_ categories: [String]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(categories, id: \.self) { category in
-                    Text(category)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Figma.labelsSecondary)
-                        .lineLimit(1)
-                        .padding(.horizontal, 8)
-                        .frame(height: Card.tagHeight)
-                        .background(Figma.fillsTertiary.opacity(0.24),
-                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                }
-            }
-        }
-        .accessibilityElement(children: .combine)
     }
 
     /// Ссылка для звонка или `nil`: у своих точек телефона нет вовсе,
@@ -317,5 +296,32 @@ struct PlacesList: View {
             .padding(onPhoto ? 4 : 0)
             .accessibilityLabel(isOn ? "Убрать из избранного" : "В избранное")
         }
+    }
+}
+
+/// Рубрики Яндекса — серыми метками в одну строку; что не влезло, листается
+/// вбок, как у образца. Одни и те же в списке и на обороте карточки над
+/// точкой: место описано одинаково, откуда бы на него ни смотрели.
+struct PlaceTags: View {
+    let categories: [String]
+
+    private static let height: CGFloat = 24
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(categories, id: \.self) { category in
+                    Text(category)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Figma.labelsSecondary)
+                        .lineLimit(1)
+                        .padding(.horizontal, 8)
+                        .frame(height: Self.height)
+                        .background(Figma.fillsTertiary.opacity(0.24),
+                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }

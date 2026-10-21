@@ -76,7 +76,8 @@
 | `AppMVP/Models/Place.swift` | сохранённое место: три типа (`PlaceKind`) и происхождение (`PlaceOrigin`) |
 | `AppMVP/Core/Pure/MapGeo.swift` | расстояния, подписи к ним и сверка «одно ли это место» |
 | `AppMVP/Features/Map/MapController.swift` | всё, что знает про Яндекс: карта, поиск, маршрут, переход |
-| `AppMVP/Features/Map/MapScreen.swift` | интерфейс раздела: подачи, шапка, карточка места |
+| `AppMVP/Features/Map/MapScreen.swift` | интерфейс раздела: подачи, шапка, слой карточки места, булавка |
+| `AppMVP/Features/Map/PlaceCallout.swift` | карточка места над точкой: лицо и оборот, переворот, хвостик, положение над точкой |
 | `AppMVP/Features/Map/PlacesList.swift` | список мест: разделы, строки, звезда, свайпы |
 
 - **Найденные места** приходят из поиска Яндекса по видимой области карты и не

@@ -630,6 +630,32 @@ group("MapGeo") {
                              saved, title: "Автосервис у дома"), false)
     check("точка совпадает сама с собой",
           MapGeo.isSamePlace(found, title: "СТО", found, title: "СТО"), true)
+
+    // Карточка над точкой: экран 393 × 852, свободно от 170 до 740.
+    let room = CalloutRoom(top: 170, bottom: 740, leading: 16, trailing: 377)
+    func shift(_ x: Double, _ y: Double, w: Double = 264, h: Double = 240) -> ScreenShift {
+        MapGeo.calloutShift(pin: (x, y), card: (w, h), lift: 22, below: 28, room: room)
+    }
+    check("влезает — карта стоит", shift(200, 600), .zero)
+    check("точка у поиска — уезжает вниз ровно на нехватку",
+          shift(200, 300), ScreenShift(dx: 0, dy: 132))
+    check("точка под кнопками — поднимается до них",
+          shift(200, 800), ScreenShift(dx: 0, dy: -88))
+    check("у левого края — сдвиг вправо на полкарточки",
+          shift(40, 600), ScreenShift(dx: 108, dy: 0))
+    check("у правого края — влево",
+          shift(380, 600), ScreenShift(dx: -135, dy: 0))
+    check("карточка во всю ширину — точка по центру",
+          shift(60, 600, w: 361), ScreenShift(dx: 136.5, dy: 0))
+    check("шире свободного — тоже по центру, без качелей",
+          shift(60, 600, w: 400), ScreenShift(dx: 136.5, dy: 0))
+    // Выше свободного места: видна карточка, точка уходит под кнопки.
+    check("карточка выше места — прижата к поиску",
+          shift(200, 600, h: 600), ScreenShift(dx: 0, dy: 192))
+    check("сдвиг меньше точки — не сдвиг",
+          ScreenShift(dx: 0.4, dy: -0.6).isNegligible, true)
+    check("сдвиг в точку — уже сдвиг",
+          ScreenShift(dx: 0, dy: 1).isNegligible, false)
 }
 
 // -------------------------------------------------------------- MapPhase.of
@@ -1553,6 +1579,21 @@ group("TripAuto: автоопределение поездки") {
 }
 
 group("TripLink: привязка Bluetooth машины") {
+    check("уведомление: Bluetooth своей машины называет её",
+          TripLink.startNotice(.bluetooth(car: "Lada Vesta")).body,
+          "Lada Vesta на\u{00A0}связи по\u{00A0}Bluetooth\u{00A0}— считаем километры.")
+    check("уведомление: заголовок один на все случаи",
+          Set([TripLink.StartCause.auto, .command, .bluetooth(car: "X")].map { TripLink.startNotice($0).title }),
+          ["Поездка началась"])
+    check("уведомление: машина без имени — как автоматическая поездка",
+          TripLink.startNotice(.bluetooth(car: "")).body, TripLink.startNotice(.auto).body)
+    check("уведомление: из команды — до команды «Закончить»",
+          TripLink.startNotice(.command).body.contains("Закончить поездку"), true)
+    check("карточка: «Всегда» — пишет сам", TripAccess.always.autoNote(bound: false).hasPrefix("Записывает"), true)
+    check("карточка: «При использовании» с Bluetooth — когда открыт в машине",
+          TripAccess.whenInUse.autoNote(bound: true).hasPrefix("Начнёт поездку"), true)
+    check("карточка: «При использовании» без Bluetooth — нужен «Всегда»",
+          TripAccess.whenInUse.autoNote(bound: false), "Нужен доступ «Всегда»")
     let speaker = TripLink.Port(kind: .other, uid: "Speaker", name: "Динамик")
     let music = TripLink.Port(kind: .bluetooth, uid: "00:11:22:33:44:55-tacl", name: "Camry ")
     let calls = TripLink.Port(kind: .bluetooth, uid: "00:11:22:33:44:55-tsco", name: "camry")

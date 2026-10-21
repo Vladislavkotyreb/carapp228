@@ -109,11 +109,19 @@ final class MapController: NSObject, ObservableObject {
             if !savedOnly { search() }
         }
     }
-    /// Выбранное место. Вместе с булавкой не живёт: карточка внизу одна, и
-    /// выбор места булавку снимает.
+    /// Выбранное место. Вместе с булавкой не живёт: карточка одна, и выбор
+    /// места булавку снимает.
     @Published var selected: MapPin? {
-        didSet { if selected != nil, draft != nil { clearDraft() } }
+        didSet {
+            if selected != nil, draft != nil { clearDraft() }
+            if let selected { anchorPin = selected } else { calloutCard = nil }
+        }
     }
+    /// Над какой точкой стоит карточка. Переживает снятие выбора: карточка
+    /// сворачивается в свою точку, а не в угол экрана.
+    private(set) var anchorPin: MapPin?
+    /// Где на экране точки карты — для карточки над выбранной.
+    let projection = MapProjection()
     @Published private(set) var isSearching = false
     /// Булавка на карте. Ставится тапом по пустому месту, см. `dropPin`.
     @Published private(set) var draft: PlaceDraft?
@@ -140,6 +148,9 @@ final class MapController: NSObject, ObservableObject {
     // MARK: Владение объектами SDK
 
     private weak var map: YMKMap?
+    /// Сама вьюха карты — чтобы перевести её точки в координаты окна, в
+    /// которых экран меряет поиск и кнопки.
+    private weak var mapView: YMKMapView?
     private var placemarks: YMKClusterizedPlacemarkCollection?
     /// Значок булавки. Лежит мимо `placemarks`: ту коллекцию перерисовка
     /// очищает целиком, а булавка поиск и фильтры переживает.
@@ -147,6 +158,13 @@ final class MapController: NSObject, ObservableObject {
     private var draftAnimation: DispatchWorkItem?
     /// Отложенный поиск после сдвига карты, см. `onCameraPositionChanged`.
     private var cameraSearch: DispatchWorkItem?
+    /// Камера едет по нашей просьбе — к точке из списка или к ближайшему
+    /// сервису. Подстраивать её под карточку в это время нельзя: новый
+    /// перелёт отменил бы текущий, и масштаб остался бы недоехавшим.
+    private var cameraBusy = false
+    /// Размер открытой карточки и свободная часть экрана, см. `reveal`.
+    private var calloutCard: CGSize?
+    private var calloutRoom: CalloutRoom?
     /// Готовый слой парковок Яндекса: платные и бесплатные зоны с разметкой,
     /// те же, что в Яндекс Картах. Им, а не поиском «парковка», показываются
     /// парковки: поиск находил организации-парковки точками, а у Яндекса
@@ -186,6 +204,8 @@ final class MapController: NSObject, ObservableObject {
     func attach(to mapView: YMKMapView) {
         let map = mapView.mapWindow.map
         self.map = map
+        self.mapView = mapView
+        projection.window = mapView.mapWindow
 
         // Тёмная карта — лейтмотив приложения. У Яндекса это встроенный
         // ночной режим самой карты, а не наш оверлей: подписи и дороги
@@ -217,6 +237,9 @@ final class MapController: NSObject, ObservableObject {
         requestLocation()
 
         redraw()
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-beepy-map-demo") { showDemoPlaces() }
+        #endif
     }
 
     func detach() {
@@ -292,6 +315,11 @@ final class MapController: NSObject, ObservableObject {
     /// карту в соседний район именно затем, чтобы посмотреть, что там, — и
     /// поиск вокруг его собственной точки в этот момент бесполезен.
     func search() {
+        #if DEBUG
+        // Демонстрационные места поиск не затирает: без сети он вернул бы
+        // пустоту.
+        if isDemo { return }
+        #endif
         // Парковки не ищутся: их рисует слой Яндекса, см. `carparks`.
         // Набран текст в поиске шторки — ищем его одним запросом вместо
         // типов. Тип у найденного — СТО: Яндекс рубрику в удобном виде не
@@ -465,6 +493,41 @@ final class MapController: NSObject, ObservableObject {
         guard let business else { return nil }
         return PhoneFormat.first(of: business.phones.map(\.formattedNumber))
     }
+
+    #if DEBUG
+    /// Места без сети — для проверки карточки над точкой в симуляторе, когда
+    /// VPN на маке глушит ему DNS (см. CLAUDE.md, «Ограничения окружения»).
+    /// Только отладка, запуск с `-beepy-map-demo`.
+    private var isDemo = false
+
+    private func showDemoPlaces() {
+        isDemo = true
+        didCenter = true
+        let center = CLLocationCoordinate2D(latitude: 55.7558, longitude: 37.6173)
+        func link(_ channel: ContactChannel, _ url: String) -> ContactLink {
+            ContactLink(channel: channel, url: URL(string: url)!)
+        }
+        found = [
+            MapPin(id: "demo-service", title: "Автосервис «Мотор»", subtitle: "Никольская ул., 10",
+                   kind: .service, latitude: 55.7570, longitude: 37.6215, source: .found,
+                   phone: "+7 495 123-45-67",
+                   contacts: [link(.booking, "https://example.com/booking"),
+                              link(.telegram, "https://t.me/example"),
+                              link(.website, "https://example.com")],
+                   details: PlaceDetails(rating: 4.8, ratings: 214, hours: "До\u{00A0}21:00",
+                                         categories: ["Автосервис", "Кузовной ремонт", "Замена масла"])),
+            MapPin(id: "demo-tyre", title: "Шиномонтаж 24", subtitle: "ул. Варварка, 4",
+                   kind: .tyre, latitude: 55.7525, longitude: 37.6260, source: .found,
+                   phone: "+7 495 765-43-21",
+                   details: PlaceDetails(rating: 4.5, ratings: 88, hours: "Круглосуточно",
+                                         categories: ["Шиномонтаж", "Балансировка"])),
+            MapPin(id: "demo-service-2", title: "СТО на Маросейке", subtitle: "ул. Маросейка, 2/15",
+                   kind: .service, latitude: 55.7590, longitude: 37.6330, source: .found),
+        ]
+        redraw()
+        move(to: center, zoom: 15)
+    }
+    #endif
 
     // MARK: - Ближайший сервис
 
@@ -721,13 +784,82 @@ final class MapController: NSObject, ObservableObject {
 
     private func move(to coordinate: CLLocationCoordinate2D, zoom: Float,
                       then finished: (() -> Void)? = nil) {
-        map?.move(
+        guard let map else { return }
+        cameraBusy = true
+        map.move(
             with: YMKCameraPosition(
                 target: YMKPoint(latitude: coordinate.latitude, longitude: coordinate.longitude),
                 zoom: zoom, azimuth: 0, tilt: 0),
             animation: YMKAnimation(type: .smooth, duration: 0.4),
-            cameraCallback: { _ in finished?() })
+            cameraCallback: { [weak self] _ in
+                self?.cameraBusy = false
+                // Доехали до точки — теперь карточка над ней: камера
+                // доводит её до свободного места.
+                self?.fitCallout()
+                finished?()
+            })
     }
+
+    // MARK: - Карточка над точкой
+
+    /// Карточка открылась или перевернулась: её размер и свободная часть
+    /// экрана в координатах окна. Не влезает — карта сдвигается ровно на
+    /// нехватку (`MapGeo.calloutShift`).
+    func reveal(card: CGSize, room: CalloutRoom) {
+        calloutCard = card
+        calloutRoom = room
+        guard !cameraBusy else { return }
+        fitCallout()
+    }
+
+    private func fitCallout() {
+        guard let pin = selected, let card = calloutCard, let room = calloutRoom,
+              let map, let mapView, let window = projection.window,
+              let local = projection.point(latitude: pin.latitude, longitude: pin.longitude) else { return }
+        // Свободное место экран меряет в координатах окна, а SDK отдаёт точки
+        // в координатах карты. Перевод — здесь, а не в `body`: чтение UIKit
+        // во вью даёт цикл AttributeGraph (TRAPS, часть I).
+        let at = mapView.convert(local, to: nil)
+        let shift = MapGeo.calloutShift(pin: (Double(at.x), Double(at.y)),
+                                        card: (Double(card.width), Double(card.height)),
+                                        lift: Double(PlaceCallout.Layout.lift),
+                                        below: Double(PlaceCallout.Layout.below),
+                                        room: room)
+        guard !shift.isNegligible else { return }
+
+        // Точка должна сдвинуться на экране на `shift` — значит, в центр
+        // встанет то, что сейчас стоит на столько же в обратную сторону.
+        // Экранные координаты SDK — в физических пикселях.
+        let scale = Double(window.scaleFactor)
+        let center = YMKScreenPoint(x: Float(Double(window.width()) / 2 - shift.dx * scale),
+                                    y: Float(Double(window.height()) / 2 - shift.dy * scale))
+        guard let target = window.screenToWorld(with: center) else { return }
+        let position = map.cameraPosition
+        map.move(with: YMKCameraPosition(target: target, zoom: position.zoom,
+                                         azimuth: position.azimuth, tilt: position.tilt),
+                 animation: YMKAnimation(type: .smooth, duration: 0.35),
+                 cameraCallback: nil)
+    }
+}
+
+/// Где на экране точка карты, в точках интерфейса.
+///
+/// Отдельным объектом, а не `@Published` у контроллера: камера меняется на
+/// каждом кадре, и на каждом кадре пересобирался бы весь экран. Слушает его
+/// только модификатор, который держит карточку над точкой (`PinAnchored`).
+final class MapProjection: ObservableObject {
+    fileprivate weak var window: YMKMapWindow?
+
+    func point(latitude: Double, longitude: Double) -> CGPoint? {
+        guard let window,
+              let screen = window.worldToScreen(withWorldPoint: YMKPoint(latitude: latitude, longitude: longitude))
+        else { return nil }
+        let scale = CGFloat(window.scaleFactor)
+        return CGPoint(x: CGFloat(screen.x) / scale, y: CGFloat(screen.y) / scale)
+    }
+
+    /// Камера сдвинулась — точки на экране уже не там.
+    fileprivate func cameraMoved() { objectWillChange.send() }
 }
 
 // MARK: - Тап по точке
@@ -801,6 +933,9 @@ extension MapController: YMKMapCameraListener {
     /// (к точке, «я здесь») поиск запускают сами, где он нужен.
     func onCameraPositionChanged(with map: YMKMap, cameraPosition: YMKCameraPosition,
                                  cameraUpdateReason: YMKCameraUpdateReason, finished: Bool) {
+        // Карточка над точкой едет вместе с картой — и под пальцем, и в
+        // наших перелётах.
+        if anchorPin != nil { projection.cameraMoved() }
         guard cameraUpdateReason == .gestures else { return }
         cameraSearch?.cancel()
         // Среди одних сохранённых искать нечего — найденное всё равно скрыто.

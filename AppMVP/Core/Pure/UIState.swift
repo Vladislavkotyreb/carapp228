@@ -323,6 +323,19 @@ enum MapPhase: String, CaseIterable {
     }
 }
 
+/// Карточка места на карте. Открывается над точкой, в месте тапа, а не
+/// шторкой снизу (образец пользователя, 21.10.2026); тап по карточке
+/// переворачивает её.
+enum MapCardFace: String, CaseIterable {
+    /// Лицо: фото, название, адрес, оценка и расстояние.
+    case front
+    /// Оборот: рубрики из списка, фото лентой и действия — маршрут, звонок,
+    /// запись, сайт.
+    case back
+
+    var flipped: MapCardFace { self == .front ? .back : .front }
+}
+
 /// Таббар.
 enum TabBarPhase: String, CaseIterable {
     case expanded

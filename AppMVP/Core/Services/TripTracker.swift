@@ -194,6 +194,10 @@ final class TripTracker: NSObject, ObservableObject {
     private var waking = false
     /// Номер последнего пробуждения: перебитое узнаёт, что оно уже не главное.
     private var wakeID = 0
+    /// С доступом «При использовании» отсчёты в фоне держит эта сессия:
+    /// начатая на экране, она не даёт системе остановить подсчёт, когда
+    /// приложение свернули (iOS 17+). С «Всегда» не нужна.
+    private var backgroundSession: CLBackgroundActivitySession?
     /// «Значимое перемещение» ждёт, не выйдет ли приложение на экран.
     private var wandering = false
     /// Когда проба по «значимому перемещению» в последний раз ничего не нашла.
@@ -229,6 +233,12 @@ final class TripTracker: NSObject, ObservableObject {
         // Смена выхода звука приходит, только пока приложение работает:
         // на экране, в пробе или в поездке. Будить закрытое она не умеет.
         NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification,
+                                               object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.routeChanged() }
+        }
+        // Открыли Beepy, уже сидя в машине: Bluetooth подключился раньше, и
+        // смены выхода не будет — смотрим сами.
+        NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification,
                                                object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.routeChanged() }
         }
@@ -277,6 +287,7 @@ final class TripTracker: NSObject, ObservableObject {
         access = Self.access(for: manager.authorizationStatus)
         guard access.worksFromCommand else { throw Failure.needsAlways }
         start(carID: carID)
+        TripNotice.started(.command)
     }
 
     /// Закончить поездку и прибавить километры к пробегу — по команде или
@@ -310,6 +321,7 @@ final class TripTracker: NSObject, ObservableObject {
         guard let trip = active else { return nil }
         manager.stopUpdatingLocation()
         manager.allowsBackgroundLocationUpdates = false
+        endBackgroundSession()
         stopWatching()
         active = nil
         drift = TripAuto.Drift()
@@ -550,7 +562,15 @@ final class TripTracker: NSObject, ObservableObject {
     /// Систему что-то насторожило: телефон вышел из зоны или заметно
     /// переместился. Решаем, слушать ли геопозицию.
     private func wake(_ origin: TripAuto.Origin, zone: GeoPoint? = nil, fix: CLLocation? = nil) {
-        guard AutoSwitch.isOn, LocationSwitch.isOn, access == .always,
+        // С «При использовании» — только Bluetooth своей машины и только при
+        // открытом приложении: закрытое такой доступ не будит вовсе, а
+        // начатый на экране подсчёт система доведёт в фоне. Раньше здесь
+        // требовалось «Всегда», и с CarPlay при открытом Beepy поездка не
+        // начиналась (тест пользователя 18.10.2026).
+        let allowed = access == .always
+            || (access == .whenInUse && origin == .link
+                && UIApplication.shared.applicationState == .active)
+        guard AutoSwitch.isOn, LocationSwitch.isOn, allowed,
               active == nil, probe == nil else { return }
         // Выход из зоны перебивает ещё не решённое «перемещение»: потерять
         // его нельзя, второго система не пришлёт.
@@ -655,7 +675,13 @@ final class TripTracker: NSObject, ObservableObject {
         if active == nil {
             manager.stopUpdatingLocation()
             manager.allowsBackgroundLocationUpdates = false
+            endBackgroundSession()
         }
+    }
+
+    private func endBackgroundSession() {
+        backgroundSession?.invalidate()
+        backgroundSession = nil
     }
 
     /// Проба решила «поехали»: её отсчёты становятся началом поездки.
@@ -693,6 +719,8 @@ final class TripTracker: NSObject, ObservableObject {
         manager.showsBackgroundLocationIndicator = true
         watch()
         TripLog.note("trip start origin=\(current.origin.rawValue) lead=\(Int(lead?.meters ?? 0)) net=\(Int(current.net)) run=\(current.driveRun) motion=\(Self.label(motion.current)) link=\(Self.label(link)) audio=\(Self.audioRoute)")
+        let name = linked.flatMap { Self.car(for: $0, in: AppStore.container.mainContext)?.name }
+        TripNotice.started(name.map { .bluetooth(car: $0) } ?? .auto)
     }
 
     /// Пересмотр по времени: проба может кончиться, поездка — закончиться,
@@ -744,6 +772,9 @@ final class TripTracker: NSObject, ObservableObject {
             finishAuto()
         }
     }
+
+    /// Привязку Bluetooth поменяли на экране «Ещё» — то же, что смена выхода.
+    func linkChanged() { routeChanged() }
 
     /// Выход звука сменился: подключился или пропал Bluetooth машины.
     private func routeChanged() {
@@ -846,6 +877,9 @@ final class TripTracker: NSObject, ObservableObject {
         // строка роняет приложение исключением.
         manager.allowsBackgroundLocationUpdates = true
         manager.showsBackgroundLocationIndicator = indicator
+        if access == .whenInUse, backgroundSession == nil {
+            backgroundSession = CLBackgroundActivitySession()
+        }
         manager.startUpdatingLocation()
     }
 
