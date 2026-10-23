@@ -149,7 +149,10 @@ SwiftData не гарантирует: у связи нет поля поряд�
 
 ### 7. Раздел «Ещё» — автопробег, на устройстве не проверен
 
-`Features/More/MoreScreen.swift`, `Features/More/TripSheet.swift`,
+`Features/More/MoreScreen.swift` (корень раздела — три строки:
+«Автопробег» с геопозицией, доступом и Bluetooth, «Поездки», «О приложении»,
+между ними «Связаться» — Telegram и почта; строки открывают свои экраны: `AutoMileagePage`, `TripsPage`,
+`AboutPage`, 23.10.2026), `Features/More/TripSheet.swift`,
 `Core/Services/TripTracker.swift` (в нём же `TripMotion` и `TripLog`),
 `Core/Services/TripIntents.swift`, `Core/Pure/TripMath.swift`,
 `Core/Pure/TripAuto.swift`, `Core/Pure/TripLink.swift`, `Models/Trip.swift`.

@@ -658,6 +658,36 @@ group("MapGeo") {
           ScreenShift(dx: 0, dy: 1).isNegligible, false)
 }
 
+// ------------------------------------------------------------- LegalDocument
+
+group("LegalDocument") {
+    for document in LegalDocument.allCases {
+        check("\(document.rawValue): есть разделы", document.sections.isEmpty, false)
+        check("\(document.rawValue): пустых разделов нет",
+              document.sections.allSatisfy { !$0.blocks.isEmpty }, true)
+        check("\(document.rawValue): заголовки разделов не повторяются",
+              Set(document.sections.map(\.title)).count, document.sections.count)
+        check("\(document.rawValue): реквизиты оператора на месте",
+              document.sections.contains { $0.blocks.contains(.text(LegalDocument.operatorLine)) }, true)
+    }
+    // Каждое разрешение из Info.plist описано в политике: запрос без
+    // объяснения в ней — повод для отказа на ревью.
+    let privacy = LegalDocument.privacy.sections.flatMap(\.blocks).map { block -> String in
+        switch block {
+        case .text(let text): return text
+        case .item(let lead, let text): return lead + " " + text
+        }
+    }.joined(separator: " ").replacingOccurrences(of: "\u{00A0}", with: " ")
+    for permission in ["Геопозиция", "Движение и фитнес", "Микрофон", "Уведомления"] {
+        check("политика объясняет разрешение «\(permission)»", privacy.contains(permission), true)
+    }
+    check("в политике почта для запросов", privacy.contains(DeveloperContact.email), true)
+    check("Telegram — без «@» в адресе",
+          DeveloperContact.telegramURL?.absoluteString, "https://t.me/vldnt222")
+    check("письмо — с темой Beepy",
+          DeveloperContact.mailURL?.absoluteString, "mailto:kotvlad2016@gmail.com?subject=Beepy")
+}
+
 // -------------------------------------------------------------- MapPhase.of
 
 group("MapPhase.of") {

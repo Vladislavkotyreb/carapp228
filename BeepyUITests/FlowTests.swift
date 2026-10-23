@@ -113,7 +113,8 @@ final class FlowTests: XCTestCase {
         XCTAssertTrue(headline.waitForExistence(timeout: 5))
     }
 
-    /// «Ещё» → «Лицензии»: тексты открытых компонентов внутри приложения.
+    /// «Ещё» → «О приложении» → «Лицензии»: тексты открытых компонентов
+    /// внутри приложения.
     func testLicensesAreReachable() {
         let app = launch(onboarded: true, seeded: true)
 
@@ -121,10 +122,13 @@ final class FlowTests: XCTestCase {
         XCTAssertTrue(more.waitForExistence(timeout: 10))
         more.tap()
 
+        // «Лицензии» — на экране «О приложении», строкой корня «Ещё».
+        let about = app.buttons["О\u{00A0}приложении"]
+        XCTAssertTrue(about.waitForExistence(timeout: 5))
+        about.tap()
+
         let licenses = app.buttons["Лицензии"]
-        for _ in 0..<6 where !licenses.isHittable {
-            app.swipeUp()
-        }
+        XCTAssertTrue(licenses.waitForExistence(timeout: 5))
         licenses.tap()
 
         let shaderKit = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "ShaderKit")).firstMatch
