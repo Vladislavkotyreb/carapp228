@@ -14,15 +14,15 @@ struct AboutPage: View {
     var body: some View {
         MorePage(title: "О\u{00A0}приложении") {
             VStack(alignment: .leading, spacing: 12) {
-                MoreCard {
+                GroupedCard {
                     ForEach(LegalDocument.allCases) { document in
-                        MoreLinkRow(title: document.title) { legal = document }
-                        MoreSeparator()
+                        GroupedLinkRow(title: document.title) { legal = document }
+                        GroupedSeparator()
                     }
-                    MoreLinkRow(title: "Лицензии") { licensesShown = true }
+                    GroupedLinkRow(title: "Лицензии") { licensesShown = true }
                 }
 
-                MoreFootnote("Версия \(Self.version)")
+                GroupFootnote("Версия \(Self.version)")
             }
         }
         .sheet(item: $legal) { document in

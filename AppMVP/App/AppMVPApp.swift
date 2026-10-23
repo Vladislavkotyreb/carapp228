@@ -26,6 +26,10 @@ struct AppMVPApp: App {
         // приложении: без делегата система их на переднем плане глотает.
         UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
         _ = TripTracker.shared
+        // Подписка слушает продления и возвраты с запуска (так велит
+        // StoreKit) и сразу узнаёт, действует ли она, — от этого зависит,
+        // что откроет «Добавить авто».
+        Task { await Subscription.shared.refreshStatus() }
     }
 
     @StateObject private var appState = AppState()

@@ -18,10 +18,12 @@
 		CA0000010000000000000024 /* TripAuto.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000024 /* TripAuto.swift */; };
 		CA0000010000000000000025 /* TripLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000025 /* TripLink.swift */; };
 		AA0000010000000000000F07 /* LegalText.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F07 /* LegalText.swift */; };
+		AA0000010000000000000F0D /* Garage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F0D /* Garage.swift */; };
 		CA0000010000000000000026 /* SyncPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000026 /* SyncPlan.swift */; };
 		CA0000010000000000000027 /* TripSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000027 /* TripSync.swift */; };
 		CA0000010000000000000029 /* BeepyServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000029 /* BeepyServer.swift */; };
 		AA0000010000000000000F05 /* TripNotice.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F05 /* TripNotice.swift */; };
+		AA0000010000000000000F10 /* Subscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F10 /* Subscription.swift */; };
 		CA0000010000000000000028 /* SyncConsentSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000028 /* SyncConsentSheet.swift */; };
 		AA0000010000000000000F02 /* LicensesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F02 /* LicensesSheet.swift */; };
 		AA0000010000000000000F08 /* LegalSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F08 /* LegalSheet.swift */; };
@@ -33,6 +35,8 @@
 		CA000001000000000000000C /* ServiceReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000C /* ServiceReminder.swift */; };
 		CA000001000000000000000B /* MorphingNumberField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000B /* MorphingNumberField.swift */; };
 		CA000001000000000000000A /* PlateInputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB000001000000000000000A /* PlateInputField.swift */; };
+		AA0000010000000000000F0E /* PlateBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F0E /* PlateBadge.swift */; };
+		AA0000010000000000000F0F /* GroupedList.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F0F /* GroupedList.swift */; };
 		CA0000010000000000000008 /* CarCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000008 /* CarCatalog.swift */; };
 		CA0000010000000000000006 /* MarketPrice.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000006 /* MarketPrice.swift */; };
 		CA0000010000000000000007 /* ServiceDocParse.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000007 /* ServiceDocParse.swift */; };
@@ -79,6 +83,7 @@
 		CA0000010000000000000010 /* BookingSummarySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000010 /* BookingSummarySheet.swift */; };
 		9B000001000000000000007C /* PriceInfoSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C000001000000000000007C /* PriceInfoSheet.swift */; };
 		AA0000010000000000000023 /* AddCarSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000023 /* AddCarSheet.swift */; };
+		AA0000010000000000000F11 /* PaywallSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F11 /* PaywallSheet.swift */; };
 		AA0000010000000000000024 /* LiquidGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000024 /* LiquidGlass.swift */; };
 		AA0000010000000000000025 /* BottomSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000025 /* BottomSheet.swift */; };
 		AA0000010000000000000026 /* PlateFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000026 /* PlateFormat.swift */; };
@@ -96,6 +101,7 @@
 		TA0000010000000000000011 /* StoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TA0000010000000000000001 /* StoreTests.swift */; };
 		TA0000010000000000000012 /* ReleaseReadinessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TA0000010000000000000002 /* ReleaseReadinessTests.swift */; };
 		TA0000010000000000000013 /* DiagnosisTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TA0000010000000000000003 /* DiagnosisTests.swift */; };
+		TA0000010000000000000014 /* SubscriptionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TA0000010000000000000004 /* SubscriptionTests.swift */; };
 		TB0000010000000000000011 /* FlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TB0000010000000000000001 /* FlowTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -128,10 +134,12 @@
 		CB0000010000000000000024 /* TripAuto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripAuto.swift; sourceTree = "<group>"; };
 		CB0000010000000000000025 /* TripLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripLink.swift; sourceTree = "<group>"; };
 		BB0000010000000000000F07 /* LegalText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalText.swift; sourceTree = "<group>"; };
+		BB0000010000000000000F0D /* Garage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Garage.swift; sourceTree = "<group>"; };
 		CB0000010000000000000026 /* SyncPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPlan.swift; sourceTree = "<group>"; };
 		CB0000010000000000000027 /* TripSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripSync.swift; sourceTree = "<group>"; };
 		CB0000010000000000000029 /* BeepyServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeepyServer.swift; sourceTree = "<group>"; };
 		BB0000010000000000000F05 /* TripNotice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripNotice.swift; sourceTree = "<group>"; };
+		BB0000010000000000000F10 /* Subscription.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Subscription.swift; sourceTree = "<group>"; };
 		CB0000010000000000000028 /* SyncConsentSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncConsentSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000F02 /* LicensesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicensesSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000F08 /* LegalSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalSheet.swift; sourceTree = "<group>"; };
@@ -143,6 +151,8 @@
 		CB000001000000000000000C /* ServiceReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceReminder.swift; sourceTree = "<group>"; };
 		CB000001000000000000000B /* MorphingNumberField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorphingNumberField.swift; sourceTree = "<group>"; };
 		CB000001000000000000000A /* PlateInputField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateInputField.swift; sourceTree = "<group>"; };
+		BB0000010000000000000F0E /* PlateBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateBadge.swift; sourceTree = "<group>"; };
+		BB0000010000000000000F0F /* GroupedList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupedList.swift; sourceTree = "<group>"; };
 		CB0000010000000000000008 /* CarCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarCatalog.swift; sourceTree = "<group>"; };
 		CB0000010000000000000006 /* MarketPrice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketPrice.swift; sourceTree = "<group>"; };
 		CB0000010000000000000007 /* ServiceDocParse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDocParse.swift; sourceTree = "<group>"; };
@@ -188,6 +198,7 @@
 		CB0000010000000000000010 /* BookingSummarySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingSummarySheet.swift; sourceTree = "<group>"; };
 		9C000001000000000000007C /* PriceInfoSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceInfoSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000023 /* AddCarSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCarSheet.swift; sourceTree = "<group>"; };
+		BB0000010000000000000F11 /* PaywallSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000024 /* LiquidGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlass.swift; sourceTree = "<group>"; };
 		BB0000010000000000000025 /* BottomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomSheet.swift; sourceTree = "<group>"; };
 		BB0000010000000000000026 /* PlateFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateFormat.swift; sourceTree = "<group>"; };
@@ -206,6 +217,7 @@
 		TA0000010000000000000001 /* StoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreTests.swift; sourceTree = "<group>"; };
 		TA0000010000000000000002 /* ReleaseReadinessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseReadinessTests.swift; sourceTree = "<group>"; };
 		TA0000010000000000000003 /* DiagnosisTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosisTests.swift; sourceTree = "<group>"; };
+		TA0000010000000000000004 /* SubscriptionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionTests.swift; sourceTree = "<group>"; };
 		TA0000010000000000000020 /* BeepyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BeepyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		TB0000010000000000000001 /* FlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowTests.swift; sourceTree = "<group>"; };
 		TB0000010000000000000020 /* BeepyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BeepyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -250,6 +262,7 @@
 				CB0000010000000000000024 /* TripAuto.swift */,
 				CB0000010000000000000025 /* TripLink.swift */,
 				BB0000010000000000000F07 /* LegalText.swift */,
+				BB0000010000000000000F0D /* Garage.swift */,
 				CB0000010000000000000026 /* SyncPlan.swift */,
 				CB000001000000000000000F /* ListeningSummary.swift */,
 				CB000001000000000000000E /* BusinessContacts.swift */,
@@ -394,6 +407,8 @@
 				BB0000010000000000000024 /* LiquidGlass.swift */,
 				BB0000010000000000000025 /* BottomSheet.swift */,
 				CB000001000000000000000A /* PlateInputField.swift */,
+				BB0000010000000000000F0E /* PlateBadge.swift */,
+				BB0000010000000000000F0F /* GroupedList.swift */,
 				CB000001000000000000000B /* MorphingNumberField.swift */,
 				BB00000100000000000000B3 /* MotionRim.swift */,
 			);
@@ -427,6 +442,7 @@
 				CB0000010000000000000010 /* BookingSummarySheet.swift */,
 				9C000001000000000000007C /* PriceInfoSheet.swift */,
 				BB0000010000000000000023 /* AddCarSheet.swift */,
+				BB0000010000000000000F11 /* PaywallSheet.swift */,
 			);
 			path = Main;
 			sourceTree = "<group>";
@@ -452,6 +468,7 @@
 				CB0000010000000000000027 /* TripSync.swift */,
 				CB0000010000000000000029 /* BeepyServer.swift */,
 				BB0000010000000000000F05 /* TripNotice.swift */,
+				BB0000010000000000000F10 /* Subscription.swift */,
 				CB0000010000000000000023 /* TripIntents.swift */,
 				9C000001000000000000007D /* ServiceDocScanner.swift */,
 				9C0000010000000000000001 /* MapKitKey.swift */,
@@ -481,6 +498,7 @@
 				TA0000010000000000000001 /* StoreTests.swift */,
 				TA0000010000000000000002 /* ReleaseReadinessTests.swift */,
 				TA0000010000000000000003 /* DiagnosisTests.swift */,
+				TA0000010000000000000004 /* SubscriptionTests.swift */,
 			);
 			path = BeepyTests;
 			sourceTree = "<group>";
@@ -640,10 +658,12 @@
 				CA0000010000000000000024 /* TripAuto.swift in Sources */,
 				CA0000010000000000000025 /* TripLink.swift in Sources */,
 				AA0000010000000000000F07 /* LegalText.swift in Sources */,
+				AA0000010000000000000F0D /* Garage.swift in Sources */,
 				CA0000010000000000000026 /* SyncPlan.swift in Sources */,
 				CA0000010000000000000027 /* TripSync.swift in Sources */,
 				CA0000010000000000000029 /* BeepyServer.swift in Sources */,
 				AA0000010000000000000F05 /* TripNotice.swift in Sources */,
+				AA0000010000000000000F10 /* Subscription.swift in Sources */,
 				CA0000010000000000000028 /* SyncConsentSheet.swift in Sources */,
 				AA0000010000000000000F02 /* LicensesSheet.swift in Sources */,
 				AA0000010000000000000F08 /* LegalSheet.swift in Sources */,
@@ -655,6 +675,8 @@
 				CA0000010000000000000006 /* MarketPrice.swift in Sources */,
 				CA0000010000000000000008 /* CarCatalog.swift in Sources */,
 				CA000001000000000000000A /* PlateInputField.swift in Sources */,
+				AA0000010000000000000F0E /* PlateBadge.swift in Sources */,
+				AA0000010000000000000F0F /* GroupedList.swift in Sources */,
 				CA000001000000000000000B /* MorphingNumberField.swift in Sources */,
 				CA000001000000000000000C /* ServiceReminder.swift in Sources */,
 				CA0000010000000000000007 /* ServiceDocParse.swift in Sources */,
@@ -681,6 +703,7 @@
 				CA0000010000000000000010 /* BookingSummarySheet.swift in Sources */,
 				9B000001000000000000007C /* PriceInfoSheet.swift in Sources */,
 				AA0000010000000000000023 /* AddCarSheet.swift in Sources */,
+				AA0000010000000000000F11 /* PaywallSheet.swift in Sources */,
 				AA0000010000000000000024 /* LiquidGlass.swift in Sources */,
 				AA0000010000000000000025 /* BottomSheet.swift in Sources */,
 				AA0000010000000000000026 /* PlateFormat.swift in Sources */,
@@ -717,6 +740,7 @@
 				TA0000010000000000000011 /* StoreTests.swift in Sources */,
 				TA0000010000000000000012 /* ReleaseReadinessTests.swift in Sources */,
 				TA0000010000000000000013 /* DiagnosisTests.swift in Sources */,
+				TA0000010000000000000014 /* SubscriptionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

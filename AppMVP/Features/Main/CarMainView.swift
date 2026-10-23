@@ -185,7 +185,16 @@ struct CarMainView: View {
     /// Тот же поставщик, что и на первом экране добавления.
     private let lookup: any VehicleLookup = VehicleLookupProvider.make()
 
+    /// Подписка «Beepy Плюс» — снимает лимит машин (`Garage`).
+    @ObservedObject private var subscription = Subscription.shared
+    /// Пейвол закрыт покупкой — после его ухода открыть форму. Флагом, а не
+    /// сразу: две системные шторки подряд в одном слоте — вторая не
+    /// показывается, пока первая уезжает.
+    @State private var addAfterPaywall = false
+
     /// Индекс страницы добавления: она всегда последняя, после всех машин.
+    /// Есть всегда — лимит машин решает, что откроет «Добавить авто»: форму
+    /// или пейвол подписки (`openAddCar`).
     private var addPageIndex: Int { cars.count }
 
     /// Непрерывное положение карусели, 0…addPageIndex. Ширина взята
@@ -550,6 +559,17 @@ struct CarMainView: View {
         ))
         .modifier(CarMainChrome(
             showAddCar: presenting(.addCar),
+            showPaywall: presenting(.paywall),
+            subscription: subscription,
+            onUnlocked: {
+                addAfterPaywall = true
+                sheet = .closed
+            },
+            onPaywallDismissed: {
+                guard addAfterPaywall else { return }
+                addAfterPaywall = false
+                sheet = .addCar
+            },
             showPhotoPicker: presenting(.photoPicker),
             photoItems: $photoItems,
             carTab: $carTab,
@@ -974,7 +994,7 @@ struct CarMainView: View {
                 // На второй странице карточка превращается в кнопку
                 // добавления авто; на машине это сводка или «Добавить ТО».
                 Button {
-                    if p > 0.5 { sheet = .addCar } else if services.isEmpty { sheet = .serviceChoice }
+                    if p > 0.5 { openAddCar() } else if services.isEmpty { sheet = .serviceChoice }
                 } label: {
                     darkCard(height: m.cardHeight)
                 }
@@ -1160,7 +1180,7 @@ struct CarMainView: View {
 
                 ZStack {
                     ForEach(cars) { car in
-                        plate(car.plate).opacity(weight(of: index(of: car)))
+                        PlateBadge(plate: car.plate).opacity(weight(of: index(of: car)))
                     }
                 }
                 .frame(height: 28)
@@ -1350,38 +1370,6 @@ struct CarMainView: View {
     private var marketPriceKey: String {
         cars.map { "\($0.persistentModelID.hashValue)-\($0.vin ?? "")" }
             .joined(separator: "|")
-    }
-
-    /// Номер разбирается на группы «В 777 ОР | 777». У машины, добавленной
-    /// по названию, номера нет вовсе — тогда плашки просто не будет.
-    @ViewBuilder
-    private func plate(_ raw: String) -> some View {
-        let parts = raw.split(separator: " ").map(String.init)
-        if parts.count == 4 {
-            HStack(spacing: 3.5) {
-                HStack(spacing: 3.5) {
-                    Text(parts[0])
-                    Text(parts[1])
-                    Text(parts[2])
-                }
-
-                Rectangle()
-                    .fill(Figma.separatorsVibrant)
-                    .frame(width: 0.875, height: 17.603)
-                    .blendMode(.softLight)
-
-                Text(parts[3])
-            }
-            // Узкое начертание из макета: номер набран SF Pro сжатым, поэтому
-            // плашка и держится в 98pt.
-            .font(Self.condensedFont(size: 14))
-            .tracking(-0.4)
-            .foregroundStyle(Figma.graysGray2)
-            .padding(.horizontal, 10.5)
-            .padding(.vertical, 3.5)
-            .frame(height: 28)
-            .background(Figma.fillsPrimary, in: RoundedRectangle(cornerRadius: 10.5))
-        }
     }
 
     private var pageControl: some View {
@@ -2440,6 +2428,16 @@ struct CarMainView: View {
         }
     }
 
+    /// «Добавить авто»: бесплатно — до двух машин, дальше — пейвол подписки
+    /// «Beepy Плюс» (`Garage`, решение пользователя 23.10.2026). Купили —
+    /// пейвол закрывается и открывается форма (`addAfterPaywall`).
+    private func openAddCar() {
+        switch Garage.decide(carCount: cars.count, isPremium: subscription.isPremium) {
+        case .add: sheet = .addCar
+        case .paywall: sheet = .paywall
+        }
+    }
+
     /// Создаёт машину из формы «Добавить авто». Раньше onSubmit только
     /// закрывал шторку, и всё введённое выбрасывалось.
     ///
@@ -2447,6 +2445,13 @@ struct CarMainView: View {
     /// экране оно уточняет найденное по номеру, а тут человек уже нажал
     /// «Добавить» осознанно, из своей же карусели.
     private func addCar() {
+        // Форма открывается только через `openAddCar`, но если машин стало
+        // больше бесплатного предела, а подписки нет, — пейвол, и платный
+        // поиск по номеру ради отказа не запускается.
+        guard Garage.decide(carCount: cars.count, isPremium: subscription.isPremium) == .add else {
+            sheet = .paywall
+            return
+        }
         let tab = carTab
         let plate = carPlate
         let name = carName.trimmingCharacters(in: .whitespaces)
@@ -2510,6 +2515,12 @@ struct CarMainView: View {
     }
 
     private func insert(_ car: Car) {
+        // Последний рубеж правила `Garage`: сюда ведут и форма, и «Это ваш
+        // автомобиль?» после поиска по номеру.
+        guard Garage.decide(carCount: cars.count, isPremium: subscription.isPremium) == .add else {
+            sheet = .paywall
+            return
+        }
         // Индекс берём до вставки: это и есть номер страницы новой машины
         let newPage = cars.count
         modelContext.insert(car)
@@ -2858,6 +2869,10 @@ private struct PlusGlyph: Shape {
 /// компилятор не вытягивал вывод типов.
 private struct CarMainChrome: ViewModifier {
     @Binding var showAddCar: Bool
+    @Binding var showPaywall: Bool
+    let subscription: Subscription
+    let onUnlocked: () -> Void
+    let onPaywallDismissed: () -> Void
     @Binding var showPhotoPicker: Bool
     @Binding var photoItems: [PhotosPickerItem]
     @Binding var carTab: Int
@@ -2893,6 +2908,14 @@ private struct CarMainChrome: ViewModifier {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(.clear)
+            }
+            // Пейвол подписки — по «Добавить авто» сверх двух машин.
+            .sheet(isPresented: $showPaywall, onDismiss: onPaywallDismissed) {
+                PaywallSheet(subscription: subscription,
+                             onUnlocked: onUnlocked,
+                             onClose: { showPaywall = false })
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             // Свой обработчик у формы авто: общий с потоком ТО открывал
             // модалку «Добавление ТО» вместо показа фото в форме машины.

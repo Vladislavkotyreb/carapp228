@@ -152,7 +152,7 @@ struct AutoMileagePage: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: MoreLayout.radius))
+        .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: GroupedLayout.radius))
         .animation(Motion.sheet, value: autoOn)
     }
 
@@ -168,7 +168,7 @@ struct AutoMileagePage: View {
 
     private var setup: some View {
         VStack(alignment: .leading, spacing: 12) {
-            MoreCard {
+            GroupedCard {
                 // Выключатель самого приложения: выключен — Beepy геопозицию
                 // не трогает, ни для поездок, ни для карты.
                 Toggle(isOn: $locationOn) {
@@ -178,13 +178,13 @@ struct AutoMileagePage: View {
                 }
                 .tint(Figma.accentsGreen)
                 .padding(.horizontal, 16)
-                .frame(height: MoreLayout.row)
+                .frame(height: GroupedLayout.row)
 
                 if locationOn {
-                    MoreSeparator()
+                    GroupedSeparator()
                     // Системное разрешение: приложение его только просит,
                     // отзывают в «Настройках» — строка туда и ведёт.
-                    MoreLinkRow(title: "Доступ", value: tracker.access.status,
+                    GroupedLinkRow(title: "Доступ", value: tracker.access.status,
                                 highlighted: tracker.access.worksFromCommand) {
                         if tracker.access == .notAsked {
                             tracker.requestAccess()
@@ -195,8 +195,8 @@ struct AutoMileagePage: View {
                     .accessibilityHint("Откроет настройки")
 
                     if autoOn, tracker.motionDenied {
-                        MoreSeparator()
-                        MoreLinkRow(title: "Движение", value: "Запрещено") {
+                        GroupedSeparator()
+                        GroupedLinkRow(title: "Движение", value: "Запрещено") {
                             if let url = URL(string: UIApplication.openSettingsURLString) {
                                 openURL(url)
                             }
@@ -205,18 +205,18 @@ struct AutoMileagePage: View {
                     }
 
                     if fleet.count > 1 {
-                        MoreSeparator()
+                        GroupedSeparator()
                         carRow
                     }
 
                     if autoOn {
-                        MoreSeparator()
+                        GroupedSeparator()
                         bluetoothRow
                     }
 
                     if !autoOn {
-                        MoreSeparator()
-                        MoreLinkRow(title: "Автоматизация", value: "Команды") {
+                        GroupedSeparator()
+                        GroupedLinkRow(title: "Автоматизация", value: "Команды") {
                             if let url = URL(string: "shortcuts://") { openURL(url) }
                         }
                     }
@@ -228,7 +228,7 @@ struct AutoMileagePage: View {
             // зачем Bluetooth.
             // Выключатель общий для всего приложения — без геопозиции и
             // карта не покажет «я здесь», это стоит сказать здесь же.
-            MoreFootnote(locationOn
+            GroupFootnote(locationOn
                          ? (autoOn ? bluetoothHint : automationHint)
                          : "Выключена\u{00A0}— Beepy не\u{00A0}берёт геопозицию ни для поездок, ни для карты.")
         }
@@ -267,7 +267,7 @@ struct AutoMileagePage: View {
                 }
             }
         } label: {
-            MoreRowLabel(title: "Машина", value: chosen?.name ?? "", icon: "chevron.up.chevron.down")
+            GroupedRowLabel(title: "Машина", value: chosen?.name ?? "", icon: "chevron.up.chevron.down")
         }
         .accessibilityElement(children: .combine)
     }
@@ -289,7 +289,7 @@ struct AutoMileagePage: View {
             Menu {
                 Button("Отвязать", role: .destructive) { unbind(car) }
             } label: {
-                MoreRowLabel(title: "Bluetooth", value: bond.name.isEmpty ? "Привязан" : bond.name,
+                GroupedRowLabel(title: "Bluetooth", value: bond.name.isEmpty ? "Привязан" : bond.name,
                              highlighted: live, icon: "chevron.up.chevron.down")
             }
             .accessibilityElement(children: .combine)
@@ -299,7 +299,7 @@ struct AutoMileagePage: View {
                 outputs = CarAudio.outputs
                 if let port = TripLink.bindable(outputs) { binding = port } else { noBluetooth = true }
             } label: {
-                MoreRowLabel(title: "Bluetooth", value: "Привязать", highlighted: port != nil)
+                GroupedRowLabel(title: "Bluetooth", value: "Привязать", highlighted: port != nil)
             }
             .buttonStyle(CardPressStyle())
             .accessibilityElement(children: .combine)
@@ -337,9 +337,9 @@ struct AutoMileagePage: View {
     /// до него ничего не уходит.
     private var syncSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            MoreSectionTitle("Синхронизация")
+            SectionTitle("Синхронизация")
 
-            MoreCard {
+            GroupedCard {
                 Toggle(isOn: Binding(get: { sync.isOn }, set: { on in
                     if on {
                         consentError = nil
@@ -354,30 +354,30 @@ struct AutoMileagePage: View {
                 }
                 .tint(Figma.accentsGreen)
                 .padding(.horizontal, 16)
-                .frame(height: MoreLayout.row)
+                .frame(height: GroupedLayout.row)
 
                 if sync.isOn {
-                    MoreSeparator()
-                    MoreLinkRow(title: "Последняя", value: syncStatus) {
+                    GroupedSeparator()
+                    GroupedLinkRow(title: "Последняя", value: syncStatus) {
                         Task { await sync.syncNow() }
                     }
                     .accessibilityHint("Синхронизировать сейчас")
                 }
                 if sync.isOn || sync.hasAccount {
-                    MoreSeparator()
+                    GroupedSeparator()
                     Button { confirmWipe = true } label: {
                         Text("Удалить с\u{00A0}сервера")
                             .font(.system(size: 17))
                             .foregroundStyle(Figma.accentsRed)
                             .padding(.horizontal, 16)
-                            .frame(maxWidth: .infinity, minHeight: MoreLayout.row, alignment: .leading)
+                            .frame(maxWidth: .infinity, minHeight: GroupedLayout.row, alignment: .leading)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(CardPressStyle())
                 }
             }
 
-            MoreFootnote(sync.isOn
+            GroupFootnote(sync.isOn
                          ? "Маршруты, госномер и\u{00A0}VIN остаются на\u{00A0}телефоне."
                          : "Поездки и\u{00A0}пробег\u{00A0}— на\u{00A0}сервер в\u{00A0}России, чтобы не\u{00A0}потерять их со\u{00A0}сменой телефона.")
         }
