@@ -55,8 +55,10 @@ enum VehicleLookupProvider {
     /// Показывать ли вкладку «По номеру». В выпуске — только с сервером.
     static var isAvailable: Bool {
         if BeepyServer.url != nil { return true }
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         return true
+        #elseif DEBUG
+        return VehicleLookupKey.hasAvtoVinCod || VehicleLookupKey.hasAPICloud
         #else
         return false
         #endif
@@ -67,7 +69,11 @@ enum VehicleLookupProvider {
         #if DEBUG
         if VehicleLookupKey.hasAvtoVinCod { return AvtoVinCodLookup() }
         if VehicleLookupKey.hasAPICloud { return RSAVehicleLookup() }
+        #if targetEnvironment(simulator)
         return StubVehicleLookup()
+        #else
+        return UnavailableVehicleLookup()
+        #endif
         #else
         return UnavailableVehicleLookup()
         #endif
