@@ -49,7 +49,10 @@
   Полный xcodebuild test AppMVP на iPhone 17 Pro — 14 unit + 6 UI, 0 failures;
   затем отдельный testSignOutReturnsToAppleSignIn — passed. UI сохранил прежние
   предупреждения Invalid frame dimension, поэтому не заявляем прогон без warning.
-  Release archive — ARCHIVE SUCCEEDED. Итог загрузки фиксируется отдельно.
+  Release archive — ARCHIVE SUCCEEDED. Загрузка 1.0.0 (2) через Xcode —
+  Upload succeeded / EXPORT SUCCEEDED; Apple начал обработку. Предупреждение:
+  отсутствует dSYM YandexMapsMobile, загрузке не помешало. Подпись архива
+  проверена codesign --verify --deep --strict, entitlement applesignin=Default.
 - До App Review: опубликованная политика с реквизитами, скриншоты и анкеты ASC.
   Управление браузером остановлено инструментом: текущий URL запрещён.
 
