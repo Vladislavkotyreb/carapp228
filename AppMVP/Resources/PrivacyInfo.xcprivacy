@@ -14,7 +14,8 @@
   - точная геопозиция: Яндексу — адреса начала и конца поездки и сама карта;
   - IP-адрес (прочие данные) и идентификатор устройства: SDK Яндекс Карт.
   Поиск по номеру и синхронизация отключены в текущем Release.
-  Ничего не связано с личностью и не используется для слежки. Звук мотора
+  Связь через идентификатор устройства раскрывается по определению Apple;
+  рекламного отслеживания нет. Звук мотора
   разбирается на устройстве и не уходит никуда.
 -->
 <dict>
@@ -67,7 +68,7 @@
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypePreciseLocation</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<false/>
+			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>
@@ -79,7 +80,7 @@
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeOtherDataTypes</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<false/>
+			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>
@@ -91,7 +92,7 @@
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeDeviceID</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<false/>
+			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>
