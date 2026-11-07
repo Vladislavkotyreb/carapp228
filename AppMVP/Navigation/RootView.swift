@@ -1,8 +1,11 @@
+import AuthenticationServices
 import SwiftData
 import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
 
     /// Маршрут зависит от того, есть ли машина в базе, а не от флага
     /// в UserDefaults — так состояние не может разъехаться с данными.
@@ -10,13 +13,30 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if !appState.hasCompletedOnboarding {
+            if appState.isCheckingAccount {
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if !appState.isSignedIn || !appState.hasCompletedOnboarding {
                 OnboardingView()
             } else if cars.isEmpty {
                 AddCarView()
             } else {
                 CarMainView()
             }
+        }
+        .task { await appState.checkAppleAccount() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await appState.checkAppleAccount() } }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: ASAuthorizationAppleIDProvider.credentialRevokedNotification)) { _ in
+            Task { await appState.checkAppleAccount() }
+        }
+        .alert("Данные удалены", isPresented: $appState.accountDeleted) {
+            Button("Как отключить вход через Apple") {
+                if let url = URL(string: "https://support.apple.com/102571") { openURL(url) }
+            }
+            Button("Готово", role: .cancel) { }
+        } message: {
+            Text("Машины, поездки и локальный аккаунт удалены. Доступ Beepy к Apple ID можно отозвать в настройках Apple ID.")
         }
         .animation(.easeInOut, value: appState.hasCompletedOnboarding)
         .animation(.easeInOut, value: cars.isEmpty)

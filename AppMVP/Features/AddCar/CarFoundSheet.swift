@@ -181,6 +181,7 @@ struct FoundCar {
 
 extension FoundCar {
     var name: String { vehicle.name }
+    var plate: String { plateLetter + plateDigits + plateLetters + plateRegion }
 
     /// Собирает карточку из введённого номера и ответа поставщика.
     init(plate: String, vehicle: FoundVehicle) {

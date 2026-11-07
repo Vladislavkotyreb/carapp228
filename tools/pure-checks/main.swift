@@ -661,21 +661,12 @@ group("MapGeo") {
 // -------------------------------------------------------------------- Garage
 
 group("Garage") {
-    check("бесплатно — две машины", Garage.freeCars, 2)
-    check("без машин — форма", Garage.decide(carCount: 0, isPremium: false), .add)
-    check("одна машина — вторая бесплатно", Garage.decide(carCount: 1, isPremium: false), .add)
-    check("две машины без подписки — пейвол", Garage.decide(carCount: 2, isPremium: false), .paywall)
-    check("две машины с подпиской — форма", Garage.decide(carCount: 2, isPremium: true), .add)
-    check("много машин с подпиской — форма", Garage.decide(carCount: 7, isPremium: true), .add)
-    // Машины сверх предела остались со времён без него: удалять их правило
-    // не требует, но новую без подписки не добавить.
-    check("больше предела без подписки — пейвол", Garage.decide(carCount: 5, isPremium: false), .paywall)
-
-    check("срок месяц", PlanPeriod.month.title, "Месяц")
-    check("срок год", PlanPeriod.year.title, "Год")
-    check("кнопка — цена и срок неразрывно",
-          PlanPeriod.cta(price: "199\u{00A0}₽", period: .month), "Оформить за\u{00A0}199\u{00A0}₽ в\u{00A0}месяц")
-    check("кнопка года", PlanPeriod.cta(price: "1490\u{00A0}₽", period: .year).hasSuffix("в\u{00A0}год"), true)
+    check("лимит поиска — две машины", Garage.plateCarLimit, 2)
+    check("первый поиск доступен", Garage.canAddByPlate(plateCarCount: 0), true)
+    check("вторая машина по номеру", Garage.canAddByPlate(plateCarCount: 1), true)
+    check("третья по номеру недоступна", Garage.canAddByPlate(plateCarCount: 2), false)
+    check("старые машины сверх лимита", Garage.canAddByPlate(plateCarCount: 5), false)
+    check("владелец без лимита", Garage.canAddByPlate(plateCarCount: 5, isOwnerBuild: true), true)
 }
 
 // ------------------------------------------------------------- LegalDocument

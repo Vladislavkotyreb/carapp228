@@ -15,6 +15,10 @@ import SwiftUI
 /// текста, выглядит нейронно»): подпись там, где без неё непонятно, что
 /// делать, и нигде больше.
 struct MoreScreen: View {
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.modelContext) private var modelContext
+    @State private var showSignOutConfirmation = false
+    @State private var showDeleteConfirmation = false
     @ObservedObject private var tracker = TripTracker.shared
     @Query private var trips: [Trip]
     @Environment(\.openURL) private var openURL
@@ -53,6 +57,13 @@ struct MoreScreen: View {
                     GroupedCard {
                         link("О\u{00A0}приложении", value: AboutPage.version, to: .about)
                     }
+
+                    GroupedCard {
+                        GroupedLinkRow(title: "Выйти из аккаунта") { showSignOutConfirmation = true }
+                        GroupedSeparator()
+                        GroupedLinkRow(title: "Удалить аккаунт и данные") { showDeleteConfirmation = true }
+                    }
+                    .disabled(appState.isDeletingAccount)
                 }
                 .padding(.horizontal, MoreLayout.margin)
                 .padding(.top, 8)
@@ -71,6 +82,20 @@ struct MoreScreen: View {
         }
         // На корне, а не на экране автопробега: выключатель живёт там, а
         // трекер должен узнать о нём, даже когда экран уже закрыт.
+        .confirmationDialog("Выйти из Beepy?", isPresented: $showSignOutConfirmation, titleVisibility: .visible) {
+            Button("Выйти", role: .destructive) { appState.signOut() }
+        } message: { Text("Автопробег остановится. Для доступа к сохранённым данным потребуется тот же Apple ID.") }
+        .confirmationDialog("Удалить аккаунт и все данные Beepy на этом устройстве?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button("Удалить аккаунт и данные", role: .destructive) {
+                Task { await appState.deleteLocalAccount(in: modelContext) }
+            }
+        } message: { Text("Будут удалены машины, поездки, история ТО и избранные места.") }
+        .alert("Аккаунт", isPresented: Binding(
+            get: { appState.accountError != nil },
+            set: { if !$0 { appState.accountError = nil } }
+        )) {
+            Button("Понятно", role: .cancel) { appState.accountError = nil }
+        } message: { Text(appState.accountError ?? "") }
         .onChange(of: locationOn) { _, _ in tracker.locationSwitched() }
     }
 

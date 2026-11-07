@@ -75,6 +75,25 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(cars.map(\.name), ["Сохранится"])
     }
 
+    func testPlateLimitCountsOnlyPlateCarsIncludingPendingInserts() throws {
+        let container = AppStore.inMemory()
+        let context = container.mainContext
+        for index in 0..<4 {
+            context.insert(Car(plate: "", name: "Manual \(index)", odometer: 0))
+        }
+        XCTAssertTrue(Car.canAddByPlate(in: context))
+        context.insert(Car(plate: "А111АА77", name: "First", odometer: 0))
+        XCTAssertTrue(Car.canAddByPlate(in: context))
+        let second = Car(plate: "А222АА77", name: "Second", odometer: 0)
+        context.insert(second)
+        XCTAssertFalse(Car.canAddByPlate(in: context))
+        try context.save()
+        XCTAssertFalse(Car.canAddByPlate(in: context))
+        context.delete(second)
+        try context.save()
+        XCTAssertTrue(Car.canAddByPlate(in: context))
+    }
+
     private func temporaryDirectory() throws -> URL {
         let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

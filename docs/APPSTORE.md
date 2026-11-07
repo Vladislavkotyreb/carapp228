@@ -1,118 +1,54 @@
-# App Store: что готово, что нужно от владельца
+# Выпуск Beepy — 08.11.2026
 
-Чек-лист выкладки Beepy. Порядок загрузки (Archive → Upload → TestFlight) —
-[TESTFLIGHT.md](TESTFLIGHT.md); здесь — то, без чего App Store сборку не
-примет или ревью её отклонит, и как это проверяется. Аудит — 14–15.10.2026.
+Версия 1.0.0, новая сборка 2. Бесплатно, все доступные страны по решению
+владельца. Подписок, покупок и платных экранов нет.
 
-## Сделано и проверяется тестами
+## Готово
 
-| Что | Зачем | Где держится |
-|---|---|---|
-| Манифест приватности `PrivacyInfo.xcprivacy` | с мая 2024 без него — ITMS-91053 | `ReleaseReadinessTests.testPrivacyManifestDeclaresRequiredReasonAPIs` |
-| `ITSAppUsesNonExemptEncryption = NO` | не спрашивать экспорт при каждой сборке | `testExportComplianceIsDeclared` |
-| Только iPhone (`TARGETED_DEVICE_FAMILY = 1`) | с iPad нужны его скриншоты и все ориентации; ушло предупреждение сборки | `testIPhoneOnly` |
-| Строки разрешений: микрофон, геопозиция, движение | запрос без строки роняет приложение | `testEveryPermissionHasAUsageDescription` |
-| «Войти с Apple» снят до сервера | кнопка входа без аккаунтов — отказ по 4.0 / 5.1.1 | `FlowTests.testFirstLaunchToFirstCar` |
-| Лицензии MIT / Apache 2.0 внутри приложения | условие лицензий ShaderKit, car-diagnosis, CLAP | `testLicensesAreBundled`, `FlowTests.testLicensesAreReachable` |
-| Модели разбора звука в бандле | без них выпуск честно отказывает, а главная функция мертва | `testDiagnosisModelsAreBundled` |
-| Без сервера поиск по номеру не выдумывает машину | раньше выпуск отдавал заглушку из макета | `testUnavailableLookupNeverInventsACar` |
-| Сломанная база не роняет запуск | был `fatalError` на каждом запуске | `StoreTests.testCorruptStoreIsMovedAsideAndAFreshOneOpens` |
-| Адрес домашней сети разработчика — только в отладке | в выпуске разбор не ходил бы в `192.168.1.141` | `strings` выпускной сборки — 0 вхождений |
-| Поля ввода с подписями для VoiceOver | были безымянные «текстовое поле» | UI-тесты находят поля по подписи |
+- Новая карта и раздел «Ещё» в main (PR #10).
+- Оригинальная иконка с жирафом 1024×1024 в main (PR #11).
+- Платная команда Apple Developer 5BK4R35RB8; build 1 загружен в ASC.
+- Sign in with Apple в новой сборке: системный вход, локальный Keychain,
+  выход, удаление данных и инструкция ручного отзыва доступа Apple.
+- Данные автомобилей хранятся на устройстве, сервера аккаунтов нет.
+- Поиск по номеру без сервера скрыт. Ручное добавление без ограничений.
+  При подключении API действует лимит на две машины с номером;
+  прямая Debug-сборка владельца на iPhone без лимита.
 
-## Подписка «Beepy Плюс» — что завести в App Store Connect
+## До отправки на ревью
 
-Две машины бесплатно, третья — по подписке (пейвол `PaywallSheet`). Код
-готов; без этих шагов пейвол пишет «Подписка пока недоступна».
+- Apple-вход на iPhone подтверждён владельцем; build 2 успешно загружен.
+  Дождаться обработки Apple и выбрать его вместо build 1 с подпиской.
+- Опубликовать политику конфиденциальности с заполненными реквизитами
+  оператора. Черновики: `Core/Pure/LegalText.swift`, `server/src/privacy.ts`.
+- Скриншоты, возрастной рейтинг, App Privacy, бесплатная цена и доступность
+  всех стран в App Store Connect должны соответствовать новой сборке.
+- Сервер поиска и баланс поставщика отложены владельцем. Они не нужны для
+  локального Apple-входа и ручного добавления; перед включением API
+  обновить политику и анкету данных.
 
-1. **Договор Paid Applications** (Business → Agreements): банк и налоги.
-   Без него покупки не работают даже в TestFlight.
-2. **Группа подписок** «Beepy Плюс» и два товара с идентификаторами из
-   `Subscription.swift`: `com.vladislavkotyrev.appmvp.plus.month` (1 месяц) и
-   `com.vladislavkotyrev.appmvp.plus.year` (1 год), один уровень. Цены — на
-   твоё усмотрение (в `Beepy.storekit` для теста 199 и 1 490 ₽).
-3. **Локализация** групп и товаров на русском, **скриншот пейвола** для
-   ревью (Review Information у каждого товара).
-4. **Ссылки** в описании приложения: политика и условия использования
-   (EULA) — App Review требует их для подписок (3.1.2).
-5. **Проверка:** в Xcode — Edit Scheme → Run → Options → StoreKit
-   Configuration → `Beepy.storekit`; в TestFlight — песочница Apple.
+## Контакты для Apple
 
-**Важно для России.** С 1 апреля 2026 Apple не принимает в России новые
-покупки и продления, кроме оплаты с баланса Apple ID (новость MacDailyNews,
-02.04.2026; подтвердить в справке Apple). Внешнюю оплату правило 3.1.1
-запрещает. Значит, у части пользователей в России подписку оформить не
-получится — пейвол покажет тарифы, но покупка не пройдёт.
+Владелец разрешил указать Vladislav Kotyrev, kotvlad2016@gmail.com,
++995597125736. Вход через Apple обязателен; собственных логина и пароля
+Beepy нет. В заметках ревью объяснить системный Sign in with Apple.
 
-## Нужно от владельца — блокирует выкладку
+## Заметки для ревью
 
-1. **Apple Developer Program** ($99/год). Сейчас подпись — бесплатный профиль
-   на 7 дней. После оплаты: команду в Release (`DEVELOPMENT_TEAM` в конфигурации
-   Release таргета Beepy пуст), Archive.
-2. **Иконка 1024×1024.** `AppIcon.appiconset` пустой — без иконки загрузка
-   не пройдёт. Нужен рисунок от дизайнера или решение владельца.
-3. **Политика конфиденциальности — реквизиты.** Текст —
-   `server/src/privacy.ts`, отдаётся сервером на `/privacy`; в квадратных
-   скобках оператор, ИНН/ОГРНИП и адрес для обращений.
-4. **Сервер в РФ с HTTPS и доменом** — поиск по номеру, рыночная цена и
-   страница политики. После развёртывания — `BeepyServerURL` в Info.plist
-   выпуска (без него вкладки «По номеру» и строки «Политика» в выпуске нет).
-   Варианты — раздел «Сервер» ниже.
-5. **Баланс AvtoVinCod** — 0,00 ₽ (проверено 23.10.2026: ответ 402, цена
-   запроса 8 ₽), поиск по номеру отвечает «недоступно». При серверных лимитах
-   по умолчанию (100 найденных в сутки на всех) расход — до 800 ₽ в сутки;
-   лимит задаёт `LOOKUP_DAILY_FOUND`.
+Beepy is a free local car journal. Sign in with Apple is required; use
+Sign in with Apple with your Apple Account. No separate Beepy password is
+needed. We do not request the user's name or email. Car records stay on
+the device. The More screen offers sign out and account/data deletion.
+After deletion the app explains how to revoke Sign in with Apple access
+in Apple Account settings. License-plate lookup is unavailable in this
+release. Cars can be added manually without a subscription or purchase.
+Background location supports optional automatic mileage tracking. Engine
+sound is analyzed on device. Yandex Maps provides maps and geocoding.
 
-## Анкета App Privacy в App Store Connect
+## Проверки
 
-Совпадает с манифестом и политикой; поменялся поток данных — править все три.
-
-- **Precise Location** — App Functionality; не связано с личностью; не для
-  слежки. (Геокодер Яндекса — адреса поездок; SDK карт.)
-- **Other Data** (госномер, VIN) — App Functionality; не связано; не для
-  слежки. Сервер не хранит.
-- **Device ID** (случайный токен установки) — App Functionality; не связано;
-  не для слежки.
-- Звук, фото, маршруты поездок, история ТО — **не собираются**: остаются на
-  телефоне.
-
-## Заметки для ревью (App Review Information → Notes)
-
-> Beepy — дневник машины. Аккаунтов нет, все данные хранятся на устройстве.
-> Геопозиция «Всегда» нужна автопробегу: приложение замечает поездку на
-> машине и прибавляет километры к пробегу, когда оно закрыто. Включается
-> переключателем «Автопробег» в разделе «Ещё»; без него фоновой геопозиции
-> нет. Микрофон — запись звука двигателя для разбора на устройстве (Core ML).
-> Поиск по госномеру — через наш сервер в России.
-
-## Тесты
-
-Одной командой — `tools/test-all.sh` (без Xcode — `SKIP_XCODE=1`):
-
-- `tools/run-pure-checks.sh` — 560+ проверок чистого слоя, `swiftc` без Xcode;
-- `tools/check-typography.py`, `tools/check-project.py`,
-  `tools/build-licenses.py --check`;
-- `npm --prefix server test` — сервер на PGlite;
-- XCTest на симуляторе: `BeepyTests` (база, восстановление, бандл) и
-  `BeepyUITests` (первый запуск → машина, пробег ниже ТО, карточка ТО,
-  лицензии). UI-тесты стартуют с `-beepy-ui-test` — база в памяти, данные
-  симулятора не трогаются; `-beepy-seed` — машина с ТО (только отладка).
-
-Манифест сверять с бинарником после смены зависимостей:
-
-```bash
-nm -u Beepy.app/Beepy.debug.dylib | grep -E "_(stat|fstat|lstat|statfs|mach_absolute_time)$|NSFileSystemFreeSize|NSUserDefaults"
-```
-
-## Сервер
-
-Нагрузка маленькая (Node + Postgres): на старте хватит 1 vCPU и 1–2 ГБ.
-
-- **Домашний компьютер** годится для TestFlight: Docker, `docker compose up`
-  (server/README.md), домен и сертификат. Минусы для выпуска: белый IP или
-  туннель, компьютер включён круглые сутки, отключение света — поиск по номеру
-  лежит. Туннель через иностранный сервис (Cloudflare) выводит госномера за
-  границу — для 152-ФЗ так нельзя.
-- **VPS в РФ** (Timeweb Cloud, Selectel, Яндекс Облако) — 300–600 ₽/мес,
-  дешевле электричества домашнего ПК в режиме 24/7 и без простоев. К выпуску —
-  этот вариант.
+`tools/run-pure-checks.sh`, `tools/check-project.py`,
+`tools/check-typography.py`, `tools/build-licenses.py --check`, серверные
+тесты и XCTest схемы AppMVP. UI-тесты используют in-memory базу;
+флаг `-beepy-test-authenticated` действует только в DEBUG.
+Фактические команды и результаты записываются в JOURNAL.md.
