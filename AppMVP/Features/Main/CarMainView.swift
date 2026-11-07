@@ -184,17 +184,9 @@ struct CarMainView: View {
 
     /// Тот же поставщик, что и на первом экране добавления.
     private let lookup: any VehicleLookup = VehicleLookupProvider.make()
+    @State private var isLookingUpCar = false
 
-    /// Подписка «Beepy Плюс» — снимает лимит машин (`Garage`).
-    @ObservedObject private var subscription = Subscription.shared
-    /// Пейвол закрыт покупкой — после его ухода открыть форму. Флагом, а не
-    /// сразу: две системные шторки подряд в одном слоте — вторая не
-    /// показывается, пока первая уезжает.
-    @State private var addAfterPaywall = false
-
-    /// Индекс страницы добавления: она всегда последняя, после всех машин.
-    /// Есть всегда — лимит машин решает, что откроет «Добавить авто»: форму
-    /// или пейвол подписки (`openAddCar`).
+    /// Страница добавления всегда доступна, в том числе для ручного ввода.
     private var addPageIndex: Int { cars.count }
 
     /// Непрерывное положение карусели, 0…addPageIndex. Ширина взята
@@ -559,17 +551,6 @@ struct CarMainView: View {
         ))
         .modifier(CarMainChrome(
             showAddCar: presenting(.addCar),
-            showPaywall: presenting(.paywall),
-            subscription: subscription,
-            onUnlocked: {
-                addAfterPaywall = true
-                sheet = .closed
-            },
-            onPaywallDismissed: {
-                guard addAfterPaywall else { return }
-                addAfterPaywall = false
-                sheet = .addCar
-            },
             showPhotoPicker: presenting(.photoPicker),
             photoItems: $photoItems,
             carTab: $carTab,
@@ -2428,14 +2409,8 @@ struct CarMainView: View {
         }
     }
 
-    /// «Добавить авто»: бесплатно — до двух машин, дальше — пейвол подписки
-    /// «Beepy Плюс» (`Garage`, решение пользователя 23.10.2026). Купили —
-    /// пейвол закрывается и открывается форма (`addAfterPaywall`).
     private func openAddCar() {
-        switch Garage.decide(carCount: cars.count, isPremium: subscription.isPremium) {
-        case .add: sheet = .addCar
-        case .paywall: sheet = .paywall
-        }
+        sheet = .addCar
     }
 
     /// Создаёт машину из формы «Добавить авто». Раньше onSubmit только
@@ -2445,13 +2420,7 @@ struct CarMainView: View {
     /// экране оно уточняет найденное по номеру, а тут человек уже нажал
     /// «Добавить» осознанно, из своей же карусели.
     private func addCar() {
-        // Форма открывается только через `openAddCar`, но если машин стало
-        // больше бесплатного предела, а подписки нет, — пейвол, и платный
-        // поиск по номеру ради отказа не запускается.
-        guard Garage.decide(carCount: cars.count, isPremium: subscription.isPremium) == .add else {
-            sheet = .paywall
-            return
-        }
+        guard !isLookingUpCar else { return }
         let tab = carTab
         let plate = carPlate
         let name = carName.trimmingCharacters(in: .whitespaces)
@@ -2463,12 +2432,18 @@ struct CarMainView: View {
         // не происходило. Теперь процесс виден тостом, находка проходит через
         // «Это ваш автомобиль?» (как на первом входе), ошибки называются.
         if tab == 0 {
+            guard Car.canAddByPlate(in: modelContext) else {
+                presentToast(Garage.limitMessage, kind: .error)
+                return
+            }
             guard PlateFormat.isValid(plate) else {
                 presentToast("Проверьте номер", kind: .error)
                 return
             }
             presentToast("Ищем машину по номеру…", kind: .progress)
+            isLookingUpCar = true
             Task {
+                defer { isLookingUpCar = false }
                 do {
                     let vehicle = try await lookup.lookup(plate: plate)
                     hideToast()
@@ -2502,8 +2477,14 @@ struct CarMainView: View {
     /// Поэтому ветка закрыта здесь, а не только отсутствием кнопки.
     private func confirmFoundCar() {
         guard let found = foundCar else { return }
+        guard Car.canAddByPlate(in: modelContext) else {
+            foundCar = nil
+            sheet = .closed
+            presentToast(Garage.limitMessage, kind: .error)
+            return
+        }
         let price = NumberFormat.digits(carPrice)
-        insert(Car(plate: PlateFormat.format(carPlate), name: found.name,
+        insert(Car(plate: PlateFormat.format(found.plate), name: found.name,
                    vin: found.vehicle.displayVIN,
                    generation: found.vehicle.generation,
                    odometer: found.vehicle.odometer ?? 0,
@@ -2515,12 +2496,6 @@ struct CarMainView: View {
     }
 
     private func insert(_ car: Car) {
-        // Последний рубеж правила `Garage`: сюда ведут и форма, и «Это ваш
-        // автомобиль?» после поиска по номеру.
-        guard Garage.decide(carCount: cars.count, isPremium: subscription.isPremium) == .add else {
-            sheet = .paywall
-            return
-        }
         // Индекс берём до вставки: это и есть номер страницы новой машины
         let newPage = cars.count
         modelContext.insert(car)
@@ -2869,10 +2844,6 @@ private struct PlusGlyph: Shape {
 /// компилятор не вытягивал вывод типов.
 private struct CarMainChrome: ViewModifier {
     @Binding var showAddCar: Bool
-    @Binding var showPaywall: Bool
-    let subscription: Subscription
-    let onUnlocked: () -> Void
-    let onPaywallDismissed: () -> Void
     @Binding var showPhotoPicker: Bool
     @Binding var photoItems: [PhotosPickerItem]
     @Binding var carTab: Int
@@ -2908,14 +2879,6 @@ private struct CarMainChrome: ViewModifier {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(.clear)
-            }
-            // Пейвол подписки — по «Добавить авто» сверх двух машин.
-            .sheet(isPresented: $showPaywall, onDismiss: onPaywallDismissed) {
-                PaywallSheet(subscription: subscription,
-                             onUnlocked: onUnlocked,
-                             onClose: { showPaywall = false })
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
             }
             // Свой обработчик у формы авто: общий с потоком ТО открывал
             // модалку «Добавление ТО» вместо показа фото в форме машины.

@@ -178,12 +178,14 @@ enum FieldError: String, CaseIterable {
     case plateNotFound
     case detailsMissing
     case lookupFailed
+    case plateLimitReached
 
     var message: String {
         switch self {
         case .plateInvalid: return "Введите госномер: буква, 3 цифры, 2 буквы и код региона"
         case .plateNotFound: return "Мы не нашли такого номера в базе, попробуйте другой"
         case .detailsMissing: return "Введите название и\u{00A0}пробег"
+        case .plateLimitReached: return Garage.limitMessage
         case .lookupFailed: return "Номер не\u{00A0}проверился. Попробуйте позже"
         }
     }
@@ -225,9 +227,6 @@ enum CarSheet: String, CaseIterable {
     case service
     /// Шторка «Добавить авто».
     case addCar
-    /// Пейвол подписки «Beepy Плюс» — «Добавить авто» сверх двух машин
-    /// (`Garage.decide`).
-    case paywall
     /// Шторка «Это ваш автомобиль?» после поиска по номеру (`45854:2936`) —
     /// тот же шаг подтверждения, что и на первом входе: без него машина
     /// добавлялась молча, и было непонятно, что нашлось и нашлось ли.

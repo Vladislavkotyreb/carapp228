@@ -449,6 +449,23 @@ final class TripTracker: NSObject, ObservableObject {
         arm()
     }
 
+    /// Удаление аккаунта стирает и вспомогательные координаты вне SwiftData.
+    func clearLocalHistory() throws {
+        setAuto(false)
+        UserDefaults.standard.set(false, forKey: LocationSwitch.key)
+        locationSwitched()
+        memory = TripAuto.Memory()
+        track = []
+        probeTrack = []
+        UserDefaults.standard.removeObject(forKey: Self.memoryKey)
+        UserDefaults.standard.removeObject(forKey: Self.storageKey)
+        UserDefaults.standard.removeObject(forKey: TripCar.key)
+        if FileManager.default.fileExists(atPath: Self.trackURL.path) {
+            try FileManager.default.removeItem(at: Self.trackURL)
+        }
+        syncRegions()
+    }
+
     // MARK: - Автоопределение
 
     /// Включить или выключить автоопределение — с экрана «Ещё» или из меню

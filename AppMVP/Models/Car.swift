@@ -93,3 +93,18 @@ extension Car {
         checks.max { $0.date < $1.date }
     }
 }
+
+
+extension Car {
+    /// Считаем и старые данные: раньше только поиск по номеру сохранял plate.
+    /// Fetch учитывает вставки текущего контекста до обновления @Query.
+    static func canAddByPlate(in context: ModelContext) -> Bool {
+        #if DEBUG && !targetEnvironment(simulator)
+        return true
+        #else
+        let descriptor = FetchDescriptor<Car>(predicate: #Predicate { $0.plate != "" })
+        guard let count = try? context.fetchCount(descriptor) else { return false }
+        return Garage.canAddByPlate(plateCarCount: count)
+        #endif
+    }
+}

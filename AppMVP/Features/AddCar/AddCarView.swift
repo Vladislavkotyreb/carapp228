@@ -250,14 +250,19 @@ struct AddCarView: View {
     /// а у Автокода вообще двумя запросами.
     private func search() {
         guard !isSearching else { return }
+        guard Car.canAddByPlate(in: modelContext) else {
+            fail(.plateLimitReached)
+            return
+        }
         fieldError = nil
         isSearching = true
+        let requestedPlate = plate
 
         Task {
             defer { isSearching = false }
             do {
-                let vehicle = try await lookup.lookup(plate: plate)
-                foundCar = FoundCar(plate: plate, vehicle: vehicle)
+                let vehicle = try await lookup.lookup(plate: requestedPlate)
+                foundCar = FoundCar(plate: requestedPlate, vehicle: vehicle)
             } catch VehicleLookupError.notFound {
                 fail(.plateNotFound)
             } catch {
@@ -270,6 +275,11 @@ struct AddCarView: View {
         // На вкладке «По названию» шторки нет, экран просто закрывается —
         // клавиатуру убираем сами. В ветке ошибки фокус оставляем: там ввод
         // надо исправлять.
+        guard foundCar == nil || Car.canAddByPlate(in: modelContext) else {
+            foundCar = nil
+            fail(.plateLimitReached)
+            return
+        }
         dismissKeyboard()
         modelContext.insert(newCar())
         onFinish?()
@@ -287,7 +297,7 @@ struct AddCarView: View {
     private func newCar() -> Car {
         if let foundCar {
             return Car(
-                plate: PlateFormat.format(plate),
+                plate: PlateFormat.format(foundCar.plate),
                 name: foundCar.name,
                 vin: foundCar.vehicle.displayVIN,
                 generation: foundCar.vehicle.generation,

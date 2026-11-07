@@ -72,6 +72,8 @@ enum UIStateCatalog {
               what: "Номера нет в базе — состояние недостижимо на заглушке", node: nil),
         .init(id: "fielderror-detailsMissing", screen: "Добавление машины",
               what: "Не заполнены название и пробег", node: nil),
+        .init(id: "fielderror-plateLimitReached", screen: "Добавление машины",
+              what: "Две машины по номеру уже добавлены — доступен ручной ввод", node: nil),
         .init(id: "fielderror-lookupFailed", screen: "Добавление машины",
               what: "Поставщик не ответил", node: nil),
     ]

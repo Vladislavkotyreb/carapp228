@@ -1,3 +1,5 @@
+import AuthenticationServices
+import SwiftData
 import SwiftUI
 
 /// Онбординг Beepy — Figma «1 флоу: онбординг + добавление машины» (node 45822:3994).
@@ -6,6 +8,8 @@ import SwiftUI
 /// и «Пропустить» заезжала на него даже на макетном устройстве.
 struct OnboardingView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.modelContext) private var modelContext
+    @State private var showDeleteConfirmation = false
     @State private var step = 0
     @State private var goingForward = true
 
@@ -42,6 +46,20 @@ struct OnboardingView: View {
             }
         }
         .ignoresSafeArea()
+        .onChange(of: appState.isSignedIn) { _, signedIn in
+            if signedIn && step == 0 { advance() }
+        }
+        .alert("Вход через Apple", isPresented: Binding(
+            get: { appState.accountError != nil },
+            set: { if !$0 { appState.accountError = nil } }
+        )) {
+            Button("Понятно", role: .cancel) { appState.accountError = nil }
+        } message: { Text(appState.accountError ?? "") }
+        .confirmationDialog("Удалить аккаунт и все данные Beepy на этом устройстве?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button("Удалить аккаунт и данные", role: .destructive) {
+                Task { await appState.deleteLocalAccount(in: modelContext) }
+            }
+        } message: { Text("Будут удалены машины, поездки, история ТО и избранные места.") }
         .animation(.interpolatingSpring(stiffness: 220, damping: 26), value: step)
     }
 
@@ -84,11 +102,27 @@ struct OnboardingView: View {
                 .modifier(OnboardingRise(delay: 0.25))
                 .figmaBlock(x: 32, width: 338, y: 586.75)
 
-            // На месте «Войти с Apple» из макета: входа нет, пока нет
-            // аккаунтов и сервера, а кнопка входа, которая ничего не делает,
-            // не проходит ревью App Store (решение пользователя 14.10.2026).
-            GlassProminentButton(title: "Начать", action: advance)
-                .figmaBlock(x: 32, width: 338, y: 730.75)
+            VStack(spacing: 12) {
+                if appState.isSignedIn {
+                    GlassProminentButton(title: "Начать", action: advance)
+                } else {
+                    SignInWithAppleButton(.signIn,
+                                          onRequest: appState.prepareAppleSignIn,
+                                          onCompletion: appState.completeAppleSignIn)
+                        .signInWithAppleButtonStyle(.white)
+                        .accessibilityIdentifier("apple-sign-in")
+                        .frame(height: 54)
+                        .clipShape(Capsule())
+                        .disabled(appState.isDeletingAccount)
+                    if appState.hasLocalAccount {
+                        Button("Удалить локальные данные", role: .destructive) {
+                            showDeleteConfirmation = true
+                        }
+                        .disabled(appState.isDeletingAccount)
+                    }
+                }
+            }
+            .figmaBlock(x: 32, width: 338, y: 730.75)
         }
     }
 

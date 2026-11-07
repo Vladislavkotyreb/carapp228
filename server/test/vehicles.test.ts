@@ -132,7 +132,9 @@ describe("прокси поиска по госномеру", () => {
     assert.match(res.headers.get("content-type") ?? "", /text\/html/);
     const html = await res.text();
     assert.match(html, /Политика конфиденциальности Beepy/);
-    assert.match(html, new RegExp(`не дольше ${LOOKUP_LOG_DAYS} дней`));
+    assert.match(html, /Вход через Apple/);
+    assert.match(html, /Удалить аккаунт и данные/);
+    assert.doesNotMatch(html, /Подписка «Beepy Плюс»/);
   });
 
   test("название машины как в приложении", () => {

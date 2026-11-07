@@ -26,14 +26,45 @@ final class FlowTests: XCTestCase {
 
     private func launch(onboarded: Bool, seeded: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-beepy-ui-test", "-hasCompletedOnboarding", onboarded ? "YES" : "NO"]
+        app.launchArguments = ["-beepy-ui-test", "-beepy-test-authenticated", "-hasCompletedOnboarding", onboarded ? "YES" : "NO"]
         if seeded { app.launchArguments.append("-beepy-seed") }
         app.launch()
         return app
     }
 
-    /// Первый запуск: «Начать» вместо снятого «Войти с Apple», опрос можно
-    /// пропустить, машина по названию появляется на главной.
+    /// Сохранённые машины и флаг онбординга не обходят обязательный вход.
+    func testSignedOutUserMustSignInEvenWithExistingCars() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-beepy-ui-test", "-beepy-seed", "-hasCompletedOnboarding", "YES"]
+        app.launch()
+        XCTAssertTrue(app.buttons["apple-sign-in"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["Начать"].exists)
+        XCTAssertFalse(app.buttons["Пробег"].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Apple sign in"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    func testSignOutReturnsToAppleSignIn() {
+        let app = launch(onboarded: true, seeded: true)
+        let more = app.buttons["Ещё"]
+        XCTAssertTrue(more.waitForExistence(timeout: 10))
+        more.tap()
+        let signOut = app.buttons["Выйти из аккаунта"]
+        if !signOut.isHittable { app.swipeUp() }
+        XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "More account actions"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        signOut.tap()
+        app.buttons["Выйти"].tap()
+        XCTAssertTrue(app.buttons["apple-sign-in"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Пробег"].exists)
+    }
+
+    /// После входа опрос можно пропустить, машина появляется на главной.
     func testFirstLaunchToFirstCar() {
         let app = launch(onboarded: false)
 
@@ -67,10 +98,8 @@ final class FlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Kia Rio"].waitForExistence(timeout: 10))
     }
 
-    /// Две машины бесплатно, третья — через пейвол подписки (`Garage`,
-    /// 23.10.2026). Вторая добавляется формой, а «Добавить авто» с двумя
-    /// машинами открывает пейвол; в отладке кнопка под ним пускает к форме.
-    func testThirdCarOpensPaywall() {
+    /// Ручное добавление третьей машины открывается без подписки.
+    func testThirdCarCanBeAddedByName() {
         let app = launch(onboarded: true, seeded: true)
         XCTAssertTrue(app.buttons["Пробег"].waitForExistence(timeout: 10))
 
@@ -97,21 +126,20 @@ final class FlowTests: XCTestCase {
         app.typeText("\n")
         XCTAssertTrue(app.staticTexts["Kia Rio"].waitForExistence(timeout: 10))
 
-        // Страница «Добавить авто» есть и при двух машинах — но теперь она
-        // открывает пейвол, а не форму.
         app.swipeLeft()
         XCTAssertTrue(addCard.waitForExistence(timeout: 5))
         addCard.tap()
-        let paywall = app.staticTexts["Третья машина\(nbsp)— с\(nbsp)Beepy\(nbsp)Плюс"]
-        XCTAssertTrue(paywall.waitForExistence(timeout: 5), "с двумя машинами «Добавить авто» открывает пейвол")
-        XCTAssertFalse(byName.exists, "форма без подписки не открывается")
+        XCTAssertTrue(byName.waitForExistence(timeout: 5))
+        byName.tap()
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Toyota Camry")
+        mileage.tap()
+        typeSlowly("50000", into: mileage)
+        mileage.typeText("\n")
+        app.typeText("\n")
+        XCTAssertTrue(app.staticTexts["Toyota Camry"].waitForExistence(timeout: 10))
 
-        // Отладка: разработчик добавляет без подписки — пейвол уходит, форма открывается.
-        let skip = app.buttons["Добавить без подписки\(nbsp)— отладка"]
-        for _ in 0..<4 where !skip.isHittable { app.swipeUp() }
-        XCTAssertTrue(skip.exists)
-        skip.tap()
-        XCTAssertTrue(byName.waitForExistence(timeout: 5), "после отладочной кнопки — форма добавления")
     }
 
     /// По цифре с паузой — как набирает человек. Пачкой `typeText` печатает
