@@ -28,6 +28,23 @@
 настоящий вывод — или прямо «не проверено»), что осталось. То из «осталось»,
 что является чьей-то будущей работой, переезжает строкой в [`TAILS.md`](TAILS.md).
 
+### 2026-11-08 — иконка Beepy для выпуска
+
+В `AppIcon.appiconset` подключена выбранная владельцем иконка с жирафовым
+рисунком. Источник — предоставленный `Frame 13.png`, 1024×1024, и нода
+`46551:4528` файла Figma `9GXgWezTGI6TjklsnuBns2`. Удалён полностью непрозрачный
+альфа-канал для экспорта в App Store. Сравнение RGB-пикселей через Pillow
+подтвердило точное совпадение с исходником.
+
+Проверено командой `xcodebuild -project Beepy.xcodeproj -scheme AppMVP
+-configuration Release -destination 'generic/platform=iOS'
+-allowProvisioningUpdates -derivedDataPath
+/Users/vladislavkotyrev/Library/Developer/Xcode/DerivedData/beepy-device
+-archivePath /private/tmp/Beepy-AppStore.xcarchive archive`.
+Результат — `ARCHIVE SUCCEEDED`. В Info.plist архива присутствуют
+`CFBundleIcons.CFBundlePrimaryIcon.CFBundleIconName = AppIcon` и
+`CFBundleIconFiles = [AppIcon60x60]`. Публикация в App Store ещё не выполнена.
+
 ### 2026-10-23 — пейвол подписки «Beepy Плюс» на третьей машине
 
 **Что.** По поправке пользователя («мне нужно, чтобы пользователи могли
