@@ -64,6 +64,28 @@ final class FlowTests: XCTestCase {
         XCTAssertFalse(app.buttons["Пробег"].exists)
     }
 
+    /// Снимки для карточки App Store: только тестовая база, без личных данных.
+    func testAppStoreScreenshots() {
+        let app = launch(onboarded: true, seeded: true)
+        XCTAssertTrue(app.buttons["Пробег"].waitForExistence(timeout: 10))
+        capture("01-car", app: app)
+        app.swipeUp()
+        capture("02-service", app: app)
+        app.buttons["Машина"].tap() // expand the tab bar collapsed by scrolling
+        app.buttons["Диагностика"].tap()
+        capture("03-diagnosis", app: app)
+        app.buttons["Карта"].tap()
+        capture("04-map", app: app)
+    }
+
+    private func capture(_ name: String, app: XCUIApplication) {
+        Thread.sleep(forTimeInterval: 3)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     /// После входа опрос можно пропустить, машина появляется на главной.
     func testFirstLaunchToFirstCar() {
         let app = launch(onboarded: false)
