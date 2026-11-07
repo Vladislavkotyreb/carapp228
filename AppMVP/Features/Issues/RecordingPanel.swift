@@ -141,14 +141,16 @@ struct QuickListenOverlay: View {
                     .ignoresSafeArea()
                     .transition(.opacity)
 
-                RecordingPanel(level: isAnalyzing ? 0 : meter.level) {
-                    Button(action: stop) {
-                        RecordingButtonLabel(isRecording: true, isAnalyzing: isAnalyzing)
-                            .contentShape(Capsule())
+                LevelReader(meter.levels) { level in
+                    RecordingPanel(level: isAnalyzing ? 0 : level) {
+                        Button(action: stop) {
+                            RecordingButtonLabel(isRecording: true, isAnalyzing: isAnalyzing)
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .allowsHitTesting(!isAnalyzing)
+                        .accessibilityLabel(isAnalyzing ? "Разбираем запись" : "Стоп")
                     }
-                    .buttonStyle(.plain)
-                    .allowsHitTesting(!isAnalyzing)
-                    .accessibilityLabel(isAnalyzing ? "Разбираем запись" : "Стоп")
                 }
                 .frame(width: RecordingLayout.panelSize.width,
                        height: RecordingLayout.panelSize.height, alignment: .top)
@@ -170,23 +172,26 @@ struct QuickListenOverlay: View {
         .onChange(of: isPresented) { _, shown in
             if shown {
                 isAnalyzing = false
+                LocalDiagnosis.warmUp()
                 meter.start()
             } else {
-                meter.stop()
+                Task { await meter.stop() }
                 analysis?.cancel()
             }
         }
         .onDisappear {
-            meter.stop()
+            Task { await meter.stop() }
             analysis?.cancel()
         }
     }
 
     private func stop() {
-        meter.stop()
         isAnalyzing = true
-        let recording = meter.lastRecording
         analysis = Task {
+            // Файл — только дописанный: метр отдаёт его после остановки
+            // движка на своей очереди.
+            let recording = await meter.stop()
+            guard !Task.isCancelled else { return }
             let outcome = await DiagnosisCards.run(recording: recording)
             guard !Task.isCancelled else { return }
             onResult(outcome)

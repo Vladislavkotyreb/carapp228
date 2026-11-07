@@ -83,7 +83,12 @@ enum LocalDiagnosis {
             else { return nil }
 
             let config = MLModelConfiguration()
-            config.computeUnits = .all
+            // Без Neural Engine. На iPhone 15 Pro (iOS 26) его компилятор
+            // энкодер не берёт — «Reshape layer dimension order is
+            // inconsistent» — и Core ML на каждом запуске тратил около двух
+            // секунд на неудачную сборку, а потом всё равно уходил на GPU.
+            // Замер в `DiagnosisTests` на телефоне, 16.10.2026.
+            config.computeUnits = .cpuAndGPU
             guard let mel = try? MLModel(contentsOf: melURL, configuration: config),
                   let encoder = try? MLModel(contentsOf: encURL, configuration: config)
             else { return nil }
@@ -94,11 +99,41 @@ enum LocalDiagnosis {
         }
     }
 
-    /// Модели поднимаются первым разбором и живут до конца процесса —
-    /// как `_lazy()` на сервере.
-    private static let models = Models()
+    /// Модели поднимаются один раз и живут до конца процесса — как `_lazy()`
+    /// на сервере. Инициализация `static let` потокобезопасна: прогрев и
+    /// разбор, пришедшие разом, дождутся одной загрузки.
+    ///
+    /// Сразу за загрузкой — холостой прогон по секунде тишины. Первое
+    /// предсказание после установки собирает вычисления GPU: на iPhone 15 Pro
+    /// это около 5.8 с против 0.34 с потом. Пусть они пройдут при прогреве,
+    /// пока человек записывает мотор, а не после «Стоп».
+    private static let models: Models? = {
+        guard let m = Models() else { return nil }
+        _ = try? embed(zeroPadded([Float](repeating: 0, count: Int(sampleRate))), with: m)
+        return m
+    }()
 
-    static var isAvailable: Bool { models != nil }
+    /// Есть ли модели в бандле — по файлам, без загрузки. Раньше этот флаг
+    /// поднимал сами модели: энкодер весит 58 МБ, на iPhone с `.all` к нему
+    /// добавляется сборка под Neural Engine — и всё это шло на главном потоке
+    /// по нажатию «Стоп» (жалоба «диагностика лагает», 16.10.2026).
+    static let isAvailable: Bool =
+        ["ClapMelFrontend", "ClapAudioEncoder"].allSatisfy {
+            Bundle.main.url(forResource: $0, withExtension: "mlmodelc") != nil
+        } && Bundle.main.url(forResource: "DiagnosisSupport", withExtension: "json") != nil
+
+    /// Поднять модели заранее и не на главном потоке. Экран записи зовёт это
+    /// при появлении: пока человек держит телефон у мотора, модели грузятся,
+    /// и к «Стоп» разбор начинается сразу.
+    static func warmUp() {
+        guard isAvailable else { return }
+        Task.detached(priority: .utility) { load() }
+    }
+
+    /// Загрузить и прогреть модели здесь и сейчас — на том потоке, где
+    /// позвали. Для прогрева и для замера в `BeepyTests/DiagnosisTests`.
+    @discardableResult
+    static func load() -> Bool { models != nil }
 
     // MARK: - Разбор
 

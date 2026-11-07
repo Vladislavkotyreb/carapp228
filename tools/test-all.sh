@@ -41,6 +41,6 @@ fi
 xcodebuild -project Beepy.xcodeproj -scheme AppMVP -sdk iphonesimulator \
   -destination "id=$sim" -derivedDataPath ~/Library/Developer/Xcode/DerivedData/beepy \
   -test-timeouts-enabled YES -maximum-test-execution-time-allowance 120 \
-  test 2>&1 | grep -E "Test Case.*(passed|failed)|error: |TEST (SUCCEEDED|FAILED)" \
-  | sed -E "s/^Test Case '-\[(.*)\]' (passed|failed).*/  \2  \1/"
+  test 2>&1 | grep -E "Test Case.*(passed|failed|skipped)|error: |TEST (SUCCEEDED|FAILED)" \
+  | sed -E "s/^Test Case '-\[(.*)\]' (passed|failed|skipped).*/  \2  \1/"
 test "${PIPESTATUS[0]}" -eq 0

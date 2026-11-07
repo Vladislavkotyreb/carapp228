@@ -614,11 +614,17 @@ private struct CarChoiceItem: View {
                     .foregroundStyle(Figma.labelsPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
-                Text(choice.plate.isEmpty ? "Без номера" : choice.plate)
-                    .font(.system(size: 15, weight: .medium).width(.condensed))
-                    .tracking(0.4)
-                    .foregroundStyle(Figma.graysGray)
-                    .lineLimit(1)
+                // Номер — той же плашкой, что на главной; без номера — строкой.
+                if choice.plate.isEmpty {
+                    Text("Без номера")
+                        .font(.system(size: 15, weight: .medium).width(.condensed))
+                        .tracking(0.4)
+                        .foregroundStyle(Figma.graysGray)
+                        .lineLimit(1)
+                } else {
+                    PlateBadge(plate: choice.plate)
+                        .padding(.top, 4)
+                }
             }
         }
         .contentShape(Rectangle())

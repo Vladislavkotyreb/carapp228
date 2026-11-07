@@ -93,7 +93,11 @@ struct IssuesScreen: View {
                 // в нижней части (кнопка стоит там). matchedGeometryEffect
                 // лагал — он перекладывал стекло и шар на каждом кадре;
                 // простой scale-переход даёт тот же жест за копейки.
-                RecordingPanel(level: meter.level) { listenButton() }
+                // Уровень читает только панель: экран целиком не пересобирается
+                // на каждом аудиобуфере.
+                LevelReader(meter.levels) { level in
+                    RecordingPanel(level: level) { listenButton() }
+                }
                     .frame(width: RecordingLayout.panelSize.width,
                            height: RecordingLayout.panelSize.height, alignment: .top)
                     // По центру ширины, а не 16 от левого края: на экране 402 это те же
@@ -118,7 +122,13 @@ struct IssuesScreen: View {
         // выходит по `guard !Task.isCancelled` мимо сброса флага, и кнопка
         // оставалась навсегда отключённой с индикатором. Прерванная запись
         // залипала так же — «Стоп» на остановленном метре.
-        .onDisappear { meter.stop(); analysisTask?.cancel(); activity = .idle }
+        .onDisappear {
+            Task { await meter.stop() }
+            analysisTask?.cancel()
+            activity = .idle
+        }
+        // Модели разбора — в память заранее и в фоне, а не по «Стоп».
+        .onAppear { LocalDiagnosis.warmUp() }
         .bottomSheet(isPresented: $showFindings) {
             // Из «Ошибок» вопрос открыт: слушать могли и чужую машину, и
             // вовсе без неё. Карусель стоит на машине с главной.
@@ -161,7 +171,9 @@ struct IssuesScreen: View {
                 RecordingLayout.heading
                 Spacer(minLength: 0).frame(height: 48)
                 // Пока истории нет, шар оживает прямо здесь: модалки не будет.
-                SoundOrb(level: isRecording && !hasHistory ? meter.level : 0)
+                LevelReader(meter.levels) { level in
+                    SoundOrb(level: isRecording && !hasHistory ? level : 0)
+                }
                 Spacer(minLength: 0).frame(height: 24)
                 RecordingLayout.caption(RecordingLayout.screenCaption)
                 Spacer(minLength: 0).frame(height: buttonGap)
@@ -362,10 +374,17 @@ struct IssuesScreen: View {
 
     private func toggleRecording() {
         if isRecording {
-            meter.stop()
-            activity = .idle
-            analyse()
+            // Индикатор разбора — сразу по нажатию, пока запись дописывается
+            // на фоновой очереди метра.
+            activity = DiagnosisCards.canDiagnose ? .analyzing : .idle
+            analysisTask?.cancel()
+            analysisTask = Task {
+                let recording = await meter.stop()
+                guard !Task.isCancelled else { return }
+                await analyse(recording: recording)
+            }
         } else {
+            LocalDiagnosis.warmUp()
             activity = .recording
             meter.start()
         }
@@ -375,26 +394,23 @@ struct IssuesScreen: View {
     /// только после ответа: показать её сразу и потом подменить содержимое
     /// значит соврать пользователю про то, что уже «нашли». Сам разбор —
     /// `DiagnosisCards`, общий с быстрым прослушиванием на главной.
-    private func analyse() {
+    private func analyse(recording: URL?) async {
         // Прошлый отказ к новой записи отношения не имеет: без сброса шторка
         // осталась бы пустой даже там, где находки есть.
         emptyFindings = nil
-        guard DiagnosisCards.canDiagnose, meter.lastRecording != nil else {
+        guard DiagnosisCards.canDiagnose, recording != nil else {
+            activity = .idle
             findings = IssuesStub.findings
             showFindings = true
             return
         }
         activity = .analyzing
-        let recording = meter.lastRecording
-        analysisTask?.cancel()
-        analysisTask = Task {
-            let outcome = await DiagnosisCards.run(recording: recording)
-            guard !Task.isCancelled else { return }
-            findings = outcome.cards
-            emptyFindings = outcome.empty
-            activity = .idle
-            showFindings = true
-        }
+        let outcome = await DiagnosisCards.run(recording: recording)
+        guard !Task.isCancelled else { return }
+        findings = outcome.cards
+        emptyFindings = outcome.empty
+        activity = .idle
+        showFindings = true
     }
 
     /// Подтверждённые находки уходят в базу. Порядок сохраняется номером:

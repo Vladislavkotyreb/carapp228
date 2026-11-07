@@ -379,14 +379,8 @@ struct TripSheet: View {
                         .font(.system(size: 20, weight: .bold))
                         .foregroundStyle(Figma.labelsPrimary)
                         .fixedSize(horizontal: false, vertical: true)
-                    if !trip.plate.isEmpty {
-                        Text(trip.plate)
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(Figma.labelsPrimary)
-                            .padding(.horizontal, 10)
-                            .frame(height: 30)
-                            .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: 8))
-                    }
+                    // Та же плашка, что на главной (единый стандарт номера).
+                    PlateBadge(plate: trip.plate)
                 }
                 Spacer(minLength: 0)
                 if let carImage {
@@ -474,16 +468,15 @@ struct TripSheet: View {
     // MARK: - Цифры
 
     private var stats: some View {
-        VStack(spacing: 0) {
+        GroupedCard {
             statRow("Расстояние", value: trip.distance)
-            separator
+            GroupedSeparator()
             statRow("В\u{00A0}пути", value: trip.duration)
             if let speed = trip.speed {
-                separator
+                GroupedSeparator()
                 statRow("Средняя скорость", value: speed)
             }
         }
-        .background(Figma.fillsTertiary, in: RoundedRectangle(cornerRadius: Layout.radius))
     }
 
     // MARK: - Удаление
@@ -509,27 +502,10 @@ struct TripSheet: View {
         }
     }
 
+    /// Строка без значка: цифры поездки только показываются.
     private func statRow(_ label: String, value: String) -> some View {
-        HStack(spacing: 12) {
-            Text(label)
-                .font(.system(size: 17))
-                .foregroundStyle(Figma.labelsPrimary)
-            Spacer(minLength: 0)
-            Text(value)
-                .font(.system(size: 17))
-                .foregroundStyle(Figma.labelsSecondary)
-                .lineLimit(1)
-        }
-        .padding(.horizontal, 16)
-        .frame(height: Layout.row)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var separator: some View {
-        Rectangle()
-            .fill(Figma.separatorsOnDark)
-            .frame(height: 0.5)
-            .padding(.leading, 16)
+        GroupedRowLabel(title: label, value: value, icon: nil)
+            .accessibilityElement(children: .combine)
     }
 }
 

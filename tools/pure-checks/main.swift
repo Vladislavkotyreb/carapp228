@@ -630,6 +630,82 @@ group("MapGeo") {
                              saved, title: "Автосервис у дома"), false)
     check("точка совпадает сама с собой",
           MapGeo.isSamePlace(found, title: "СТО", found, title: "СТО"), true)
+
+    // Карточка над точкой: экран 393 × 852, свободно от 170 до 740.
+    let room = CalloutRoom(top: 170, bottom: 740, leading: 16, trailing: 377)
+    func shift(_ x: Double, _ y: Double, w: Double = 264, h: Double = 240) -> ScreenShift {
+        MapGeo.calloutShift(pin: (x, y), card: (w, h), lift: 22, below: 28, room: room)
+    }
+    check("влезает — карта стоит", shift(200, 600), .zero)
+    check("точка у поиска — уезжает вниз ровно на нехватку",
+          shift(200, 300), ScreenShift(dx: 0, dy: 132))
+    check("точка под кнопками — поднимается до них",
+          shift(200, 800), ScreenShift(dx: 0, dy: -88))
+    check("у левого края — сдвиг вправо на полкарточки",
+          shift(40, 600), ScreenShift(dx: 108, dy: 0))
+    check("у правого края — влево",
+          shift(380, 600), ScreenShift(dx: -135, dy: 0))
+    check("карточка во всю ширину — точка по центру",
+          shift(60, 600, w: 361), ScreenShift(dx: 136.5, dy: 0))
+    check("шире свободного — тоже по центру, без качелей",
+          shift(60, 600, w: 400), ScreenShift(dx: 136.5, dy: 0))
+    // Выше свободного места: видна карточка, точка уходит под кнопки.
+    check("карточка выше места — прижата к поиску",
+          shift(200, 600, h: 600), ScreenShift(dx: 0, dy: 192))
+    check("сдвиг меньше точки — не сдвиг",
+          ScreenShift(dx: 0.4, dy: -0.6).isNegligible, true)
+    check("сдвиг в точку — уже сдвиг",
+          ScreenShift(dx: 0, dy: 1).isNegligible, false)
+}
+
+// -------------------------------------------------------------------- Garage
+
+group("Garage") {
+    check("бесплатно — две машины", Garage.freeCars, 2)
+    check("без машин — форма", Garage.decide(carCount: 0, isPremium: false), .add)
+    check("одна машина — вторая бесплатно", Garage.decide(carCount: 1, isPremium: false), .add)
+    check("две машины без подписки — пейвол", Garage.decide(carCount: 2, isPremium: false), .paywall)
+    check("две машины с подпиской — форма", Garage.decide(carCount: 2, isPremium: true), .add)
+    check("много машин с подпиской — форма", Garage.decide(carCount: 7, isPremium: true), .add)
+    // Машины сверх предела остались со времён без него: удалять их правило
+    // не требует, но новую без подписки не добавить.
+    check("больше предела без подписки — пейвол", Garage.decide(carCount: 5, isPremium: false), .paywall)
+
+    check("срок месяц", PlanPeriod.month.title, "Месяц")
+    check("срок год", PlanPeriod.year.title, "Год")
+    check("кнопка — цена и срок неразрывно",
+          PlanPeriod.cta(price: "199\u{00A0}₽", period: .month), "Оформить за\u{00A0}199\u{00A0}₽ в\u{00A0}месяц")
+    check("кнопка года", PlanPeriod.cta(price: "1490\u{00A0}₽", period: .year).hasSuffix("в\u{00A0}год"), true)
+}
+
+// ------------------------------------------------------------- LegalDocument
+
+group("LegalDocument") {
+    for document in LegalDocument.allCases {
+        check("\(document.rawValue): есть разделы", document.sections.isEmpty, false)
+        check("\(document.rawValue): пустых разделов нет",
+              document.sections.allSatisfy { !$0.blocks.isEmpty }, true)
+        check("\(document.rawValue): заголовки разделов не повторяются",
+              Set(document.sections.map(\.title)).count, document.sections.count)
+        check("\(document.rawValue): реквизиты оператора на месте",
+              document.sections.contains { $0.blocks.contains(.text(LegalDocument.operatorLine)) }, true)
+    }
+    // Каждое разрешение из Info.plist описано в политике: запрос без
+    // объяснения в ней — повод для отказа на ревью.
+    let privacy = LegalDocument.privacy.sections.flatMap(\.blocks).map { block -> String in
+        switch block {
+        case .text(let text): return text
+        case .item(let lead, let text): return lead + " " + text
+        }
+    }.joined(separator: " ").replacingOccurrences(of: "\u{00A0}", with: " ")
+    for permission in ["Геопозиция", "Движение и фитнес", "Микрофон", "Уведомления"] {
+        check("политика объясняет разрешение «\(permission)»", privacy.contains(permission), true)
+    }
+    check("в политике почта для запросов", privacy.contains(DeveloperContact.email), true)
+    check("Telegram — без «@» в адресе",
+          DeveloperContact.telegramURL?.absoluteString, "https://t.me/vldnt222")
+    check("письмо — с темой Beepy",
+          DeveloperContact.mailURL?.absoluteString, "mailto:kotvlad2016@gmail.com?subject=Beepy")
 }
 
 // -------------------------------------------------------------- MapPhase.of
@@ -1553,6 +1629,21 @@ group("TripAuto: автоопределение поездки") {
 }
 
 group("TripLink: привязка Bluetooth машины") {
+    check("уведомление: Bluetooth своей машины называет её",
+          TripLink.startNotice(.bluetooth(car: "Lada Vesta")).body,
+          "Lada Vesta на\u{00A0}связи по\u{00A0}Bluetooth\u{00A0}— считаем километры.")
+    check("уведомление: заголовок один на все случаи",
+          Set([TripLink.StartCause.auto, .command, .bluetooth(car: "X")].map { TripLink.startNotice($0).title }),
+          ["Поездка началась"])
+    check("уведомление: машина без имени — как автоматическая поездка",
+          TripLink.startNotice(.bluetooth(car: "")).body, TripLink.startNotice(.auto).body)
+    check("уведомление: из команды — до команды «Закончить»",
+          TripLink.startNotice(.command).body.contains("Закончить поездку"), true)
+    check("карточка: «Всегда» — пишет сам", TripAccess.always.autoNote(bound: false).hasPrefix("Записывает"), true)
+    check("карточка: «При использовании» с Bluetooth — когда открыт в машине",
+          TripAccess.whenInUse.autoNote(bound: true).hasPrefix("Начнёт поездку"), true)
+    check("карточка: «При использовании» без Bluetooth — нужен «Всегда»",
+          TripAccess.whenInUse.autoNote(bound: false), "Нужен доступ «Всегда»")
     let speaker = TripLink.Port(kind: .other, uid: "Speaker", name: "Динамик")
     let music = TripLink.Port(kind: .bluetooth, uid: "00:11:22:33:44:55-tacl", name: "Camry ")
     let calls = TripLink.Port(kind: .bluetooth, uid: "00:11:22:33:44:55-tsco", name: "camry")

@@ -31,7 +31,7 @@ struct UIStateEntry: Equatable {
 enum UIStateCatalog {
 
     static let all: [UIStateEntry] = onboarding + addCar + fieldErrors
-        + car + serviceSheets + issues + findings + map + tabBar
+        + car + serviceSheets + issues + findings + map + mapCard + tabBar
 
     // MARK: - Онбординг
 
@@ -150,6 +150,13 @@ enum UIStateCatalog {
               what: "Список, в котором нечего показать", node: nil),
     ]
 
+    static let mapCard: [UIStateEntry] = [
+        .init(id: "mapcard-front", screen: "Карта",
+              what: "Карточка над точкой: фото, название, адрес, оценка", node: nil),
+        .init(id: "mapcard-back", screen: "Карта",
+              what: "Оборот карточки: рубрики, фото лентой, маршрут, звонок, запись", node: nil),
+    ]
+
     static let tabBar: [UIStateEntry] = [
         .init(id: "tabbar-expanded", screen: "Таббар",
               what: "Развёрнут, ширины поровну", node: nil),
@@ -169,6 +176,7 @@ enum UIStateCatalog {
         + IssuesPhase.allCases.map { "issues-\($0.rawValue)" }
         + FindingsOutcome.allCases.map { "findings-\($0.rawValue)" }
         + MapPhase.allCases.map { "map-\($0.rawValue)" }
+        + MapCardFace.allCases.map { "mapcard-\($0.rawValue)" }
         + TabBarPhase.allCases.map { "tabbar-\($0.rawValue)" }
     }
 

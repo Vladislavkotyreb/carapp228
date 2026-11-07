@@ -142,3 +142,56 @@ enum MapGeo {
             .joined(separator: " ")
     }
 }
+
+// MARK: - Карточка над точкой
+
+/// Свободная часть экрана карты, точки: между поиском с чипами сверху и
+/// кнопками снизу, с полями по бокам.
+struct CalloutRoom: Equatable, Sendable {
+    let top: Double
+    let bottom: Double
+    let leading: Double
+    let trailing: Double
+}
+
+/// Сдвиг точки по экрану, точки. Ноль — карту двигать не надо.
+struct ScreenShift: Equatable, Sendable {
+    let dx: Double
+    let dy: Double
+
+    static let zero = ScreenShift(dx: 0, dy: 0)
+
+    /// Меньше точки — не сдвиг: камера дёрнулась бы ради невидимого.
+    var isNegligible: Bool { abs(dx) < 1 && abs(dy) < 1 }
+}
+
+extension MapGeo {
+    /// Куда передвинуть точку на экране, чтобы карточка над ней легла в
+    /// свободную часть целиком (карточка места на карте, 21.10.2026).
+    ///
+    /// Двигаем ровно настолько, насколько не влезает: точка, которая и так
+    /// стоит удобно, остаётся на месте — камера не ездит без причины.
+    /// Карточка выше свободного места — видна она, а точка уходит под кнопки:
+    /// человек открывал карточку, а где точка, он уже знает.
+    ///
+    /// - Parameters:
+    ///   - pin: где точка сейчас.
+    ///   - card: размер карточки.
+    ///   - lift: от точки до кончика хвостика карточки.
+    ///   - below: сколько значок точки занимает под ней — он не должен
+    ///     уйти под кнопки.
+    static func calloutShift(pin: (x: Double, y: Double),
+                             card: (width: Double, height: Double),
+                             lift: Double, below: Double,
+                             room: CalloutRoom) -> ScreenShift {
+        let lowest = room.bottom - below
+        let highest = room.top + card.height + lift
+        let y = highest > lowest ? highest : min(max(pin.y, highest), lowest)
+
+        let left = room.leading + card.width / 2
+        let right = room.trailing - card.width / 2
+        let x = left > right ? (room.leading + room.trailing) / 2 : min(max(pin.x, left), right)
+
+        return ScreenShift(dx: x - pin.x, dy: y - pin.y)
+    }
+}

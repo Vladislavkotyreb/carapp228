@@ -16,6 +16,32 @@ import Foundation
 ///
 /// Здесь — решения. Выход звука читает `TripTracker`.
 enum TripLink {
+    // MARK: - Уведомление о начале
+
+    /// Отчего поездка началась без нажатия кнопки.
+    enum StartCause: Equatable {
+        /// Подключился Bluetooth или CarPlay своей машины.
+        case bluetooth(car: String)
+        /// Beepy заметил поездку сам: зона, перемещение, датчики.
+        case auto
+        /// Команда «Начать поездку» из «Быстрых команд».
+        case command
+    }
+
+    /// «Поездка началась» — человек видит, что Beepy поездку заметил, даже
+    /// когда приложение закрыто (просьба пользователя 18.10.2026).
+    static func startNotice(_ cause: StartCause) -> (title: String, body: String) {
+        let title = "Поездка началась"
+        switch cause {
+        case .bluetooth(let car) where !car.isEmpty:
+            return (title, "\(car) на\u{00A0}связи по\u{00A0}Bluetooth\u{00A0}— считаем километры.")
+        case .bluetooth, .auto:
+            return (title, "Считаем километры\u{00A0}— закончим сами, когда приедете.")
+        case .command:
+            return (title, "Считаем километры до\u{00A0}команды «Закончить поездку».")
+        }
+    }
+
     // MARK: - Пороги
 
     /// Вышли из зоны, а Bluetooth молчит: столько ждём, не подключится ли.

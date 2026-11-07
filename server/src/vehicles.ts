@@ -53,7 +53,9 @@ export function prettyName(raw: string): string {
 }
 
 /** avtovincod.ru: `gos2vin` и `price`. Ненайденное бесплатно, найденное —
- *  от 5.5 ₽; оценка без данных по модели не списывается. */
+ *  8 ₽ (по ответу сервиса 23.10.2026; было 5.5 ₽); оценка без данных по
+ *  модели не списывается. При балансе ниже цены запроса сервис отвечает 402
+ *  ещё до поиска — так проверяют баланс, ничего не тратя. */
 export function avtoVinCod(token: string): VehicleProvider {
   const auth = { Authorization: `Bearer ${token}` };
   return {

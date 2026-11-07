@@ -67,6 +67,53 @@ final class FlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Kia Rio"].waitForExistence(timeout: 10))
     }
 
+    /// Две машины бесплатно, третья — через пейвол подписки (`Garage`,
+    /// 23.10.2026). Вторая добавляется формой, а «Добавить авто» с двумя
+    /// машинами открывает пейвол; в отладке кнопка под ним пускает к форме.
+    func testThirdCarOpensPaywall() {
+        let app = launch(onboarded: true, seeded: true)
+        XCTAssertTrue(app.buttons["Пробег"].waitForExistence(timeout: 10))
+
+        let addCard = app.buttons["Добавить авто"]
+        app.swipeLeft()
+        XCTAssertTrue(addCard.waitForExistence(timeout: 5))
+        addCard.tap()
+
+        let byName = app.buttons["По названию"]
+        XCTAssertTrue(byName.waitForExistence(timeout: 5))
+        byName.tap()
+        let name = app.textFields["Название"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Kia Rio")
+        let mileage = app.textFields["Пробег, км"]
+        mileage.tap()
+        typeSlowly("85000", into: mileage)
+        // В шторке у поля пробега есть следующее — цена: первый «ввод» ведёт
+        // туда, второй, на последней строке, отправляет форму. Кнопку
+        // «Добавить» под полями закрывает клавиатура, а системную галочку
+        // панели XCUITest видит за верхним краем экрана и нажать не может.
+        mileage.typeText("\n")
+        app.typeText("\n")
+        XCTAssertTrue(app.staticTexts["Kia Rio"].waitForExistence(timeout: 10))
+
+        // Страница «Добавить авто» есть и при двух машинах — но теперь она
+        // открывает пейвол, а не форму.
+        app.swipeLeft()
+        XCTAssertTrue(addCard.waitForExistence(timeout: 5))
+        addCard.tap()
+        let paywall = app.staticTexts["Третья машина\(nbsp)— с\(nbsp)Beepy\(nbsp)Плюс"]
+        XCTAssertTrue(paywall.waitForExistence(timeout: 5), "с двумя машинами «Добавить авто» открывает пейвол")
+        XCTAssertFalse(byName.exists, "форма без подписки не открывается")
+
+        // Отладка: разработчик добавляет без подписки — пейвол уходит, форма открывается.
+        let skip = app.buttons["Добавить без подписки\(nbsp)— отладка"]
+        for _ in 0..<4 where !skip.isHittable { app.swipeUp() }
+        XCTAssertTrue(skip.exists)
+        skip.tap()
+        XCTAssertTrue(byName.waitForExistence(timeout: 5), "после отладочной кнопки — форма добавления")
+    }
+
     /// По цифре с паузой — как набирает человек. Пачкой `typeText` печатает
     /// быстрее, чем маска успевает переставить курсор, и в поле выходит
     /// чепуха, которой у человека не бывает.
@@ -113,7 +160,8 @@ final class FlowTests: XCTestCase {
         XCTAssertTrue(headline.waitForExistence(timeout: 5))
     }
 
-    /// «Ещё» → «Лицензии»: тексты открытых компонентов внутри приложения.
+    /// «Ещё» → «О приложении» → «Лицензии»: тексты открытых компонентов
+    /// внутри приложения.
     func testLicensesAreReachable() {
         let app = launch(onboarded: true, seeded: true)
 
@@ -121,10 +169,13 @@ final class FlowTests: XCTestCase {
         XCTAssertTrue(more.waitForExistence(timeout: 10))
         more.tap()
 
+        // «Лицензии» — на экране «О приложении», строкой корня «Ещё».
+        let about = app.buttons["О\u{00A0}приложении"]
+        XCTAssertTrue(about.waitForExistence(timeout: 5))
+        about.tap()
+
         let licenses = app.buttons["Лицензии"]
-        for _ in 0..<6 where !licenses.isHittable {
-            app.swipeUp()
-        }
+        XCTAssertTrue(licenses.waitForExistence(timeout: 5))
         licenses.tap()
 
         let shaderKit = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "ShaderKit")).firstMatch

@@ -16,6 +16,14 @@ enum Motion {
     static let tabBar = Animation.spring(response: 0.42, dampingFraction: 0.88)
     /// Нажатие на вкладку — сжатие и возврат.
     static let tabPress = Animation.spring(response: 0.26, dampingFraction: 0.62)
+    /// Карточка места вырастает из точки на карте и сворачивается в неё:
+    /// пружина с заметным перелётом, как у образца пользователя (21.10.2026).
+    static let callout = Animation.spring(response: 0.36, dampingFraction: 0.72)
+    /// Переворот карточки места. Медленнее появления: вращение на 180°
+    /// быстрее полусекунды глаз не успевает прочесть.
+    static let flip = Animation.spring(response: 0.5, dampingFraction: 0.86)
+    /// Простое проявление вместо движения — при «Уменьшении движения».
+    static let fade = Animation.easeInOut(duration: 0.2)
     /// Перелистывание страниц (онбординг, карусель авто).
     static let page = Animation.interpolatingSpring(stiffness: 220, damping: 26)
     /// Всплывающее уведомление: приходит пружиной сверху.

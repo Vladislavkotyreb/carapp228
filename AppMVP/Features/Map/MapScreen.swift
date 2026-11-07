@@ -10,16 +10,13 @@ import SwiftUI
 /// карту на список в той же вкладке; шторки, которая лежала под таббаром и
 /// спорила с меню фильтров, больше нет.
 ///
-/// Карточка внизу появляется только по действию человека: нажал на точку —
-/// карточка места, нажал на пустое место карты — булавка и «Новое место».
+/// Карточка появляется только по действию человека: нажал на точку —
+/// карточка места над ней (`PlaceCallout`, 21.10.2026; раньше — внизу),
+/// нажал на пустое место карты — булавка и «Новое место» внизу.
 /// Карточку «ближайшее место», которая у Upside висит всегда, пользователь
 /// снял в тот же день: она показывала место, о котором никто не спрашивал.
 struct MapScreen: View {
     @Environment(\.modelContext) private var modelContext
-    /// Звонок уходит системе через окружение, а не через `UIApplication`:
-    /// вью не должна знать про UIKit, и телефон на симуляторе просто ничего
-    /// не сделает вместо падения.
-    @Environment(\.openURL) private var openURL
     @Query(sort: \Place.createdAt) private var places: [Place]
 
     @StateObject private var controller = MapController()
@@ -35,6 +32,13 @@ struct MapScreen: View {
     /// Что набрано в поле поиска.
     @State private var query = ""
     @FocusState private var searchFocused: Bool
+    /// Какой стороной повёрнута карточка места. Новое место открывается лицом.
+    @State private var face: MapCardFace = .front
+    /// Свободная часть карты под карточку: рамка поиска с чипами и верх кнопок
+    /// внизу, в координатах окна. Меняются только с раскладкой, не с кадром.
+    @State private var chromeTop: CGRect = .zero
+    @State private var chromeBottom: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Размеры и зазоры экрана. Высоты поля и чипов — из макета
     /// `46421:576`; остальное — HIG: поля экрана 16, цель касания 44, зазоры
@@ -52,12 +56,8 @@ struct MapScreen: View {
         static let section: CGFloat = 16
         /// Сколько списку оставить снизу под пилюлю «На карте».
         static let listTail: CGFloat = 72
-        /// Лента фото в карточке места: высота кадра, доля ширины, когда
-        /// кадров несколько, скругление и зазор.
-        static let photoHeight: CGFloat = 132
-        static let photoShare: CGFloat = 0.82
-        static let photoRadius: CGFloat = 16
-        static let photoGap: CGFloat = 8
+        /// Зазор между карточкой над точкой и поиском или кнопками.
+        static let calloutGap: CGFloat = 8
     }
 
     var body: some View {
@@ -80,55 +80,10 @@ struct MapScreen: View {
                     hasPlaces: !sections.isEmpty)
     }
 
+    /// Разбито на слои, жизненный цикл и отклики: одной цепочкой компилятор
+    /// не успевает вывести тип.
     private func content(phase: MapPhase) -> some View {
-        ZStack(alignment: .bottom) {
-            // Карта живёт всё время, даже когда её закрывает список.
-            // Пересоздание `YMKMapView` заново поднимало бы слой
-            // пользователя, слушателей и сессии — и теряло бы место, на
-            // которое человек смотрел.
-            YandexMapView(controller: controller)
-                .ignoresSafeArea()
-                .accessibilityHidden(mode == .list)
-
-            if mode == .list {
-                listPage(phase: phase)
-                    .transition(.opacity)
-            }
-
-            bottomControls
-        }
-            // Поиск и чипы — общие для карты и списка: в списке они
-            // отодвигают строки вниз, карта под ними остаётся во весь экран.
-            .safeAreaInset(edge: .top, spacing: 0) { topBar }
-            .animation(Motion.sheet, value: controller.selected)
-            .animation(Motion.sheet, value: controller.draft)
-            .onAppear {
-                controller.update(saved: places)
-                controller.resume()
-                consumeServiceRequest()
-            }
-            .onChange(of: findsNearestService) { _, wants in
-                if wants { consumeServiceRequest() }
-            }
-            .onChange(of: places) { _, new in controller.update(saved: new) }
-            // Поиск отвечает списком — поле в фокусе открывает список;
-            // вернулись к карте — клавиатура уходит.
-            .onChange(of: searchFocused) { _, focused in
-                if focused { setMode(.list) }
-            }
-            .onChange(of: mode) { _, new in
-                if new == .map { searchFocused = false }
-            }
-            .onDisappear { controller.detach() }
-            // Добавили или убрали место — короткий отклик. Звезда без него
-            // выглядит нажатой «в никуда»: строка не двигается, значок меняется
-            // на 22 точках экрана.
-            .sensoryFeedback(.impact(weight: .light), trigger: places.count)
-            .sensoryFeedback(.selection, trigger: mode)
-            // Булавка воткнулась — отклик потяжелее; сняли — тишина.
-            .sensoryFeedback(trigger: controller.draft) { _, new in
-                new == nil ? nil : .impact(weight: .medium)
-            }
+        feedback(lifecycle(layers(phase: phase)))
             .sheet(item: $controller.form) { draft in
                 AddPlaceSheet { title, kind in
                     modelContext.insert(Place(title: title, kind: kind,
@@ -146,6 +101,84 @@ struct MapScreen: View {
                 Button("Понятно", role: .cancel) { controller.message = nil }
             } message: {
                 Text(controller.message ?? "")
+            }
+    }
+
+    private func layers(phase: MapPhase) -> some View {
+        ZStack(alignment: .bottom) {
+            // Карта живёт всё время, даже когда её закрывает список.
+            // Пересоздание `YMKMapView` заново поднимало бы слой
+            // пользователя, слушателей и сессии — и теряло бы место, на
+            // которое человек смотрел.
+            YandexMapView(controller: controller)
+                .ignoresSafeArea()
+                .accessibilityHidden(mode == .list)
+
+            // Карточка места — над точкой, в тех же координатах, что и карта:
+            // слой во весь экран, касания мимо карточки уходят карте.
+            calloutStage
+                .ignoresSafeArea()
+
+            if mode == .list {
+                listPage(phase: phase)
+                    .transition(.opacity)
+            }
+
+            bottomControls
+        }
+            // Поиск и чипы — общие для карты и списка: в списке они
+            // отодвигают строки вниз, карта под ними остаётся во весь экран.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                topBar
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { chromeTop = $0 }
+            }
+            .animation(Motion.sheet, value: controller.selected)
+            .animation(Motion.sheet, value: controller.draft)
+    }
+
+    private func lifecycle(_ view: some View) -> some View {
+        view
+            .onAppear {
+                controller.update(saved: places)
+                controller.resume()
+                consumeServiceRequest()
+            }
+            .onChange(of: findsNearestService) { _, wants in
+                if wants { consumeServiceRequest() }
+            }
+            .onChange(of: places) { _, new in controller.update(saved: new) }
+            // Поиск отвечает списком — поле в фокусе открывает список;
+            // вернулись к карте — клавиатура уходит.
+            .onChange(of: searchFocused) { _, focused in
+                if focused { setMode(.list) }
+            }
+            .onChange(of: mode) { _, new in
+                if new == .map { searchFocused = false }
+            }
+            // Другое место открывается лицом, без переворота на глазах.
+            .onChange(of: controller.selected?.id) { _, _ in
+                var plain = Transaction()
+                plain.disablesAnimations = true
+                withTransaction(plain) { face = .front }
+            }
+            .onDisappear { controller.detach() }
+    }
+
+    private func feedback(_ view: some View) -> some View {
+        view
+            // Добавили или убрали место — короткий отклик. Звезда без него
+            // выглядит нажатой «в никуда»: строка не двигается, значок меняется
+            // на 22 точках экрана.
+            .sensoryFeedback(.impact(weight: .light), trigger: places.count)
+            .sensoryFeedback(.selection, trigger: mode)
+            .sensoryFeedback(.selection, trigger: face)
+            // Карточка выросла из точки — лёгкий отклик, как у булавки.
+            .sensoryFeedback(trigger: controller.selected?.id) { _, new in
+                new == nil ? nil : .impact(weight: .light)
+            }
+            // Булавка воткнулась — отклик потяжелее; сняли — тишина.
+            .sensoryFeedback(trigger: controller.draft) { _, new in
+                new == nil ? nil : .impact(weight: .medium)
             }
     }
 
@@ -231,8 +264,9 @@ struct MapScreen: View {
                 }
             }
             .padding(.horizontal, Layout.margin)
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { chromeBottom = $0 }
 
-            if mode == .map { card }
+            if mode == .map, let draft = controller.draft { draftCard(draft) }
         }
         .padding(.bottom, legacyTabBarInset + Layout.gap)
     }
@@ -262,15 +296,6 @@ struct MapScreen: View {
         mode == .map && (controller.selected != nil || controller.draft != nil)
     }
 
-    @ViewBuilder
-    private var card: some View {
-        if let draft = controller.draft {
-            draftCard(draft)
-        } else if controller.selected != nil {
-            bottomCard
-        }
-    }
-
     // MARK: - Булавка
 
     /// Карточка булавки: место ещё не добавлено, человек только показал, где
@@ -295,10 +320,10 @@ struct MapScreen: View {
             }
 
             HStack(spacing: 8) {
-                tile(title: "Добавить место", symbol: "plus", prominent: true) {
+                MapActionTile(title: "Добавить место", symbol: "plus", prominent: true) {
                     controller.nameDraft()
                 }
-                tile(title: "Маршрут", symbol: "arrow.triangle.turn.up.right.diamond.fill") {
+                MapActionTile(title: "Маршрут", symbol: "arrow.triangle.turn.up.right.diamond.fill") {
                     controller.openInYandexMaps(latitude: draft.latitude,
                                                 longitude: draft.longitude)
                 }
@@ -598,109 +623,66 @@ struct MapScreen: View {
         .accessibilityLabel("Моё местоположение")
     }
 
-    // MARK: - Карточка места
+    // MARK: - Карточка места над точкой
 
-    /// Карточка места по HIG — как карточка в Apple Maps: заголовок и факты,
-    /// ряд одинаковых плиток-действий (первая — маршрут), ниже сгруппированный
-    /// список каналов записи. Вариант B3 из секции «Запись на ТО — варианты»
-    /// в Figma, выбран пользователем 23.09.2026.
-    ///
-    /// Грабера нет, хотя в макете он нарисован: карточку не тянут, а грабер
-    /// обещал бы жест, которого нет.
-    @ViewBuilder
-    private var bottomCard: some View {
-        if let pin = controller.selected {
-            let booking = pin.contacts.filter { $0.channel != .website }
-            VStack(alignment: .leading, spacing: 16) {
-                cardPhotos(pin)
-                cardHeader(pin)
-                actionTiles(pin)
-
-                if !booking.isEmpty {
-                    bookingList(booking)
-                }
-
-                if stored(pin)?.origin == .mine {
-                    Button("Удалить место", role: .destructive) { delete(pin) }
-                        .font(.system(size: 15))
-                        .foregroundStyle(Figma.accentsRed)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .contentShape(Rectangle())
-                }
+    /// Слой карточки: во весь экран, в координатах карты. Карточка стоит
+    /// хвостиком над точкой (`PinAnchored`) и вырастает из неё — масштаб от
+    /// кончика хвостика, с перелётом, как у образца; сворачивается туда же.
+    private var calloutStage: some View {
+        Group {
+            if mode == .map, let pin = controller.selected {
+                callout(pin)
+                    .id(pin.id)
+                    .transition(reduceMotion
+                                ? .opacity
+                                : .scale(scale: 0.2, anchor: .bottom).combined(with: .opacity))
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .liquidGlass(in: Self.cardShape, tint: Figma.darkCard) {
-                Self.cardShape.fill(Figma.darkCard)
-            }
-            .padding(.horizontal, 16)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
         }
+        .modifier(PinAnchored(projection: controller.projection, pin: controller.anchorPin))
+        .animation(reduceMotion ? Motion.fade : Motion.callout, value: controller.selected?.id)
+        // При «Уменьшении движения» карточка не вращается — сторона просто
+        // сменяется.
+        .animation(reduceMotion ? nil : Motion.flip, value: face)
     }
 
-    /// Лента фото из Яндекс Карт: листается, кадр за кадром. Нет фото — нет
-    /// и ленты: пустая рамка в карточке хуже карточки покороче.
-    @ViewBuilder
-    private func cardPhotos(_ pin: MapPin) -> some View {
-        let urls = pin.details.photoURLs(.large)
-        if !urls.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: Layout.photoGap) {
-                    ForEach(urls, id: \.self) { url in
-                        AsyncImage(url: url, transaction: Transaction(animation: .easeOut(duration: 0.2))) { phase in
-                            if let image = phase.image {
-                                image.resizable().scaledToFill()
-                            } else {
-                                Figma.fillsTertiary.opacity(0.24)
-                            }
-                        }
-                        // Один кадр — на всю ширину; несколько — следующий
-                        // выглядывает справа и подсказывает, что лента листается.
-                        .containerRelativeFrame(.horizontal) { width, _ in
-                            urls.count == 1 ? width : width * Layout.photoShare
-                        }
-                        .frame(height: Layout.photoHeight)
-                        .clipShape(RoundedRectangle(cornerRadius: Layout.photoRadius, style: .continuous))
-                    }
-                }
-                .scrollTargetLayout()
-            }
-            .scrollTargetBehavior(.viewAligned)
-            .frame(height: Layout.photoHeight)
-            .id(pin.id)
-            .accessibilityLabel("Фото места, \(urls.count)")
-        }
-    }
-
-    private func cardHeader(_ pin: MapPin) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(pin.title)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-
-                Text(facts(pin))
-                    .font(.system(size: 15))
-                    .foregroundStyle(pin.id == controller.nearestServiceID
-                                     ? Figma.accentsYellow : Figma.labelsSecondary)
-                    .lineLimit(1)
-
-                if let address = pin.subtitle {
-                    Text(address)
-                        .font(.system(size: 15))
-                        .foregroundStyle(Figma.labelsSecondary)
-                        .lineLimit(2)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
+    private func callout(_ pin: MapPin) -> some View {
+        let room = calloutRoom
+        let isMine = stored(pin)?.origin == .mine
+        let isNearest = pin.id == controller.nearestServiceID
+        return PlaceCallout(
+            pin: pin,
+            face: face,
+            backWidth: max(PlaceCallout.Layout.frontWidth, CGFloat(room.trailing - room.leading)),
+            badge: isNearest ? "Ближайший сервис" : pin.kind.singular,
+            isNearest: isNearest,
+            facts: facts(pin),
+            distance: meters(to: pin.point).map { MapGeo.distanceLabel(meters: $0) },
             // Своя точка в избранное не добавляется: она и так своя.
-            // Пустая звезда рядом с ней предлагала бы действие, которого нет.
-            if stored(pin)?.origin != .mine { star(pin) }
+            star: isMine ? .hidden : (isFavorite(pin) ? .on : .off),
+            canDelete: isMine,
+            onFlip: { face = face.flipped },
+            onClose: { controller.selected = nil },
+            onRoute: { controller.openInYandexMaps(to: pin) },
+            onStar: { toggleFavorite(pin) },
+            onDelete: { delete(pin) })
+            // Размер — раскладочный, без масштаба появления: камера с первого
+            // кадра знает, сколько места нужно карточке.
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
+                guard room.trailing > room.leading else { return }
+                controller.reveal(card: size, room: room)
+            }
+    }
 
-            closeButton { controller.selected = nil }
-        }
+    /// Свободная часть карты: под поиском с чипами, над кнопками, с полями
+    /// экрана по бокам. В координатах окна — точку в них переводит контроллер.
+    /// Рамку самой карты отсюда не мерить: у вьюхи с `ignoresSafeArea` замер
+    /// отдаёт рамку без вылета под края (проверено 21.10.2026 — 143 точки
+    /// вместо нуля).
+    private var calloutRoom: CalloutRoom {
+        CalloutRoom(top: Double(chromeTop.maxY + Layout.calloutGap),
+                    bottom: Double(chromeBottom - Layout.calloutGap),
+                    leading: Double(chromeTop.minX + Layout.margin),
+                    trailing: Double(chromeTop.maxX - Layout.margin))
     }
 
     private func closeButton(action: @escaping () -> Void) -> some View {
@@ -729,146 +711,7 @@ struct MapScreen: View {
         return "\(head) · \(MapGeo.distanceLabel(meters: meters))"
     }
 
-    // MARK: Плитки действий
-
-    /// Ряд одинаковых плиток, как в Apple Maps. Плитки нет, если нет
-    /// данных: пустая «Позвонить» обещала бы звонок в никуда.
-    private func actionTiles(_ pin: MapPin) -> some View {
-        HStack(spacing: 8) {
-            routeTile(pin)
-
-            if let phone = pin.phone, let call = callURL(for: pin) {
-                tile(title: "Позвонить", symbol: "phone.fill") { openURL(call) }
-                    .accessibilityValue(PhoneFormat.display(phone))
-            }
-
-            if let site = pin.contacts.first(where: { $0.channel == .website }) {
-                tile(title: "Сайт", symbol: "safari.fill") { openURL(site.url) }
-            }
-        }
-    }
-
-    /// Первая плитка — маршрут, и она единственная залитая: это главное
-    /// действие карточки. Тап сразу уводит в Яндекс Карты — своего маршрута
-    /// в приложении нет, см. `MapController.openInYandexMaps`.
-    private func routeTile(_ pin: MapPin) -> some View {
-        tile(title: "Маршрут", symbol: "arrow.triangle.turn.up.right.diamond.fill",
-             prominent: true) { controller.openInYandexMaps(to: pin) }
-            .accessibilityHint("Откроет маршрут в\u{00A0}Яндекс Картах")
-    }
-
-    private func tile(title: String, symbol: String, prominent: Bool = false,
-                      isBusy: Bool = false, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                if isBusy {
-                    ProgressView().tint(.black).frame(height: 22)
-                } else {
-                    Image(systemName: symbol)
-                        .font(.system(size: 18, weight: .semibold))
-                        .frame(height: 22)
-                }
-                Text(title)
-                    .font(.system(size: 12, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .foregroundStyle(prominent ? Color.black : .white)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .background(prominent ? AnyShapeStyle(Figma.labelsPrimary)
-                                  : AnyShapeStyle(Figma.fillsTertiary),
-                        in: Self.tileShape)
-            .contentShape(Self.tileShape)
-        }
-        .buttonStyle(.plain)
-        .disabled(isBusy)
-    }
-
-    // MARK: Список «Записаться»
-
-    /// Онлайн-запись и мессенджеры — сгруппированным списком, как
-    /// `List(.insetGrouped)`: строк бывает до пяти, и ряд капсул на столько
-    /// не рассчитан. Сайт живёт плиткой выше — записаться через него нельзя.
-    private func bookingList(_ links: [ContactLink]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("ЗАПИСАТЬСЯ")
-                .font(.system(size: 13))
-                .foregroundStyle(Figma.labelsSecondary)
-                .padding(.leading, 16)
-
-            VStack(spacing: 0) {
-                ForEach(Array(links.enumerated()), id: \.element.channel) { index, link in
-                    if index > 0 {
-                        Rectangle()
-                            .fill(Figma.separatorsOnDark.opacity(0.65))
-                            .frame(height: 0.5)
-                            .padding(.leading, 46)
-                    }
-                    bookingRow(link)
-                }
-            }
-            .background(Figma.sheetControl, in: Self.tileShape)
-        }
-    }
-
-    private func bookingRow(_ link: ContactLink) -> some View {
-        Button { openURL(link.url) } label: {
-            HStack(spacing: 12) {
-                Image(systemName: link.channel.symbol)
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(width: 18)
-                Text(link.channel.title)
-                    .font(.system(size: 17))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                if let host = link.channel == .booking ? link.url.host : nil {
-                    Text(host)
-                        .font(.system(size: 17))
-                        .foregroundStyle(Figma.labelsSecondary)
-                        .lineLimit(1)
-                        .truncationMode(.head)
-                }
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Figma.labelsTertiary)
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 16)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// Ссылка для звонка или `nil`: телефона нет либо он не разобрался.
-    private func callURL(for pin: MapPin) -> URL? {
-        guard let phone = pin.phone, let dial = PhoneFormat.dial(phone) else { return nil }
-        return URL(string: dial)
-    }
-
-    private func star(_ pin: MapPin) -> some View {
-        let isOn = isFavorite(pin)
-        return Button { toggleFavorite(pin) } label: {
-            Image(systemName: isOn ? "star.fill" : "star")
-                .font(.system(size: 15, weight: .semibold))
-                // Белая, как в списке шторки: цвет на карте оставлен карте.
-                .foregroundStyle(isOn ? Figma.labelsPrimary : Figma.graysGray)
-                .frame(width: 28, height: 28)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
-                // Заполненная звезда вырастает из пустой, а не подменяется
-                // кадром: замена значка — системная анимация, и она же читается
-                // как «состояние изменилось», а не «появилось что-то другое».
-                .contentTransition(.symbolEffect(.replace))
-        }
-        .buttonStyle(.plain)
-        .padding(-8)
-        .accessibilityLabel(isOn ? "Убрать из избранного" : "В избранное")
-    }
-
     private static let cardShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
-    /// Плитки действий и группа списка — 12, как у системных `.bordered`
-    /// кнопок крупного размера и `insetGrouped`.
-    private static let tileShape = RoundedRectangle(cornerRadius: 12, style: .continuous)
 
     private func delete(_ pin: MapPin) {
         guard let place = stored(pin) else { return }
@@ -949,18 +792,5 @@ private struct AddPlaceSheet: View {
         // чёрный: фон тот же, что у остальных шторок.
         .background(Figma.sheetBackground)
         .onAppear { titleFocused = true }
-    }
-}
-
-private extension ContactChannel {
-    var symbol: String {
-        switch self {
-        case .booking: "calendar.badge.plus"
-        case .telegram: "paperplane.fill"
-        case .whatsapp: "message.fill"
-        case .viber: "phone.bubble.left.fill"
-        case .vk: "person.2.fill"
-        case .website: "globe"
-        }
     }
 }
