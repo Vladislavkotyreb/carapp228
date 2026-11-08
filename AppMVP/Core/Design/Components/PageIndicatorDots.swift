@@ -1,21 +1,27 @@
 import SwiftUI
 
-/// Figma: «Page Control», Controls container 64×24 — padding 12×8, точки 8×8 с шагом 8.
-/// Подложка Ultrathin (белый 7%) на белом фоне визуально не читается — так в макете.
+/// Переключаемые страницы с отдельной доступной зоной нажатия для каждой точки.
 struct PageIndicatorDots: View {
     let count: Int
     let currentIndex: Int
+    let onSelect: (Int) -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             ForEach(0..<count, id: \.self) { index in
-                Circle()
-                    .fill(index == currentIndex ? Figma.labelsPrimary : Figma.labelsTertiary)
-                    .frame(width: 8, height: 8)
+                Button { onSelect(index) } label: {
+                    Circle()
+                        .fill(index == currentIndex ? Figma.labelsPrimary : Figma.labelsTertiary)
+                        .frame(width: 8, height: 8)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Страница \(index + 1) из \(count)")
+                .accessibilityAddTraits(index == currentIndex ? .isSelected : [])
+                .accessibilityIdentifier("onboarding-page-\(index)")
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
         .background(Color.white.opacity(0.07), in: Capsule())
     }
 }

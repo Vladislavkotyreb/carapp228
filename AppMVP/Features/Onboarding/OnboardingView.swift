@@ -11,6 +11,7 @@ struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showDeleteConfirmation = false
     @State private var step = 0
+    @State private var goingForward = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Страницы — то, что приложение умеет сейчас, а не макетный набор
@@ -22,6 +23,7 @@ struct OnboardingView: View {
     private enum Visual {
         static let top: CGFloat = 140
         static let height: CGFloat = 350
+        static let buttonsTop: CGFloat = 706.5
     }
 
     var body: some View {
@@ -64,13 +66,12 @@ struct OnboardingView: View {
     }
 
     /// Страница уезжает в сторону перехода, следующая приходит с
-    /// противоположной. Назад из онбординга сейчас не ходят, но зеркальная
-    /// ветка оставлена: кнопка «назад» появится вместе с шагами добавления.
+    /// противоположной. Возврат через точки зеркально меняет направление.
     private var pageTransition: AnyTransition {
         if reduceMotion { return .opacity }
         return .asymmetric(
-            insertion: .offset(x: 24).combined(with: .opacity),
-            removal: .offset(x: -16).combined(with: .opacity)
+            insertion: .offset(x: goingForward ? 24 : -24).combined(with: .opacity),
+            removal: .offset(x: goingForward ? -16 : 16).combined(with: .opacity)
         )
     }
 
@@ -119,7 +120,7 @@ struct OnboardingView: View {
                     }
                 }
             }
-            .figmaBlock(x: 32, width: 338, y: 730.75)
+            .figmaBlock(x: 32, width: 338, y: Visual.buttonsTop)
         }
     }
 
@@ -132,9 +133,13 @@ struct OnboardingView: View {
             // тёмной темой — см. welcome.
 
             // Page Control: frame y = 61.5, h = 44; пилюля 24 по центру → 61.5 + 10
-            PageIndicatorDots(count: pages.count, currentIndex: index)
+            PageIndicatorDots(count: pages.count, currentIndex: index) { selected in
+                guard selected != index else { return }
+                goingForward = selected > index
+                step = selected + 1
+            }
                 .frame(maxWidth: .infinity)
-                .offset(y: 71.5)
+                .offset(y: 61.5)
 
             OnboardingVisual(feature: page.feature)
                 .frame(height: Visual.height)
@@ -144,13 +149,9 @@ struct OnboardingView: View {
                 .figmaBlock(x: 16, width: 370, y: 529.5)
 
             description(page.description)
-                .figmaBlock(x: 16, width: 370, y: 625.5)
+                .figmaBlock(x: 16, width: 370, y: 609.5)
 
-            // Кнопки стоят в координатах макета: первая на 730.5, вторая на
-            // 796.5, зазор 12 (нода 45822:4058). Раньше они прижимались к
-            // нижней safe area и из-за клампа поднимались на 21pt выше макета.
-            // Слот «Пропустить» держится всегда, даже на последней странице,
-            // иначе основная кнопка прыгала бы при перелистывании.
+            // Кнопки подняты на 24 pt; слот пропуска сохраняет их положение.
             VStack(spacing: 12) {
                 GlassProminentButton(title: page.primaryTitle, action: advance)
 
@@ -160,7 +161,7 @@ struct OnboardingView: View {
                     Color.clear.frame(height: 50)
                 }
             }
-            .figmaBlock(x: 16, width: 370, y: 730.5)
+            .figmaBlock(x: 16, width: 370, y: Visual.buttonsTop)
         }
     }
 
@@ -188,6 +189,7 @@ struct OnboardingView: View {
     // MARK: - Переходы
 
     private func advance() {
+        goingForward = true
         if step < pages.count {
             step += 1
         } else {

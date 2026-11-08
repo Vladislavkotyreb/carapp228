@@ -91,6 +91,11 @@ final class FlowTests: XCTestCase {
         let app = launch(onboarded: false)
         XCTAssertTrue(app.buttons["Начать"].waitForExistence(timeout: 10))
         app.buttons["Начать"].tap()
+        app.buttons["onboarding-page-2"].tap()
+        XCTAssertTrue(app.staticTexts["ТО вовремя"].waitForExistence(timeout: 5))
+        app.buttons["onboarding-page-0"].tap()
+        XCTAssertTrue(app.staticTexts["Пробег считается сам"].waitForExistence(timeout: 5))
+        app.buttons["onboarding-page-0"].tap()
         let pages = [("Пробег считается сам", "Далее"),
                      ("Слушай мотор", "Круто, а\u{00A0}что ещё?"),
                      ("ТО вовремя", "Далее")]
