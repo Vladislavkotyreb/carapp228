@@ -171,6 +171,35 @@ final class MapController: NSObject, ObservableObject {
     /// парковка — это участок улицы с ценой, и точкой её не описать.
     private var carparks: YMKCarparksLayer?
     private var userLayer: YMKUserLocationLayer?
+    private var userLocationView: YMKUserLocationView?
+    private var userCarSlug: String?
+    private var userCarImage: UIImage?
+
+    /// Selection is shared with automatic mileage; update existing location objects immediately.
+    func setUserCar(slug: String?) {
+        guard userCarSlug != slug else { return }
+        userCarSlug = slug
+        userCarImage = slug.flatMap { slug in
+            guard let url = Bundle.main.url(forResource: slug, withExtension: "png", subdirectory: "MapCars"),
+                  let image = UIImage(contentsOfFile: url.path), let cg = image.cgImage else { return nil }
+            return UIImage(cgImage: cg, scale: 6, orientation: .up)
+        }
+        if let view = userLocationView { styleUserLocation(view) }
+    }
+
+    private func styleUserLocation(_ view: YMKUserLocationView) {
+        guard view.pin.isValid, view.arrow.isValid else { return }
+        let image = userCarImage ?? UIImage(systemName: "location.north.circle.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 32))!
+            .withTintColor(.systemBlue, renderingMode: .alwaysOriginal)
+        let style = YMKIconStyle()
+        style.anchor = NSValue(cgPoint: CGPoint(x: 0.5, y: 0.5))
+        style.rotationType = NSNumber(value: YMKRotationType.rotate.rawValue)
+        style.flat = false
+        style.scale = userCarImage == nil ? 1 : 0.5
+        view.pin.setIconWith(image, style: style)
+        view.arrow.setIconWith(image, style: style)
+    }
+
 
     /// Сессии держим сильно: в SDK они отменяются, как только на них не
     /// осталось ссылки, и запрос молча не доходит.
@@ -226,6 +255,7 @@ final class MapController: NSObject, ObservableObject {
             .createUserLocationLayer(with: mapView.mapWindow)
         layer.setVisibleWithOn(true)
         userLayer = layer
+        layer.setObjectListenerWith(self)
 
         let carparks = YMKDirectionsFactory.instance()
             .createCarparksLayer(with: mapView.mapWindow)
@@ -1071,4 +1101,25 @@ struct YandexMapView: UIViewRepresentable {
     /// Пусто намеренно: карта не перерисовывается от состояния SwiftUI,
     /// контроллер меняет её сам. Иначе каждый кадр интерфейса дёргал бы SDK.
     func updateUIView(_ uiView: UIView, context: Context) {}
+}
+
+// The SDK owns the position/course; we only supply the selected car artwork.
+extension MapController: YMKUserLocationObjectListener {
+    func onObjectAdded(with view: YMKUserLocationView) {
+        userLocationView = view
+        styleUserLocation(view)
+    }
+    func onObjectRemoved(with view: YMKUserLocationView) { userLocationView = nil }
+    func onObjectUpdated(with view: YMKUserLocationView, event: YMKObjectEvent) {
+        // Position and heading changes must not re-decode the image or reset SDK animation.
+    }
+}
+
+/// The same first-car fallback as TripTracker, without a second persisted selection.
+@MainActor
+enum MapCarMarker {
+    static func slug(cars: [Car], selectedID: String) -> String? {
+        let selected = cars.first { TripTracker.carID(of: $0) == selectedID } ?? cars.first
+        return selected.flatMap { CarCatalog.slug(name: $0.name, generation: $0.generation, plate: $0.plate) }
+    }
 }

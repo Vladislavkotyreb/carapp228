@@ -1,0 +1,1088 @@
+[
+  {
+    "slug": "audi-a4",
+    "body": "sedan",
+    "length": 4.73,
+    "width": 1.84
+  },
+  {
+    "slug": "audi-a6-c6",
+    "body": "sedan",
+    "length": 4.92,
+    "width": 1.86
+  },
+  {
+    "slug": "audi-q5",
+    "body": "suv",
+    "length": 4.66,
+    "width": 1.89
+  },
+  {
+    "slug": "audi-q7",
+    "body": "suv",
+    "length": 5.09,
+    "width": 1.98
+  },
+  {
+    "slug": "belgee-x50",
+    "body": "suv",
+    "length": 4.33,
+    "width": 1.8
+  },
+  {
+    "slug": "bmw-1-e87",
+    "body": "hatch",
+    "length": 4.24,
+    "width": 1.75
+  },
+  {
+    "slug": "bmw-1-f20",
+    "body": "hatch",
+    "length": 4.32,
+    "width": 1.77
+  },
+  {
+    "slug": "bmw-1-f40",
+    "body": "hatch",
+    "length": 4.32,
+    "width": 1.8
+  },
+  {
+    "slug": "bmw-2-f44",
+    "body": "sedan",
+    "length": 4.53,
+    "width": 1.8
+  },
+  {
+    "slug": "bmw-2-f45",
+    "body": "wagon",
+    "length": 4.34,
+    "width": 1.8
+  },
+  {
+    "slug": "bmw-3-e46",
+    "body": "sedan",
+    "length": 4.47,
+    "width": 1.74
+  },
+  {
+    "slug": "bmw-3-e90",
+    "body": "sedan",
+    "length": 4.53,
+    "width": 1.82
+  },
+  {
+    "slug": "bmw-3-f30",
+    "body": "sedan",
+    "length": 4.62,
+    "width": 1.81
+  },
+  {
+    "slug": "bmw-3-g20",
+    "body": "sedan",
+    "length": 4.71,
+    "width": 1.83
+  },
+  {
+    "slug": "bmw-3-gt-f34",
+    "body": "liftback",
+    "length": 4.82,
+    "width": 1.83
+  },
+  {
+    "slug": "bmw-4-f32",
+    "body": "coupe",
+    "length": 4.64,
+    "width": 1.83
+  },
+  {
+    "slug": "bmw-4-g26",
+    "body": "liftback",
+    "length": 4.78,
+    "width": 1.85
+  },
+  {
+    "slug": "bmw-5-e39",
+    "body": "sedan",
+    "length": 4.78,
+    "width": 1.8
+  },
+  {
+    "slug": "bmw-5-e60",
+    "body": "sedan",
+    "length": 4.84,
+    "width": 1.85
+  },
+  {
+    "slug": "bmw-5-f10",
+    "body": "sedan",
+    "length": 4.9,
+    "width": 1.86
+  },
+  {
+    "slug": "bmw-5-g30",
+    "body": "sedan",
+    "length": 4.94,
+    "width": 1.87
+  },
+  {
+    "slug": "bmw-5-g60",
+    "body": "sedan",
+    "length": 5.06,
+    "width": 1.9
+  },
+  {
+    "slug": "bmw-5-gt-f07",
+    "body": "liftback",
+    "length": 5.0,
+    "width": 1.9
+  },
+  {
+    "slug": "bmw-6-f13",
+    "body": "coupe",
+    "length": 4.89,
+    "width": 1.89
+  },
+  {
+    "slug": "bmw-6-gt-g32",
+    "body": "liftback",
+    "length": 5.09,
+    "width": 1.9
+  },
+  {
+    "slug": "bmw-7-e65",
+    "body": "sedan",
+    "length": 5.03,
+    "width": 1.9
+  },
+  {
+    "slug": "bmw-7-f01",
+    "body": "sedan",
+    "length": 5.07,
+    "width": 1.9
+  },
+  {
+    "slug": "bmw-7-g11",
+    "body": "sedan",
+    "length": 5.1,
+    "width": 1.9
+  },
+  {
+    "slug": "bmw-7-g70",
+    "body": "sedan",
+    "length": 5.39,
+    "width": 1.95
+  },
+  {
+    "slug": "bmw-8-g16",
+    "body": "liftback",
+    "length": 5.08,
+    "width": 1.93
+  },
+  {
+    "slug": "bmw-i4",
+    "body": "liftback",
+    "length": 4.78,
+    "width": 1.85
+  },
+  {
+    "slug": "bmw-ix",
+    "body": "suv",
+    "length": 4.95,
+    "width": 1.97
+  },
+  {
+    "slug": "bmw-x1-e84",
+    "body": "suv",
+    "length": 4.45,
+    "width": 1.8
+  },
+  {
+    "slug": "bmw-x1-f48",
+    "body": "suv",
+    "length": 4.44,
+    "width": 1.82
+  },
+  {
+    "slug": "bmw-x1-u11",
+    "body": "suv",
+    "length": 4.5,
+    "width": 1.85
+  },
+  {
+    "slug": "bmw-x2-f39",
+    "body": "suv",
+    "length": 4.36,
+    "width": 1.82
+  },
+  {
+    "slug": "bmw-x3",
+    "body": "suv",
+    "length": 4.65,
+    "width": 1.88
+  },
+  {
+    "slug": "bmw-x3-e83",
+    "body": "suv",
+    "length": 4.57,
+    "width": 1.85
+  },
+  {
+    "slug": "bmw-x3-g01",
+    "body": "suv",
+    "length": 4.71,
+    "width": 1.89
+  },
+  {
+    "slug": "bmw-x4-f26",
+    "body": "coupeSUV",
+    "length": 4.67,
+    "width": 1.88
+  },
+  {
+    "slug": "bmw-x4-g02",
+    "body": "coupeSUV",
+    "length": 4.75,
+    "width": 1.92
+  },
+  {
+    "slug": "bmw-x5",
+    "body": "suv",
+    "length": 4.92,
+    "width": 2.0
+  },
+  {
+    "slug": "bmw-x5-e53",
+    "body": "suv",
+    "length": 4.66,
+    "width": 1.87
+  },
+  {
+    "slug": "bmw-x5-e70",
+    "body": "suv",
+    "length": 4.85,
+    "width": 1.93
+  },
+  {
+    "slug": "bmw-x5-f15",
+    "body": "suv",
+    "length": 4.89,
+    "width": 1.94
+  },
+  {
+    "slug": "bmw-x6-e71",
+    "body": "coupeSUV",
+    "length": 4.88,
+    "width": 1.98
+  },
+  {
+    "slug": "bmw-x6-f16",
+    "body": "coupeSUV",
+    "length": 4.91,
+    "width": 1.99
+  },
+  {
+    "slug": "bmw-x6-g06",
+    "body": "coupeSUV",
+    "length": 4.94,
+    "width": 2.0
+  },
+  {
+    "slug": "bmw-x7-g07",
+    "body": "suv",
+    "length": 5.15,
+    "width": 2.0
+  },
+  {
+    "slug": "bmw-z4-e89",
+    "body": "roadster",
+    "length": 4.24,
+    "width": 1.79
+  },
+  {
+    "slug": "bmw-z4-g29",
+    "body": "roadster",
+    "length": 4.32,
+    "width": 1.86
+  },
+  {
+    "slug": "changan-cs35",
+    "body": "suv",
+    "length": 4.34,
+    "width": 1.83
+  },
+  {
+    "slug": "changan-cs55",
+    "body": "suv",
+    "length": 4.5,
+    "width": 1.86
+  },
+  {
+    "slug": "chery-tiggo4",
+    "body": "suv",
+    "length": 4.32,
+    "width": 1.83
+  },
+  {
+    "slug": "chery-tiggo7",
+    "body": "suv",
+    "length": 4.5,
+    "width": 1.84
+  },
+  {
+    "slug": "chery-tiggo8",
+    "body": "suv",
+    "length": 4.72,
+    "width": 1.86
+  },
+  {
+    "slug": "chevrolet-aveo",
+    "body": "sedan",
+    "length": 4.4,
+    "width": 1.74
+  },
+  {
+    "slug": "chevrolet-captiva",
+    "body": "suv",
+    "length": 4.64,
+    "width": 1.85
+  },
+  {
+    "slug": "chevrolet-cobalt",
+    "body": "sedan",
+    "length": 4.48,
+    "width": 1.74
+  },
+  {
+    "slug": "chevrolet-cruze",
+    "body": "sedan",
+    "length": 4.6,
+    "width": 1.8
+  },
+  {
+    "slug": "chevrolet-lacetti",
+    "body": "sedan",
+    "length": 4.52,
+    "width": 1.73
+  },
+  {
+    "slug": "chevrolet-niva",
+    "body": "suv",
+    "length": 4.05,
+    "width": 1.8
+  },
+  {
+    "slug": "daewoo-matiz",
+    "body": "hatch",
+    "length": 3.5,
+    "width": 1.5
+  },
+  {
+    "slug": "daewoo-nexia",
+    "body": "sedan",
+    "length": 4.48,
+    "width": 1.66
+  },
+  {
+    "slug": "exeed-txl",
+    "body": "suv",
+    "length": 4.78,
+    "width": 1.89
+  },
+  {
+    "slug": "ford-explorer",
+    "body": "suv",
+    "length": 5.05,
+    "width": 2.0
+  },
+  {
+    "slug": "ford-fiesta",
+    "body": "hatch",
+    "length": 3.98,
+    "width": 1.72
+  },
+  {
+    "slug": "ford-focus-2",
+    "body": "hatch",
+    "length": 4.34,
+    "width": 1.84
+  },
+  {
+    "slug": "ford-focus-3",
+    "body": "hatch",
+    "length": 4.36,
+    "width": 1.82
+  },
+  {
+    "slug": "ford-kuga",
+    "body": "suv",
+    "length": 4.53,
+    "width": 1.84
+  },
+  {
+    "slug": "ford-mondeo",
+    "body": "sedan",
+    "length": 4.87,
+    "width": 1.85
+  },
+  {
+    "slug": "geely-atlas",
+    "body": "suv",
+    "length": 4.54,
+    "width": 1.83
+  },
+  {
+    "slug": "geely-coolray",
+    "body": "suv",
+    "length": 4.33,
+    "width": 1.8
+  },
+  {
+    "slug": "geely-emgrand",
+    "body": "sedan",
+    "length": 4.64,
+    "width": 1.82
+  },
+  {
+    "slug": "geely-monjaro",
+    "body": "suv",
+    "length": 4.77,
+    "width": 1.9
+  },
+  {
+    "slug": "giraffe-discovery",
+    "body": "box",
+    "length": 4.83,
+    "width": 1.92
+  },
+  {
+    "slug": "haval-dargo",
+    "body": "box",
+    "length": 4.62,
+    "width": 1.89
+  },
+  {
+    "slug": "haval-f7",
+    "body": "suv",
+    "length": 4.62,
+    "width": 1.85
+  },
+  {
+    "slug": "haval-jolion",
+    "body": "suv",
+    "length": 4.47,
+    "width": 1.84
+  },
+  {
+    "slug": "honda-accord",
+    "body": "sedan",
+    "length": 4.89,
+    "width": 1.86
+  },
+  {
+    "slug": "honda-civic",
+    "body": "sedan",
+    "length": 4.56,
+    "width": 1.75
+  },
+  {
+    "slug": "honda-crv",
+    "body": "suv",
+    "length": 4.59,
+    "width": 1.82
+  },
+  {
+    "slug": "hyundai-accent",
+    "body": "sedan",
+    "length": 4.26,
+    "width": 1.68
+  },
+  {
+    "slug": "hyundai-creta",
+    "body": "suv",
+    "length": 4.3,
+    "width": 1.79
+  },
+  {
+    "slug": "hyundai-elantra",
+    "body": "sedan",
+    "length": 4.57,
+    "width": 1.8
+  },
+  {
+    "slug": "hyundai-getz",
+    "body": "hatch",
+    "length": 3.83,
+    "width": 1.67
+  },
+  {
+    "slug": "hyundai-i30",
+    "body": "hatch",
+    "length": 4.34,
+    "width": 1.8
+  },
+  {
+    "slug": "hyundai-santa-fe",
+    "body": "suv",
+    "length": 4.77,
+    "width": 1.89
+  },
+  {
+    "slug": "hyundai-solaris",
+    "body": "sedan",
+    "length": 4.41,
+    "width": 1.73
+  },
+  {
+    "slug": "hyundai-sonata",
+    "body": "sedan",
+    "length": 4.9,
+    "width": 1.86
+  },
+  {
+    "slug": "hyundai-tucson",
+    "body": "suv",
+    "length": 4.63,
+    "width": 1.86
+  },
+  {
+    "slug": "jaecoo-j7",
+    "body": "box",
+    "length": 4.5,
+    "width": 1.87
+  },
+  {
+    "slug": "jetour-x70",
+    "body": "suv",
+    "length": 4.74,
+    "width": 1.9
+  },
+  {
+    "slug": "kia-ceed",
+    "body": "hatch",
+    "length": 4.31,
+    "width": 1.8
+  },
+  {
+    "slug": "kia-cerato",
+    "body": "sedan",
+    "length": 4.64,
+    "width": 1.8
+  },
+  {
+    "slug": "kia-k5",
+    "body": "sedan",
+    "length": 4.91,
+    "width": 1.86
+  },
+  {
+    "slug": "kia-optima",
+    "body": "sedan",
+    "length": 4.86,
+    "width": 1.86
+  },
+  {
+    "slug": "kia-rio-3",
+    "body": "sedan",
+    "length": 4.37,
+    "width": 1.7
+  },
+  {
+    "slug": "kia-rio-4",
+    "body": "sedan",
+    "length": 4.4,
+    "width": 1.74
+  },
+  {
+    "slug": "kia-seltos",
+    "body": "suv",
+    "length": 4.37,
+    "width": 1.8
+  },
+  {
+    "slug": "kia-sorento",
+    "body": "suv",
+    "length": 4.81,
+    "width": 1.9
+  },
+  {
+    "slug": "kia-soul",
+    "body": "suv",
+    "length": 4.2,
+    "width": 1.8
+  },
+  {
+    "slug": "kia-spectra",
+    "body": "sedan",
+    "length": 4.51,
+    "width": 1.72
+  },
+  {
+    "slug": "kia-sportage",
+    "body": "suv",
+    "length": 4.48,
+    "width": 1.85
+  },
+  {
+    "slug": "lada-2106",
+    "body": "box",
+    "length": 4.17,
+    "width": 1.61
+  },
+  {
+    "slug": "lada-2107",
+    "body": "box",
+    "length": 4.15,
+    "width": 1.62
+  },
+  {
+    "slug": "lada-2109",
+    "body": "hatch",
+    "length": 4.0,
+    "width": 1.65
+  },
+  {
+    "slug": "lada-2110",
+    "body": "sedan",
+    "length": 4.27,
+    "width": 1.68
+  },
+  {
+    "slug": "lada-2114",
+    "body": "hatch",
+    "length": 4.12,
+    "width": 1.65
+  },
+  {
+    "slug": "lada-granta",
+    "body": "sedan",
+    "length": 4.27,
+    "width": 1.7
+  },
+  {
+    "slug": "lada-kalina",
+    "body": "hatch",
+    "length": 3.89,
+    "width": 1.7
+  },
+  {
+    "slug": "lada-largus",
+    "body": "wagon",
+    "length": 4.47,
+    "width": 1.75
+  },
+  {
+    "slug": "lada-niva-legend",
+    "body": "box",
+    "length": 3.74,
+    "width": 1.68
+  },
+  {
+    "slug": "lada-niva-travel",
+    "body": "suv",
+    "length": 4.1,
+    "width": 1.8
+  },
+  {
+    "slug": "lada-priora",
+    "body": "sedan",
+    "length": 4.35,
+    "width": 1.68
+  },
+  {
+    "slug": "lada-vesta",
+    "body": "sedan",
+    "length": 4.41,
+    "width": 1.76
+  },
+  {
+    "slug": "lada-vesta-sw",
+    "body": "wagon",
+    "length": 4.41,
+    "width": 1.76
+  },
+  {
+    "slug": "lada-xray",
+    "body": "suv",
+    "length": 4.17,
+    "width": 1.76
+  },
+  {
+    "slug": "lexus-rx",
+    "body": "suv",
+    "length": 4.89,
+    "width": 1.9
+  },
+  {
+    "slug": "mazda-3",
+    "body": "hatch",
+    "length": 4.46,
+    "width": 1.8
+  },
+  {
+    "slug": "mazda-6",
+    "body": "sedan",
+    "length": 4.87,
+    "width": 1.84
+  },
+  {
+    "slug": "mazda-cx5",
+    "body": "suv",
+    "length": 4.55,
+    "width": 1.84
+  },
+  {
+    "slug": "mercedes-c-w204",
+    "body": "sedan",
+    "length": 4.59,
+    "width": 1.77
+  },
+  {
+    "slug": "mercedes-c-w205",
+    "body": "sedan",
+    "length": 4.69,
+    "width": 1.81
+  },
+  {
+    "slug": "mercedes-e-w211",
+    "body": "sedan",
+    "length": 4.85,
+    "width": 1.82
+  },
+  {
+    "slug": "mercedes-e-w212",
+    "body": "sedan",
+    "length": 4.87,
+    "width": 1.85
+  },
+  {
+    "slug": "mercedes-gl",
+    "body": "suv",
+    "length": 5.12,
+    "width": 1.94
+  },
+  {
+    "slug": "mercedes-ml",
+    "body": "suv",
+    "length": 4.8,
+    "width": 1.93
+  },
+  {
+    "slug": "mitsubishi-asx",
+    "body": "suv",
+    "length": 4.3,
+    "width": 1.77
+  },
+  {
+    "slug": "mitsubishi-lancer",
+    "body": "sedan",
+    "length": 4.57,
+    "width": 1.76
+  },
+  {
+    "slug": "mitsubishi-outlander",
+    "body": "suv",
+    "length": 4.7,
+    "width": 1.81
+  },
+  {
+    "slug": "mitsubishi-pajero-4",
+    "body": "box",
+    "length": 4.9,
+    "width": 1.88
+  },
+  {
+    "slug": "mitsubishi-pajero-sport",
+    "body": "suv",
+    "length": 4.79,
+    "width": 1.82
+  },
+  {
+    "slug": "moskvich-3",
+    "body": "suv",
+    "length": 4.41,
+    "width": 1.8
+  },
+  {
+    "slug": "nissan-almera",
+    "body": "sedan",
+    "length": 4.66,
+    "width": 1.7
+  },
+  {
+    "slug": "nissan-juke",
+    "body": "suv",
+    "length": 4.13,
+    "width": 1.77
+  },
+  {
+    "slug": "nissan-murano",
+    "body": "suv",
+    "length": 4.9,
+    "width": 1.92
+  },
+  {
+    "slug": "nissan-note",
+    "body": "hatch",
+    "length": 4.1,
+    "width": 1.69
+  },
+  {
+    "slug": "nissan-qashqai",
+    "body": "suv",
+    "length": 4.38,
+    "width": 1.84
+  },
+  {
+    "slug": "nissan-teana",
+    "body": "sedan",
+    "length": 4.86,
+    "width": 1.83
+  },
+  {
+    "slug": "nissan-terrano",
+    "body": "suv",
+    "length": 4.32,
+    "width": 1.82
+  },
+  {
+    "slug": "nissan-x-trail",
+    "body": "suv",
+    "length": 4.64,
+    "width": 1.82
+  },
+  {
+    "slug": "omoda-c5",
+    "body": "suv",
+    "length": 4.4,
+    "width": 1.83
+  },
+  {
+    "slug": "omoda-s5",
+    "body": "sedan",
+    "length": 4.64,
+    "width": 1.81
+  },
+  {
+    "slug": "opel-astra",
+    "body": "hatch",
+    "length": 4.42,
+    "width": 1.81
+  },
+  {
+    "slug": "opel-corsa",
+    "body": "hatch",
+    "length": 4.0,
+    "width": 1.74
+  },
+  {
+    "slug": "opel-insignia",
+    "body": "liftback",
+    "length": 4.84,
+    "width": 1.86
+  },
+  {
+    "slug": "renault-arkana",
+    "body": "coupeSUV",
+    "length": 4.55,
+    "width": 1.82
+  },
+  {
+    "slug": "renault-duster",
+    "body": "suv",
+    "length": 4.32,
+    "width": 1.82
+  },
+  {
+    "slug": "renault-fluence",
+    "body": "sedan",
+    "length": 4.62,
+    "width": 1.81
+  },
+  {
+    "slug": "renault-kaptur",
+    "body": "suv",
+    "length": 4.33,
+    "width": 1.81
+  },
+  {
+    "slug": "renault-logan",
+    "body": "sedan",
+    "length": 4.35,
+    "width": 1.73
+  },
+  {
+    "slug": "renault-megane",
+    "body": "hatch",
+    "length": 4.3,
+    "width": 1.8
+  },
+  {
+    "slug": "renault-sandero",
+    "body": "hatch",
+    "length": 4.08,
+    "width": 1.73
+  },
+  {
+    "slug": "skoda-fabia",
+    "body": "hatch",
+    "length": 3.99,
+    "width": 1.73
+  },
+  {
+    "slug": "skoda-karoq",
+    "body": "suv",
+    "length": 4.38,
+    "width": 1.84
+  },
+  {
+    "slug": "skoda-kodiaq",
+    "body": "suv",
+    "length": 4.7,
+    "width": 1.88
+  },
+  {
+    "slug": "skoda-octavia-a5",
+    "body": "liftback",
+    "length": 4.57,
+    "width": 1.77
+  },
+  {
+    "slug": "skoda-octavia-a7",
+    "body": "liftback",
+    "length": 4.66,
+    "width": 1.81
+  },
+  {
+    "slug": "skoda-rapid",
+    "body": "liftback",
+    "length": 4.48,
+    "width": 1.71
+  },
+  {
+    "slug": "skoda-superb",
+    "body": "liftback",
+    "length": 4.86,
+    "width": 1.86
+  },
+  {
+    "slug": "skoda-yeti",
+    "body": "suv",
+    "length": 4.22,
+    "width": 1.79
+  },
+  {
+    "slug": "subaru-forester",
+    "body": "suv",
+    "length": 4.63,
+    "width": 1.82
+  },
+  {
+    "slug": "subaru-outback",
+    "body": "wagon",
+    "length": 4.82,
+    "width": 1.84
+  },
+  {
+    "slug": "suzuki-grand-vitara",
+    "body": "suv",
+    "length": 4.5,
+    "width": 1.81
+  },
+  {
+    "slug": "toyota-camry-40",
+    "body": "sedan",
+    "length": 4.82,
+    "width": 1.82
+  },
+  {
+    "slug": "toyota-camry-50",
+    "body": "sedan",
+    "length": 4.85,
+    "width": 1.83
+  },
+  {
+    "slug": "toyota-camry-70",
+    "body": "sedan",
+    "length": 4.89,
+    "width": 1.84
+  },
+  {
+    "slug": "toyota-corolla",
+    "body": "sedan",
+    "length": 4.63,
+    "width": 1.78
+  },
+  {
+    "slug": "toyota-lc-prado",
+    "body": "box",
+    "length": 4.78,
+    "width": 1.89
+  },
+  {
+    "slug": "toyota-lc200",
+    "body": "box",
+    "length": 4.95,
+    "width": 1.98
+  },
+  {
+    "slug": "toyota-rav4",
+    "body": "suv",
+    "length": 4.6,
+    "width": 1.86
+  },
+  {
+    "slug": "uaz-hunter",
+    "body": "box",
+    "length": 4.1,
+    "width": 1.73
+  },
+  {
+    "slug": "uaz-patriot",
+    "body": "box",
+    "length": 4.75,
+    "width": 1.9
+  },
+  {
+    "slug": "volvo-xc60",
+    "body": "suv",
+    "length": 4.69,
+    "width": 1.9
+  },
+  {
+    "slug": "vw-golf",
+    "body": "hatch",
+    "length": 4.26,
+    "width": 1.79
+  },
+  {
+    "slug": "vw-jetta",
+    "body": "sedan",
+    "length": 4.66,
+    "width": 1.78
+  },
+  {
+    "slug": "vw-passat",
+    "body": "sedan",
+    "length": 4.77,
+    "width": 1.83
+  },
+  {
+    "slug": "vw-polo",
+    "body": "sedan",
+    "length": 4.39,
+    "width": 1.7
+  },
+  {
+    "slug": "vw-tiguan",
+    "body": "suv",
+    "length": 4.49,
+    "width": 1.84
+  },
+  {
+    "slug": "vw-touareg",
+    "body": "suv",
+    "length": 4.88,
+    "width": 1.98
+  }
+]

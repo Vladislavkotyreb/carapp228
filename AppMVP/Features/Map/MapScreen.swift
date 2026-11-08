@@ -19,6 +19,13 @@ struct MapScreen: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Place.createdAt) private var places: [Place]
 
+    @Query(sort: \Car.createdAt) private var cars: [Car]
+    @AppStorage(TripCar.key) private var tripCarID = ""
+
+    private var markerSlug: String? {
+        MapCarMarker.slug(cars: cars, selectedID: tripCarID)
+    }
+
     @StateObject private var controller = MapController()
 
     /// «Записаться» на главной: найти ближайший сервис и открыть его
@@ -139,6 +146,7 @@ struct MapScreen: View {
     private func lifecycle(_ view: some View) -> some View {
         view
             .onAppear {
+                controller.setUserCar(slug: markerSlug)
                 controller.update(saved: places)
                 controller.resume()
                 consumeServiceRequest()
@@ -146,6 +154,7 @@ struct MapScreen: View {
             .onChange(of: findsNearestService) { _, wants in
                 if wants { consumeServiceRequest() }
             }
+            .onChange(of: markerSlug) { _, slug in controller.setUserCar(slug: slug) }
             .onChange(of: places) { _, new in controller.update(saved: new) }
             // Поиск отвечает списком — поле в фокусе открывает список;
             // вернулись к карте — клавиатура уходит.

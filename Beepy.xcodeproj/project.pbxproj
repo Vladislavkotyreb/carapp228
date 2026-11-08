@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		9B000001000000000000007F /* MapCars in Resources */ = {isa = PBXBuildFile; fileRef = 9C000001000000000000007F /* MapCars */; };
 		CA0000010000000000000003 /* UIState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000003 /* UIState.swift */; };
 		CA0000010000000000000004 /* UIStateCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0000010000000000000004 /* UIStateCatalog.swift */; };
 		1A0000010000000000000001 /* PartAdvice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0000010000000000000001 /* PartAdvice.swift */; };
@@ -71,7 +72,6 @@
 		AA0000010000000000000F01 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F01 /* PrivacyInfo.xcprivacy */; };
 		AA0000010000000000000F03 /* Licenses.txt in Resources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000F03 /* Licenses.txt */; };
 		AA0000010000000000000018 /* OnboardingButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000017 /* OnboardingButtons.swift */; };
-		AA0000010000000000000019 /* PageIndicatorDots.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000018 /* PageIndicatorDots.swift */; };
 		AA000001000000000000001C /* FormControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000001C /* FormControls.swift */; };
 		AA000001000000000000001D /* AddCarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000001D /* AddCarView.swift */; };
 		AA000001000000000000001E /* CarFoundSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000001000000000000001E /* CarFoundSheet.swift */; };
@@ -120,6 +120,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		9C000001000000000000007F /* MapCars */ = {isa = PBXFileReference; lastKnownFileType = folder; path = MapCars; sourceTree = "<group>"; };
 		CB0000010000000000000003 /* UIState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIState.swift; sourceTree = "<group>"; };
 		CB0000010000000000000004 /* UIStateCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIStateCatalog.swift; sourceTree = "<group>"; };
 		1B0000010000000000000001 /* PartAdvice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartAdvice.swift; sourceTree = "<group>"; };
@@ -183,7 +184,6 @@
 		BB0000010000000000000F01 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BB0000010000000000000F03 /* Licenses.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Licenses.txt; sourceTree = "<group>"; };
 		BB0000010000000000000017 /* OnboardingButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingButtons.swift; sourceTree = "<group>"; };
-		BB0000010000000000000018 /* PageIndicatorDots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageIndicatorDots.swift; sourceTree = "<group>"; };
 		BB000001000000000000001C /* FormControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormControls.swift; sourceTree = "<group>"; };
 		BB000001000000000000001D /* AddCarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCarView.swift; sourceTree = "<group>"; };
 		BB000001000000000000001E /* CarFoundSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarFoundSheet.swift; sourceTree = "<group>"; };
@@ -378,6 +378,7 @@
 				9C000001000000000000007A /* ClapAudioEncoder.mlmodelc */,
 				9C000001000000000000007B /* DiagnosisSupport.json */,
 				9C000001000000000000007E /* CarCatalog */,
+				9C000001000000000000007F /* MapCars */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -395,7 +396,6 @@
 			isa = PBXGroup;
 			children = (
 				BB0000010000000000000017 /* OnboardingButtons.swift */,
-				BB0000010000000000000018 /* PageIndicatorDots.swift */,
 				BB000001000000000000001C /* FormControls.swift */,
 				BB000001000000000000001F /* FloatingTabBar.swift */,
 				BB0000010000000000000024 /* LiquidGlass.swift */,
@@ -617,6 +617,7 @@
 				9B000001000000000000007A /* ClapAudioEncoder.mlmodelc in Resources */,
 				9B000001000000000000007B /* DiagnosisSupport.json in Resources */,
 				9B000001000000000000007E /* CarCatalog in Resources */,
+				9B000001000000000000007F /* MapCars in Resources */,
 			);
 		};
 		TA0000010000000000000042 /* Resources */ = {
@@ -682,7 +683,6 @@
 				AA000001000000000000000C /* OnboardingView.swift in Sources */,
 				AA0000010000000000000F04 /* OnboardingVisuals.swift in Sources */,
 				AA0000010000000000000018 /* OnboardingButtons.swift in Sources */,
-				AA0000010000000000000019 /* PageIndicatorDots.swift in Sources */,
 				AA000001000000000000001C /* FormControls.swift in Sources */,
 				AA000001000000000000001D /* AddCarView.swift in Sources */,
 				AA000001000000000000001E /* CarFoundSheet.swift in Sources */,
@@ -864,7 +864,7 @@
 				CODE_SIGN_ENTITLEMENTS = AppMVP/App/Beepy.entitlements;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = 5BK4R35RB8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -897,7 +897,7 @@
 				CODE_SIGN_ENTITLEMENTS = AppMVP/App/Beepy.entitlements;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Beepy;
@@ -926,7 +926,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = 5BK4R35RB8;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0.0;
@@ -944,7 +944,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.vladislavkotyrev.appmvp.tests;
@@ -960,7 +960,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = 5BK4R35RB8;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0.0;
@@ -977,7 +977,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.vladislavkotyrev.appmvp.uitests;

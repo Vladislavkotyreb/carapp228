@@ -40,7 +40,7 @@ final class FlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["apple-sign-in"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["Начать"].exists)
         XCTAssertFalse(app.buttons["Пробег"].exists)
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = "Apple sign in"
         screenshot.lifetime = .keepAlways
         add(screenshot)
@@ -54,7 +54,7 @@ final class FlowTests: XCTestCase {
         let signOut = app.buttons["Выйти из аккаунта"]
         if !signOut.isHittable { app.swipeUp() }
         XCTAssertTrue(signOut.waitForExistence(timeout: 5))
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = "More account actions"
         screenshot.lifetime = .keepAlways
         add(screenshot)
@@ -78,15 +78,23 @@ final class FlowTests: XCTestCase {
         capture("04-map", app: app)
     }
 
+    func testMapMileageCarPreview() {
+        let app = launch(onboarded: true, seeded: true)
+        XCTAssertTrue(app.buttons["Карта"].waitForExistence(timeout: 10))
+        app.buttons["Карта"].tap()
+        XCTAssertTrue(app.buttons["Список"].waitForExistence(timeout: 10))
+        capture("map-mileage-car", app: app)
+    }
+
     private func capture(_ name: String, app: XCUIApplication) {
         Thread.sleep(forTimeInterval: 3)
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
     }
 
-    /// После входа опрос можно пропустить, машина появляется на главной.
+    /// Системный pager, обратный свайп, стрелка и пропуск GPS остаются доступны.
     func testOnboardingPagesRemainReachable() {
         let app = launch(onboarded: false)
         XCTAssertTrue(app.buttons["onboarding-next"].waitForExistence(timeout: 10))
@@ -103,7 +111,7 @@ final class FlowTests: XCTestCase {
         capture("03-gps", app: app)
         app.swipeRight()
         XCTAssertTrue(app.staticTexts["Послушай,\nкак она работает"].waitForExistence(timeout: 5))
-        app.buttons["onboarding-page-2"].tap()
+        app.swipeLeft()
         XCTAssertTrue(app.buttons["Включить GPS"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.alerts.firstMatch.exists, "Геопозиция не запрашивается до нажатия")
         app.buttons["onboarding-later"].tap()
@@ -115,8 +123,9 @@ final class FlowTests: XCTestCase {
         app.resetAuthorizationStatus(for: .location)
         app.launchArguments = ["-beepy-ui-test", "-beepy-test-authenticated", "-hasCompletedOnboarding", "NO", "-trip.auto", "NO"]
         app.launch()
-        XCTAssertTrue(app.buttons["onboarding-page-2"].waitForExistence(timeout: 10))
-        app.buttons["onboarding-page-2"].tap()
+        XCTAssertTrue(app.buttons["onboarding-next"].waitForExistence(timeout: 10))
+        app.swipeLeft()
+        app.swipeLeft()
         app.buttons["Включить GPS"].tap()
         let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let deny = system.buttons.matching(NSPredicate(format: "label IN %@", ["Don’t Allow", "Don't Allow", "Не разрешать", "Запретить"])).firstMatch
@@ -131,7 +140,8 @@ final class FlowTests: XCTestCase {
         let app = launch(onboarded: false)
 
         XCTAssertTrue(app.buttons["onboarding-next"].waitForExistence(timeout: 10))
-        app.buttons["onboarding-page-2"].tap()
+        app.swipeLeft()
+        app.swipeLeft()
         app.buttons["onboarding-later"].tap()
 
         let byName = app.buttons["По названию"]
@@ -261,7 +271,7 @@ final class FlowTests: XCTestCase {
         XCTAssertTrue(licenses.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Условия использования сервиса Яндекс.Карты"].exists)
         XCTAssertTrue(app.buttons["Условия использования API Яндекс Карт"].exists)
-        let aboutShot = XCTAttachment(screenshot: app.screenshot())
+        let aboutShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         aboutShot.name = "about-yandex-links"
         aboutShot.lifetime = .keepAlways
         add(aboutShot)

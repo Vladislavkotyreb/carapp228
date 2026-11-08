@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import Beepy
 
 /// То, без чего App Store не примет сборку или ревью её отклонит. Хост
@@ -68,4 +69,29 @@ final class ReleaseReadinessTests: XCTestCase {
             XCTFail("неожиданная ошибка: \(error)")
         }
     }
+    func testEveryCatalogCarHasATopViewMarker() throws {
+        let slugs = Set(CarCatalog.brands.flatMap { $0.rules.map(\.slug) })
+            .union(CarCatalog.plateOverrides.values)
+        for slug in slugs {
+            let url = try XCTUnwrap(Bundle.main.url(forResource: slug, withExtension: "png", subdirectory: "MapCars"), slug)
+            let image = try XCTUnwrap(UIImage(contentsOfFile: url.path), slug)
+            XCTAssertEqual(image.size, CGSize(width: 384, height: 384), slug)
+        }
+    }
+
+    @MainActor
+    func testMapMarkerFollowsMileageSelectionAndDeletion() {
+        let camry = Car(plate: "А777АА777", name: "Toyota Camry", odometer: 0)
+        let rio = Car(plate: "", name: "Kia Rio", odometer: 0)
+        let fleet = [camry, rio]
+        XCTAssertEqual(MapCarMarker.slug(cars: fleet, selectedID: camry.plate), "toyota-camry-70")
+        XCTAssertEqual(MapCarMarker.slug(cars: fleet, selectedID: rio.name), "kia-rio-4")
+        XCTAssertEqual(MapCarMarker.slug(cars: [camry], selectedID: rio.name), "toyota-camry-70")
+        XCTAssertNil(MapCarMarker.slug(cars: [], selectedID: rio.name))
+        let unknown = Car(plate: "", name: "My custom car", odometer: 0)
+        XCTAssertNil(MapCarMarker.slug(cars: [unknown], selectedID: unknown.name))
+        let giraffe = Car(plate: "Н600НА190", name: "Land Rover Discovery", odometer: 0)
+        XCTAssertEqual(MapCarMarker.slug(cars: [giraffe], selectedID: giraffe.plate), "giraffe-discovery")
+    }
+
 }

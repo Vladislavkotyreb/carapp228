@@ -154,3 +154,16 @@ extension View {
             .offset(y: y)
     }
 }
+
+/// Общая сетка трёх страниц онбординга, включая место системного page control.
+enum OnboardingLayout {
+    static let margin: CGFloat = 24
+    static let artWidth: CGFloat = 310
+    static let artHeight: CGFloat = 280
+    static let copyWidth: CGFloat = 330
+    static let sectionGap: CGFloat = 28
+    static let textGap: CGFloat = 16
+    static let indexSpace: CGFloat = 44
+    static let titleSize: CGFloat = 32
+    static let bodySize: CGFloat = 16
+}
