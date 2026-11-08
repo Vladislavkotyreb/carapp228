@@ -89,42 +89,50 @@ final class FlowTests: XCTestCase {
     /// После входа опрос можно пропустить, машина появляется на главной.
     func testOnboardingPagesRemainReachable() {
         let app = launch(onboarded: false)
-        XCTAssertTrue(app.buttons["Начать"].waitForExistence(timeout: 10))
-        app.buttons["Начать"].tap()
+        XCTAssertTrue(app.buttons["onboarding-next"].waitForExistence(timeout: 10))
+        capture("01-plate", app: app)
+        app.buttons["onboarding-next"].tap()
+        XCTAssertTrue(app.staticTexts["Послушай,\nкак она работает"].waitForExistence(timeout: 5))
+        capture("02-sound", app: app)
+        app.buttons["onboarding-back"].tap()
+        XCTAssertTrue(app.staticTexts["Машина\nпо номеру"].waitForExistence(timeout: 5))
+        app.swipeLeft()
+        XCTAssertTrue(app.staticTexts["Послушай,\nкак она работает"].waitForExistence(timeout: 5))
+        app.swipeLeft()
+        XCTAssertTrue(app.buttons["onboarding-later"].waitForExistence(timeout: 5))
+        capture("03-gps", app: app)
+        app.swipeRight()
+        XCTAssertTrue(app.staticTexts["Послушай,\nкак она работает"].waitForExistence(timeout: 5))
         app.buttons["onboarding-page-2"].tap()
-        XCTAssertTrue(app.staticTexts["ТО вовремя"].waitForExistence(timeout: 5))
-        app.buttons["onboarding-page-0"].tap()
-        XCTAssertTrue(app.staticTexts["Пробег считается сам"].waitForExistence(timeout: 5))
-        app.buttons["onboarding-page-0"].tap()
-        let pages = [("Пробег считается сам", "Далее"),
-                     ("Слушай мотор", "Круто, а\u{00A0}что ещё?"),
-                     ("ТО вовремя", "Далее")]
-        for (title, button) in pages {
-            XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
-            let shot = XCTAttachment(screenshot: app.screenshot())
-            shot.name = title
-            shot.lifetime = .keepAlways
-            add(shot)
-            app.buttons[button].tap()
-        }
-        XCTAssertTrue(app.buttons["Отлично, погнали!"].waitForExistence(timeout: 5))
-        app.buttons["Отлично, погнали!"].tap()
+        XCTAssertTrue(app.buttons["Включить GPS"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.alerts.firstMatch.exists, "Геопозиция не запрашивается до нажатия")
+        app.buttons["onboarding-later"].tap()
+        XCTAssertTrue(app.buttons["По названию"].waitForExistence(timeout: 5))
+    }
+
+    func testGPSDeniedCanContinueLater() {
+        let app = XCUIApplication()
+        app.resetAuthorizationStatus(for: .location)
+        app.launchArguments = ["-beepy-ui-test", "-beepy-test-authenticated", "-hasCompletedOnboarding", "NO", "-trip.auto", "NO"]
+        app.launch()
+        XCTAssertTrue(app.buttons["onboarding-page-2"].waitForExistence(timeout: 10))
+        app.buttons["onboarding-page-2"].tap()
+        app.buttons["Включить GPS"].tap()
+        let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let deny = system.buttons.matching(NSPredicate(format: "label IN %@", ["Don’t Allow", "Don't Allow", "Не разрешать", "Запретить"])).firstMatch
+        XCTAssertTrue(deny.waitForExistence(timeout: 10))
+        deny.tap()
+        XCTAssertTrue(app.alerts["Геопозиция выключена"].waitForExistence(timeout: 10))
+        app.alerts["Геопозиция выключена"].buttons["Позже"].tap()
         XCTAssertTrue(app.buttons["По названию"].waitForExistence(timeout: 5))
     }
 
     func testFirstLaunchToFirstCar() {
         let app = launch(onboarded: false)
 
-        let start = app.buttons["Начать"]
-        XCTAssertTrue(start.waitForExistence(timeout: 10))
-        XCTAssertFalse(app.buttons["Sign in with Apple"].exists)
-        start.tap()
-
-        // Первая страница — то, что приложение умеет сейчас.
-        XCTAssertTrue(app.staticTexts["Пробег считается сам"].waitForExistence(timeout: 5))
-        let skip = app.buttons["Пропустить"]
-        XCTAssertTrue(skip.waitForExistence(timeout: 5))
-        skip.tap()
+        XCTAssertTrue(app.buttons["onboarding-next"].waitForExistence(timeout: 10))
+        app.buttons["onboarding-page-2"].tap()
+        app.buttons["onboarding-later"].tap()
 
         let byName = app.buttons["По названию"]
         XCTAssertTrue(byName.waitForExistence(timeout: 5))

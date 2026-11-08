@@ -1,295 +1,131 @@
 import SwiftUI
 
-/// Иллюстрации страниц онбординга — фрагменты самого приложения на стекле,
-/// по образцу онбординга PARQ на Dribbble (выбор 15.10.2026): тёмный фон,
-/// стеклянные карточки, один зелёный акцент для статусов. Картинок нет —
-/// всё нарисовано теми же компонентами, что в приложении, и живёт:
-/// счётчик километров, полоса ТО, номер набирается по символу.
-///
-/// Моушн простой и один на всех: карточка поднимается и проявляется,
-/// чипы плавно проявляются следом, без постоянного покачивания. С «Уменьшением
-/// движения» остаётся только проявление — этого требует HIG.
-enum OnboardingFeature: CaseIterable {
-    case trips, sound, service, plate
-}
+// Оригинальные иллюстрации Beepy по композиционным референсам CRED / untitled / komoot.
+enum OnboardingFeature { case plate, sound, trips }
 
 struct OnboardingVisual: View {
     let feature: OnboardingFeature
-
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Карточка на месте.
-    @State private var shown = false
-    /// Чипы на месте — чуть позже карточки.
-    @State private var chips = false
+    @Environment(\.scenePhase) private var scenePhase
 
-    private enum Layout {
-        static let rise: CGFloat = 12
-        static let chipDelay = 0.12
-        static let secondChipDelay = 0.08
-        static let carHeight: CGFloat = 230
-        static let cardRadius: CGFloat = 36
-    }
-
-    var body: some View {
-        glassContent
-            .opacity(shown ? 1 : 0)
-            .offset(y: shown || reduceMotion ? 0 : Layout.rise)
-            .accessibilityHidden(true)
-            .onAppear {
-                withAnimation(reduceMotion ? Motion.fade : Motion.onboardingReveal) { shown = true }
-                withAnimation(reduceMotion ? Motion.fade : Motion.onboardingReveal.delay(Layout.chipDelay)) { chips = true }
-            }
-    }
-
-    @ViewBuilder
-    private var glassContent: some View {
-        if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: 8) { content }
-        } else {
-            content
-        }
-    }
-
-    // Decode once, outside repeated body evaluations during transitions.
-    private static let carImage: UIImage? = {
-        guard let url = Bundle.main.url(forResource: "toyota-camry-70", withExtension: "heic",
-                                       subdirectory: "CarCatalog") else { return nil }
+    private static let car: UIImage? = {
+        guard let url = Bundle.main.url(forResource: "toyota-camry-70", withExtension: "heic", subdirectory: "CarCatalog") else { return nil }
         return UIImage(contentsOfFile: url.path)?.preparingForDisplay()
     }()
 
-    @ViewBuilder
-    private var content: some View {
+    var body: some View {
         switch feature {
-        case .trips: trips
-        case .sound: sound
-        case .service: service
-        case .plate: plate
+        case .plate: car
+        case .sound: wave
+        case .trips: route
         }
     }
 
-    // MARK: - Автопробег
-
-    @State private var km = 0
-
-    private var trips: some View {
-        ZStack {
-            // Настоящая машина из каталога, а не «машина под чехлом» —
-            // та остаётся приветствию. Camry XV70 — самая узнаваемая.
-            Group {
-                if let image = Self.carImage {
-                    Image(uiImage: image).resizable()
-                } else {
-                    Image("CarPhoto").resizable()
+    private var car: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "car.side.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.secondary)
+                Text("А 777 АА")
+                    .font(.system(size: 28, weight: .semibold, design: .monospaced))
+                    .minimumScaleFactor(0.65)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                VStack(spacing: 2) {
+                    Text("777").font(.system(size: 20, weight: .semibold, design: .monospaced))
+                    Text("RUS").font(.system(size: 9, weight: .medium))
                 }
+            }
+            .padding(18)
+            .liquidGlass(in: RoundedRectangle(cornerRadius: 20)) {
+                RoundedRectangle(cornerRadius: 20).fill(Material.regular)
+            }
+            Group {
+                if let image = Self.car { Image(uiImage: image).resizable() }
+                else { Image("CarPhoto").resizable() }
             }
             .scaledToFit()
-            .frame(height: Layout.carHeight)
+            .frame(maxHeight: .infinity)
+        }
+        .padding(.top, 16)
+    }
 
-            VStack {
-                HStack {
-                    chip(dot: Figma.accentsGreen, text: "Поездка идёт")
-                        .modifier(ChipEntry(on: chips, reduceMotion: reduceMotion))
-                    Spacer()
-                }
-                Spacer()
-                HStack {
-                    Spacer()
-                    chip(icon: "point.topleft.down.to.point.bottomright.curvepath",
-                         text: "+\(km)\u{00A0}км к\u{00A0}пробегу")
-                        .contentTransition(.numericText(value: Double(km)))
-                        .modifier(ChipEntry(on: chips, reduceMotion: reduceMotion, delay: Layout.secondChipDelay))
+    private var wave: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: reduceMotion || scenePhase != .active)) { context in
+            let time = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
+            Canvas { canvas, size in
+                let bars = 49
+                let spacing = size.width / CGFloat(bars)
+                for index in 0..<bars {
+                    let x = Double(index) / Double(bars - 1)
+                    let envelope = pow(sin(x * .pi), 1.6)
+                    let pulse = 0.35 + 0.65 * abs(sin(Double(index) * 0.62 + time * 2))
+                    let height = 6 + CGFloat(envelope * pulse) * size.height * 0.65
+                    let rect = CGRect(x: CGFloat(index) * spacing, y: (size.height - height) / 2,
+                                      width: max(2, spacing * 0.38), height: height)
+                    canvas.fill(Path(roundedRect: rect, cornerRadius: 3),
+                                with: .color(Color(red: 0.98, green: 0.44, blue: 0.36)))
                 }
             }
         }
-        .onAppear {
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.7).delay(Layout.chipDelay)) { km = 12 }
+        .overlay(alignment: .bottom) {
+            Label("Разбор на телефоне", systemImage: "iphone")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 20)
         }
     }
 
-    // MARK: - Диагностика
-
-    private var sound: some View {
-        ZStack {
-            SoundOrb(level: 0)
-                .aspectRatio(SoundOrb.aspectRatio, contentMode: .fit)
-
-            VStack {
-                HStack {
-                    chip(dot: Figma.accentsYellow, text: "Слушаю мотор")
-                        .modifier(ChipEntry(on: chips, reduceMotion: reduceMotion))
-                    Spacer()
-                }
-                Spacer()
-                HStack {
-                    Spacer()
-                    chip(icon: "iphone", text: "Разбор на\u{00A0}телефоне")
-                        .modifier(ChipEntry(on: chips, reduceMotion: reduceMotion, delay: Layout.secondChipDelay))
-                }
-            }
-        }
-    }
-
-    // MARK: - ТО
-
-    @State private var left = ServiceMath.interval
-    @State private var progress = 0.0
-
-    private var service: some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 12) {
-                Text("ТО через")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Figma.graysGray2)
-                Text("\(NumberFormat.grouped(left))\u{00A0}км")
-                    .font(.system(size: 28, weight: .bold))
-                    // Цифры одной ширины: иначе на переходе 10 000 → 4 999
-                    // строка меняла ширину и «км» прыгал.
-                    .monospacedDigit()
-                    .foregroundStyle(.white)
-                    .contentTransition(.numericText(value: Double(left)))
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Figma.trackBackground)
-                        Capsule().fill(Figma.accentsYellow)
-                            .frame(width: max(30, geo.size.width * progress))
+    private var route: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            let height = geometry.size.height
+            ZStack {
+                RoundedRectangle(cornerRadius: 32)
+                    .fill(Color(red: 0.13, green: 0.17, blue: 0.12))
+                Canvas { canvas, size in
+                    var streets = Path()
+                    for index in 0..<8 {
+                        let x = CGFloat(index) * size.width / 6
+                        streets.move(to: CGPoint(x: x - 60, y: 0))
+                        streets.addLine(to: CGPoint(x: x + 70, y: size.height))
+                        let y = CGFloat(index) * size.height / 6
+                        streets.move(to: CGPoint(x: 0, y: y))
+                        streets.addLine(to: CGPoint(x: size.width, y: y - 60))
                     }
+                    canvas.stroke(streets, with: .color(.white.opacity(0.07)), lineWidth: 8)
+                    var path = Path()
+                    let points: [CGPoint] = [CGPoint(x: 0.14, y: 0.78), CGPoint(x: 0.27, y: 0.65),
+                        CGPoint(x: 0.47, y: 0.69), CGPoint(x: 0.43, y: 0.44),
+                        CGPoint(x: 0.69, y: 0.35), CGPoint(x: 0.82, y: 0.17)]
+                    path.addLines(points.map { CGPoint(x: $0.x * size.width, y: $0.y * size.height) })
+                    canvas.stroke(path, with: .color(.orange.opacity(0.16)), style: StrokeStyle(lineWidth: 14, lineCap: .round, lineJoin: .round))
+                    canvas.stroke(path, with: .color(.orange), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
                 }
-                .frame(height: 30)
-                Text("Осталось меньше 5\u{00A0}000\u{00A0}км")
-                    .font(.system(size: 15))
-                    .foregroundStyle(Figma.labelsSecondary)
-                    .opacity(chips ? 1 : 0)
-            }
-            .padding(24)
-            .liquidGlass(in: RoundedRectangle(cornerRadius: Layout.cardRadius)) {
-                RoundedRectangle(cornerRadius: Layout.cardRadius).fill(Material.regular)
-            }
-
-            HStack(spacing: 8) {
-                Image(systemName: "calendar.badge.plus")
-                    .font(.system(size: 15, weight: .semibold))
-                Text("Записаться на\u{00A0}ТО")
-                    .font(.system(size: 16, weight: .medium))
-            }
-            .foregroundStyle(Figma.labelsPrimary)
-            .padding(.horizontal, 18)
-            .frame(height: 44)
-            .liquidGlass(in: Capsule()) { Capsule().fill(Material.regular) }
-            .modifier(ChipEntry(on: chips, reduceMotion: reduceMotion, delay: Layout.secondChipDelay))
-        }
-        .onAppear {
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.7).delay(Layout.chipDelay)) {
-                left = 4_999
-                progress = 0.5
-            }
-        }
-    }
-
-    // MARK: - Госномер
-
-    @State private var typed = ""
-    private static let demoPlate = "В777ОР777"
-
-    private var plate: some View {
-        VStack(spacing: 20) {
-            PlateInputField(text: .constant(typed))
-                .allowsHitTesting(false)
-                .overlay { ScanCorners().opacity(chips ? 1 : 0) }
-
-            HStack {
-                chip(dot: Figma.accentsGreen, text: "Нашли: Kia Rio, 2019")
-                    .opacity(typed.count == Self.demoPlate.count ? 1 : 0)
-                    .scaleEffect(typed.count == Self.demoPlate.count || reduceMotion ? 1 : 0.9)
-                    .animation(.spring(response: 0.45, dampingFraction: 0.7), value: typed)
-                Spacer()
-            }
-        }
-        .task {
-            // Символы по одному, как будто человек набирает номер.
-            if reduceMotion {
-                typed = Self.demoPlate
-                return
-            }
-            try? await Task.sleep(for: .milliseconds(450))
-            for character in Self.demoPlate {
-                guard !Task.isCancelled else { return }
-                typed.append(character)
-                try? await Task.sleep(for: .milliseconds(110))
-            }
-        }
-    }
-
-    // MARK: - Чип
-
-    private func chip(dot: Color? = nil, icon: String? = nil, text: String) -> some View {
-        HStack(spacing: 6) {
-            if let dot {
-                Circle().fill(dot).frame(width: 7, height: 7)
-            }
-            if let icon {
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Figma.accentsGreen)
-            }
-            Text(text)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Figma.labelsPrimary)
-        }
-        .padding(.horizontal, 12)
-        .frame(height: 32)
-        .liquidGlass(in: Capsule()) { Capsule().fill(Material.regular) }
-    }
-}
-
-/// Один вход чипа, без второй пружины и бесконечного покачивания.
-private struct ChipEntry: ViewModifier {
-    let on: Bool
-    let reduceMotion: Bool
-    var delay = 0.0
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(on ? 1 : 0)
-            .offset(y: reduceMotion || on ? 0 : 8)
-            .animation(reduceMotion ? Motion.fade : Motion.onboardingReveal.delay(delay), value: on)
-    }
-}
-
-/// Уголки распознавания вокруг номерной рамки — как в PARQ.
-private struct ScanCorners: View {
-    var body: some View {
-        GeometryReader { geo in
-            let r: CGFloat = 26, l: CGFloat = 22, inset: CGFloat = -8
-            Path { p in
-                let w = geo.size.width - 2 * inset, h = geo.size.height - 2 * inset
-                let o = CGPoint(x: inset, y: inset)
-                // Четыре угла: короткие отрезки с дугой.
-                for (sx, sy) in [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0)] {
-                    let cx = o.x + sx * w, cy = o.y + sy * h
-                    let dx: CGFloat = sx == 0 ? 1 : -1, dy: CGFloat = sy == 0 ? 1 : -1
-                    p.move(to: CGPoint(x: cx, y: cy + dy * (r + l)))
-                    p.addLine(to: CGPoint(x: cx, y: cy + dy * r))
-                    p.addQuadCurve(to: CGPoint(x: cx + dx * r, y: cy), control: CGPoint(x: cx, y: cy))
-                    p.addLine(to: CGPoint(x: cx + dx * (r + l), y: cy))
+                .clipShape(RoundedRectangle(cornerRadius: 32))
+                Circle().fill(.white).frame(width: 12, height: 12)
+                    .position(x: width * 0.14, y: height * 0.78)
+                Image(systemName: "location.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(width: 42, height: 42)
+                    .background(.white, in: Circle())
+                    .position(x: width * 0.82, y: height * 0.17)
+                VStack {
+                    Spacer()
+                    HStack {
+                        Label("12,4\u{00A0}км", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                        Spacer()
+                        Text("24\u{00A0}мин")
+                    }
+                    .font(.system(size: 13, weight: .medium))
+                    .padding(16)
+                    .liquidGlass(in: Capsule()) { Capsule().fill(Material.regular) }
+                    .padding(16)
                 }
             }
-            .stroke(Figma.accentsGreen, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
         }
-    }
-}
-
-/// Заголовок и описание страницы всплывают следом за иллюстрацией.
-struct OnboardingRise: ViewModifier {
-    var delay = 0.0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var shown = false
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(shown ? 1 : 0)
-            .offset(y: shown || reduceMotion ? 0 : 14)
-            .onAppear {
-                withAnimation(reduceMotion ? Motion.fade : Motion.onboardingReveal.delay(delay)) { shown = true }
-            }
+        .padding(.vertical, 10)
     }
 }
