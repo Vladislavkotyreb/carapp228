@@ -7,7 +7,7 @@ import SwiftUI
 /// счётчик километров, полоса ТО, номер набирается по символу.
 ///
 /// Моушн простой и один на всех: карточка поднимается и проявляется,
-/// чипы входят следом пружиной, дальше мягко покачиваются. С «Уменьшением
+/// чипы плавно проявляются следом, без постоянного покачивания. С «Уменьшением
 /// движения» остаётся только проявление — этого требует HIG.
 enum OnboardingFeature: CaseIterable {
     case trips, sound, service, plate
@@ -21,32 +21,41 @@ struct OnboardingVisual: View {
     @State private var shown = false
     /// Чипы на месте — чуть позже карточки.
     @State private var chips = false
-    /// Покачивание чипов после входа.
-    @State private var floating = false
 
     private enum Layout {
-        static let rise: CGFloat = 28
-        static let float: CGFloat = 3
-        static let chipDelay = 0.35
-        static let secondChipDelay = 0.55
-        static let floatPeriod = 2.6
+        static let rise: CGFloat = 12
+        static let chipDelay = 0.12
+        static let secondChipDelay = 0.08
         static let carHeight: CGFloat = 230
         static let cardRadius: CGFloat = 36
     }
 
     var body: some View {
-        content
+        glassContent
             .opacity(shown ? 1 : 0)
             .offset(y: shown || reduceMotion ? 0 : Layout.rise)
             .accessibilityHidden(true)
             .onAppear {
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { shown = true }
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(Layout.chipDelay)) { chips = true }
-                guard !reduceMotion else { return }
-                withAnimation(.easeInOut(duration: Layout.floatPeriod).repeatForever(autoreverses: true)
-                    .delay(Layout.secondChipDelay + 0.4)) { floating = true }
+                withAnimation(reduceMotion ? Motion.fade : Motion.onboardingReveal) { shown = true }
+                withAnimation(reduceMotion ? Motion.fade : Motion.onboardingReveal.delay(Layout.chipDelay)) { chips = true }
             }
     }
+
+    @ViewBuilder
+    private var glassContent: some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: 8) { content }
+        } else {
+            content
+        }
+    }
+
+    // Decode once, outside repeated body evaluations during transitions.
+    private static let carImage: UIImage? = {
+        guard let url = Bundle.main.url(forResource: "toyota-camry-70", withExtension: "heic",
+                                       subdirectory: "CarCatalog") else { return nil }
+        return UIImage(contentsOfFile: url.path)?.preparingForDisplay()
+    }()
 
     @ViewBuilder
     private var content: some View {
@@ -67,9 +76,7 @@ struct OnboardingVisual: View {
             // Настоящая машина из каталога, а не «машина под чехлом» —
             // та остаётся приветствию. Camry XV70 — самая узнаваемая.
             Group {
-                if let url = Bundle.main.url(forResource: "toyota-camry-70", withExtension: "heic",
-                                             subdirectory: "CarCatalog"),
-                   let image = UIImage(contentsOfFile: url.path) {
+                if let image = Self.carImage {
                     Image(uiImage: image).resizable()
                 } else {
                     Image("CarPhoto").resizable()
@@ -81,8 +88,7 @@ struct OnboardingVisual: View {
             VStack {
                 HStack {
                     chip(dot: Figma.accentsGreen, text: "Поездка идёт")
-                        .modifier(ChipEntry(on: chips, float: floating ? -Layout.float : Layout.float,
-                                            reduceMotion: reduceMotion))
+                        .modifier(ChipEntry(on: chips, reduceMotion: reduceMotion))
                     Spacer()
                 }
                 Spacer()
@@ -91,13 +97,12 @@ struct OnboardingVisual: View {
                     chip(icon: "point.topleft.down.to.point.bottomright.curvepath",
                          text: "+\(km)\u{00A0}км к\u{00A0}пробегу")
                         .contentTransition(.numericText(value: Double(km)))
-                        .modifier(ChipEntry(on: chips, float: floating ? Layout.float : -Layout.float,
-                                            reduceMotion: reduceMotion, delay: Layout.secondChipDelay))
+                        .modifier(ChipEntry(on: chips, reduceMotion: reduceMotion, delay: Layout.secondChipDelay))
                 }
             }
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 1.2).delay(Layout.secondChipDelay)) { km = 12 }
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.7).delay(Layout.chipDelay)) { km = 12 }
         }
     }
 
@@ -111,16 +116,14 @@ struct OnboardingVisual: View {
             VStack {
                 HStack {
                     chip(dot: Figma.accentsYellow, text: "Слушаю мотор")
-                        .modifier(ChipEntry(on: chips, float: floating ? -Layout.float : Layout.float,
-                                            reduceMotion: reduceMotion))
+                        .modifier(ChipEntry(on: chips, reduceMotion: reduceMotion))
                     Spacer()
                 }
                 Spacer()
                 HStack {
                     Spacer()
                     chip(icon: "iphone", text: "Разбор на\u{00A0}телефоне")
-                        .modifier(ChipEntry(on: chips, float: floating ? Layout.float : -Layout.float,
-                                            reduceMotion: reduceMotion, delay: Layout.secondChipDelay))
+                        .modifier(ChipEntry(on: chips, reduceMotion: reduceMotion, delay: Layout.secondChipDelay))
                 }
             }
         }
@@ -158,7 +161,9 @@ struct OnboardingVisual: View {
                     .opacity(chips ? 1 : 0)
             }
             .padding(24)
-            .darkCardSurface(in: RoundedRectangle(cornerRadius: Layout.cardRadius))
+            .liquidGlass(in: RoundedRectangle(cornerRadius: Layout.cardRadius)) {
+                RoundedRectangle(cornerRadius: Layout.cardRadius).fill(Material.regular)
+            }
 
             HStack(spacing: 8) {
                 Image(systemName: "calendar.badge.plus")
@@ -170,11 +175,10 @@ struct OnboardingVisual: View {
             .padding(.horizontal, 18)
             .frame(height: 44)
             .liquidGlass(in: Capsule()) { Capsule().fill(Material.regular) }
-            .modifier(ChipEntry(on: chips, float: floating ? -Layout.float : Layout.float,
-                                reduceMotion: reduceMotion, delay: Layout.secondChipDelay))
+            .modifier(ChipEntry(on: chips, reduceMotion: reduceMotion, delay: Layout.secondChipDelay))
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 1.1).delay(0.25)) {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.7).delay(Layout.chipDelay)) {
                 left = 4_999
                 progress = 0.5
             }
@@ -197,7 +201,6 @@ struct OnboardingVisual: View {
                     .opacity(typed.count == Self.demoPlate.count ? 1 : 0)
                     .scaleEffect(typed.count == Self.demoPlate.count || reduceMotion ? 1 : 0.9)
                     .animation(.spring(response: 0.45, dampingFraction: 0.7), value: typed)
-                    .offset(y: floating ? -Layout.float : Layout.float)
                 Spacer()
             }
         }
@@ -209,6 +212,7 @@ struct OnboardingVisual: View {
             }
             try? await Task.sleep(for: .milliseconds(450))
             for character in Self.demoPlate {
+                guard !Task.isCancelled else { return }
                 typed.append(character)
                 try? await Task.sleep(for: .milliseconds(110))
             }
@@ -233,28 +237,21 @@ struct OnboardingVisual: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 32)
-        .darkCardSurface(in: Capsule())
+        .liquidGlass(in: Capsule()) { Capsule().fill(Material.regular) }
     }
 }
 
-/// Вход чипа: пружиной из-под карточки, дальше — лёгкое покачивание.
+/// Один вход чипа, без второй пружины и бесконечного покачивания.
 private struct ChipEntry: ViewModifier {
     let on: Bool
-    let float: CGFloat
     let reduceMotion: Bool
     var delay = 0.0
 
-    @State private var visible = false
-
     func body(content: Content) -> some View {
         content
-            .opacity(visible ? 1 : 0)
-            .scaleEffect(visible || reduceMotion ? 1 : 0.88)
-            .offset(y: reduceMotion ? 0 : (visible ? float : 10))
-            .onChange(of: on, initial: true) { _, on in
-                guard on else { return }
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(delay)) { visible = true }
-            }
+            .opacity(on ? 1 : 0)
+            .offset(y: reduceMotion || on ? 0 : 8)
+            .animation(reduceMotion ? Motion.fade : Motion.onboardingReveal.delay(delay), value: on)
     }
 }
 
@@ -292,7 +289,7 @@ struct OnboardingRise: ViewModifier {
             .opacity(shown ? 1 : 0)
             .offset(y: shown || reduceMotion ? 0 : 14)
             .onAppear {
-                withAnimation(.spring(response: 0.55, dampingFraction: 0.9).delay(delay)) { shown = true }
+                withAnimation(reduceMotion ? Motion.fade : Motion.onboardingReveal.delay(delay)) { shown = true }
             }
     }
 }

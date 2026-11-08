@@ -3,6 +3,9 @@ import SwiftUI
 /// Единые кривые движения. До этого на однотипные взаимодействия было шесть
 /// разных кривых — теперь один источник правды.
 enum Motion {
+    /// Короткий переход онбординга без отскока и полноэкранного перелёта.
+    static let onboardingPage = Animation.smooth(duration: 0.38, extraBounce: 0)
+    static let onboardingReveal = Animation.smooth(duration: 0.42, extraBounce: 0)
     /// Появление/уход шторок. Близко к системной пружине листов iOS.
     static let sheet = Animation.spring(response: 0.42, dampingFraction: 0.86)
     /// Переключение сегментов.

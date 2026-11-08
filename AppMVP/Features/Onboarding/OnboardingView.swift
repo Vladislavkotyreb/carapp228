@@ -11,7 +11,7 @@ struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showDeleteConfirmation = false
     @State private var step = 0
-    @State private var goingForward = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Страницы — то, что приложение умеет сейчас, а не макетный набор
     /// «любимые места / звуки / ТО» (просьба пользователя 15.10.2026).
@@ -60,18 +60,17 @@ struct OnboardingView: View {
                 Task { await appState.deleteLocalAccount(in: modelContext) }
             }
         } message: { Text("Будут удалены машины, поездки, история ТО и избранные места.") }
-        .animation(.interpolatingSpring(stiffness: 220, damping: 26), value: step)
+        .animation(reduceMotion ? Motion.fade : Motion.onboardingPage, value: step)
     }
 
     /// Страница уезжает в сторону перехода, следующая приходит с
     /// противоположной. Назад из онбординга сейчас не ходят, но зеркальная
     /// ветка оставлена: кнопка «назад» появится вместе с шагами добавления.
     private var pageTransition: AnyTransition {
-        .asymmetric(
-            insertion: .move(edge: goingForward ? .trailing : .leading)
-                .combined(with: .opacity),
-            removal: .move(edge: goingForward ? .leading : .trailing)
-                .combined(with: .opacity)
+        if reduceMotion { return .opacity }
+        return .asymmetric(
+            insertion: .offset(x: 24).combined(with: .opacity),
+            removal: .offset(x: -16).combined(with: .opacity)
         )
     }
 
@@ -95,11 +94,9 @@ struct OnboardingView: View {
                 .figmaBlock(x: 16, width: 370, y: Visual.top)
 
             title("Привет!")
-                .modifier(OnboardingRise(delay: 0.15))
                 .figmaBlock(x: 32, width: 338, y: 528.75)
 
             description("Beepy — сервис, который поможет тебе держать всё самое важное \nдля автомобиля под контролем")
-                .modifier(OnboardingRise(delay: 0.25))
                 .figmaBlock(x: 32, width: 338, y: 586.75)
 
             VStack(spacing: 12) {
@@ -144,11 +141,9 @@ struct OnboardingView: View {
                 .figmaBlock(x: 16, width: 370, y: Visual.top)
 
             title(page.title)
-                .modifier(OnboardingRise(delay: 0.15))
                 .figmaBlock(x: 16, width: 370, y: 529.5)
 
             description(page.description)
-                .modifier(OnboardingRise(delay: 0.25))
                 .figmaBlock(x: 16, width: 370, y: 625.5)
 
             // Кнопки стоят в координатах макета: первая на 730.5, вторая на
@@ -193,7 +188,6 @@ struct OnboardingView: View {
     // MARK: - Переходы
 
     private func advance() {
-        goingForward = true
         if step < pages.count {
             step += 1
         } else {

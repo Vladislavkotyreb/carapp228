@@ -87,6 +87,26 @@ final class FlowTests: XCTestCase {
     }
 
     /// После входа опрос можно пропустить, машина появляется на главной.
+    func testOnboardingPagesRemainReachable() {
+        let app = launch(onboarded: false)
+        XCTAssertTrue(app.buttons["Начать"].waitForExistence(timeout: 10))
+        app.buttons["Начать"].tap()
+        let pages = [("Пробег считается сам", "Далее"),
+                     ("Слушай мотор", "Круто, а\u{00A0}что ещё?"),
+                     ("ТО вовремя", "Далее")]
+        for (title, button) in pages {
+            XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = title
+            shot.lifetime = .keepAlways
+            add(shot)
+            app.buttons[button].tap()
+        }
+        XCTAssertTrue(app.buttons["Отлично, погнали!"].waitForExistence(timeout: 5))
+        app.buttons["Отлично, погнали!"].tap()
+        XCTAssertTrue(app.buttons["По названию"].waitForExistence(timeout: 5))
+    }
+
     func testFirstLaunchToFirstCar() {
         let app = launch(onboarded: false)
 
