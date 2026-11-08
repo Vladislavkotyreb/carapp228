@@ -2,7 +2,7 @@ DRAFT — complete the bracketed items before submitting to Apple.
 
 Hello App Review Team,
 
-Thank you for reviewing Beepy. Below is the additional information requested under Guideline 2.1 for version 1.0.0 (build 4).
+Additional information for Beepy 1.0.0 (4), Guideline 2.1.
 
 1. Physical-device demonstration
 
@@ -11,7 +11,7 @@ Device: [IPHONE MODEL]
 iOS version: [VERSION USED FOR RECORDING]
 Build demonstrated: [CONFIRM 1.0.0 (4)]
 
-[After checking the recording, confirm that it starts with launching the app and demonstrates Apple sign-in, adding a car, maintenance records, mileage/trips, maps, engine sound analysis, sign-out, and account/data deletion.]
+[Verify video covers launch, sign-in, main features, sign-out and deletion.]
 
 2. Purpose and intended audience
 
@@ -51,7 +51,7 @@ The Russian-language app has no intentional region-specific feature or pricing d
 
 Beepy is a personal vehicle journal, not a regulated financial or medical service. It uses Yandex Maps and vehicle imagery. The developer has confirmed that the necessary usage rights are held.
 
-Supporting documentation: [ADD APPLICABLE YANDEX LICENCE/TERMS AND VEHICLE-IMAGE LICENCES OR PERMISSIONS; verify their scope before submission. Do not describe documents as attached until they are attached.]
+Supporting documentation: [ADD APPLICABLE YANDEX AND VEHICLE-IMAGE LICENCES/PERMISSIONS BEFORE SUBMISSION.]
 
 Privacy policy: https://vladislavkotyreb.github.io/carapp228/privacy.html
 Support: https://vladislavkotyreb.github.io/carapp228/
