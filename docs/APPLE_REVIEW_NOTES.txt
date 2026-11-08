@@ -1,0 +1,58 @@
+DRAFT — complete the bracketed items before submitting to Apple.
+
+Hello App Review Team,
+
+Thank you for reviewing Beepy. Below is the additional information requested under Guideline 2.1 for version 1.0.0 (build 4).
+
+1. Physical-device demonstration
+
+Video: [ADD ACCESSIBLE VIDEO LINK OR ATTACHMENT NAME]
+Device: [IPHONE MODEL]
+iOS version: [VERSION USED FOR RECORDING]
+Build demonstrated: [CONFIRM 1.0.0 (4)]
+
+[After checking the recording, confirm that it starts with launching the app and demonstrates Apple sign-in, adding a car, maintenance records, mileage/trips, maps, engine sound analysis, sign-out, and account/data deletion.]
+
+2. Purpose and intended audience
+
+Beepy is a free journal for car owners: maintenance records, mileage, trips, service locations and on-device engine sound analysis. Analysis is preliminary, requires verification by a mechanic and does not guarantee vehicle safety.
+
+Beepy is for the general public. It has no subscriptions, purchases, paid features, ads, public posts or messaging. Records remain private.
+
+3. Access and feature walkthrough
+
+Open Beepy and tap “Войти с Apple” (Sign in with Apple). Use an Apple Account through Apple's system sign-in flow. There is no Beepy password, invitation or approval step. Name/email are not requested. No sample files or extra hardware are needed.
+
+Add a vehicle manually by name. In “Машина” (Car), enter mileage and add maintenance records. The app uses those records to display maintenance information. License-plate lookup is unavailable in this release; manual vehicle entry is available without a subscription or car-count limit.
+
+Open the map to explore car service locations and save favorites. Internet access is needed for map data. Location permission supports location-related features.
+
+Open “Ошибки” (Diagnostics), allow microphone access, and follow the instructions to record engine sound. Analysis runs on the iPhone. A real engine recording is needed for a meaningful result.
+
+In “Ещё” (More), open trip/mileage settings to use optional trip tracking. Location permissions are needed for tracking; background location is used when that functionality is enabled. Trips and vehicle records are stored on the device. Cloud synchronization is unavailable in this release.
+
+“Ещё” also provides sign-out and “Удалить аккаунт и данные” (Delete account and data). Deletion clears the local account session and vehicle, trip, maintenance and favorite-place data. The app then provides instructions for revoking Sign in with Apple access in Apple Account settings. Apple authorization revocation is a separate manual step; it is not performed automatically by a Beepy server.
+
+4. External services and technologies
+
+- Apple Sign in with Apple: system authentication; the local session identifier is stored in Keychain.
+- Yandex Maps / MapKit: map display, location search and geocoding. Map data requires connectivity.
+- Apple Core Location: location and optional trip/mileage tracking.
+- Apple Core ML: on-device engine sound analysis. No external cloud AI service processes recordings in this release.
+- GitHub Pages: public support and privacy-policy pages.
+
+There is no active Beepy account backend, payment processor, cloud synchronization or license-plate data-provider integration in the submitted release.
+
+5. Regional behavior
+
+The Russian-language app has no intentional region-specific feature or pricing differences. Local features work consistently across regions. Map coverage/results depend on Yandex service availability and data; coverage is not identical worldwide. Sign-in depends on Apple service availability.
+
+6. Third-party materials
+
+Beepy is a personal vehicle journal, not a regulated financial or medical service. It uses Yandex Maps and vehicle imagery. The developer has confirmed that the necessary usage rights are held.
+
+Supporting documentation: [ADD APPLICABLE YANDEX LICENCE/TERMS AND VEHICLE-IMAGE LICENCES OR PERMISSIONS; verify their scope before submission. Do not describe documents as attached until they are attached.]
+
+Privacy policy: https://vladislavkotyreb.github.io/carapp228/privacy.html
+Support: https://vladislavkotyreb.github.io/carapp228/
+Review contact: Vladislav Kotyrev, kotvlad2016@gmail.com, +995597125736
