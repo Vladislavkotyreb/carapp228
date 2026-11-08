@@ -106,6 +106,7 @@ struct AutoMileagePage: View {
                         Text("Автопробег")
                     }
                     .labelsHidden()
+                    .accessibilityIdentifier("auto-mileage-toggle")
                     .tint(Figma.accentsGreen)
                 }
             }

@@ -94,4 +94,23 @@ final class ReleaseReadinessTests: XCTestCase {
         XCTAssertEqual(MapCarMarker.slug(cars: [giraffe], selectedID: giraffe.plate), "giraffe-discovery")
     }
 
+    @MainActor
+    func testReenablingAutoRestoresLocationSwitch() {
+        let defaults = UserDefaults.standard
+        let oldAuto = defaults.object(forKey: AutoSwitch.key)
+        let oldLocation = defaults.object(forKey: LocationSwitch.key)
+        defer {
+            if let oldAuto { defaults.set(oldAuto, forKey: AutoSwitch.key) }
+            else { defaults.removeObject(forKey: AutoSwitch.key) }
+            if let oldLocation { defaults.set(oldLocation, forKey: LocationSwitch.key) }
+            else { defaults.removeObject(forKey: LocationSwitch.key) }
+            TripTracker.shared.locationSwitched()
+        }
+        defaults.set(true, forKey: AutoSwitch.key)
+        defaults.set(false, forKey: LocationSwitch.key)
+        TripTracker.shared.setAuto(true)
+        XCTAssertTrue(AutoSwitch.isOn)
+        XCTAssertTrue(LocationSwitch.isOn)
+    }
+
 }

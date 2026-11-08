@@ -13,9 +13,12 @@ struct OnboardingView: View {
     @State private var showDeleteConfirmation = false
     @State private var showLocationSettings = false
     @State private var requestingGPS = false
+    @State private var gpsActivated = false
 
     private func title(for page: Int) -> String {
         switch page {
+        case 2 where gpsActivated: "Автопробег\nвключён"
+        case 2 where requestingGPS && tracker.access == .whenInUse: "Разреши запись\nв фоне"
         case 0: VehicleLookupProvider.isAvailable ? "Машина\nпо номеру" : "Твоя машина.\nВсё под рукой."
         case 1: "Послушай,\nкак она работает"
         default: "Каждая поездка\nв твоей истории"
@@ -24,6 +27,9 @@ struct OnboardingView: View {
 
     private func detail(for page: Int) -> String {
         switch page {
+        case 2 where gpsActivated: "Beepy будет автоматически записывать поездки и\u{00A0}обновлять пробег выбранной машины."
+        case 2 where requestingGPS && tracker.access == .whenInUse:
+            "Сейчас GPS доступен только при использовании. Для автозаписи выбери «Всегда» в\u{00A0}настройках геопозиции Beepy."
         case 0: VehicleLookupProvider.isAvailable
             ? "Введи госномер — Beepy найдёт машину. Пробег, обслуживание и\u{00A0}поездки будут в\u{00A0}одном месте."
             : "Добавь машину по названию. Храни пробег, обслуживание и\u{00A0}поездки в\u{00A0}одном месте."
@@ -97,12 +103,12 @@ struct OnboardingView: View {
                         .accessibilityIdentifier("apple-sign-in")
                         .disabled(appState.isDeletingAccount)
                 } else {
-                    GlassProminentButton(title: step == 2 ? "Включить GPS" : "Далее") {
+                    GlassProminentButton(title: step == 2 ? gpsButtonTitle : "Далее") {
                         if step == 2 { enableGPS() } else { go(to: step + 1) }
                     }
                     .accessibilityIdentifier("onboarding-next")
                 }
-                if step == 2 && appState.isSignedIn {
+                if step == 2 && appState.isSignedIn && !gpsActivated {
                     GlassButton(title: "Позже", action: finish)
                         .accessibilityIdentifier("onboarding-later")
                 } else if !appState.isSignedIn && appState.hasLocalAccount {
@@ -120,11 +126,13 @@ struct OnboardingView: View {
         .foregroundStyle(.white)
         .background(Figma.backgroundsPrimary.ignoresSafeArea())
         .onChange(of: tracker.access) { _, access in
+            if gpsActivated && access != .always {
+                gpsActivated = false
+                requestingGPS = true
+            }
             guard requestingGPS else { return }
-            if access == .always || access == .whenInUse {
-                requestingGPS = false
-                tracker.setAuto(true)
-                finish()
+            if access == .always {
+                activateGPS()
             } else if access == .denied {
                 requestingGPS = false
                 tracker.setAuto(false)
@@ -133,6 +141,7 @@ struct OnboardingView: View {
         }
         .alert("Геопозиция выключена", isPresented: $showLocationSettings) {
             Button("Открыть настройки") {
+                requestingGPS = true
                 if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
             }
             Button("Позже", role: .cancel, action: finish)
@@ -154,20 +163,40 @@ struct OnboardingView: View {
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) { step = index }
     }
 
+    private var gpsButtonTitle: String {
+        if gpsActivated { return "Продолжить" }
+        if requestingGPS && tracker.access == .whenInUse { return "Открыть настройки" }
+        return "Включить GPS"
+    }
+
     private func enableGPS() {
-        guard tracker.access != .denied else { showLocationSettings = true; return }
-        if tracker.access == .notAsked {
-            requestingGPS = true
-            tracker.requestAccess()
-        } else {
-            tracker.setAuto(true)
-            if tracker.access == .whenInUse { tracker.requestAccess() }
-            finish()
+        if gpsActivated {
+            // Never continue with a stale success state after permission was changed in Settings.
+            if tracker.access == .always && AutoSwitch.isOn && LocationSwitch.isOn { finish(); return }
+            gpsActivated = false
         }
+        if requestingGPS && tracker.access == .whenInUse {
+            if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            return
+        }
+        requestingGPS = true
+        switch tracker.access {
+        case .always: activateGPS()
+        case .notAsked, .whenInUse: tracker.requestAccess()
+        case .denied: showLocationSettings = true
+        }
+    }
+
+    private func activateGPS() {
+        guard tracker.access == .always else { return }
+        tracker.setAuto(true)
+        gpsActivated = AutoSwitch.isOn && LocationSwitch.isOn
+        requestingGPS = !gpsActivated
     }
 
     private func finish() {
         guard appState.isSignedIn else { return }
+        requestingGPS = false
         appState.completeOnboarding()
     }
 }

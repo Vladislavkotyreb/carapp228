@@ -472,10 +472,14 @@ final class TripTracker: NSObject, ObservableObject {
     /// машины на главной. Одна дверь, чтобы порядок был один: выключатель,
     /// потом разрешения и сигналы.
     func setAuto(_ on: Bool) {
-        guard on != AutoSwitch.isOn else { return }
         let defaults = UserDefaults.standard
-        // Без геопозиции автоопределению не на что смотреть.
-        if on, !LocationSwitch.isOn { defaults.set(true, forKey: LocationSwitch.key) }
+        // Повторное включение тоже восстанавливает выключенную геопозицию.
+        let restoredLocation = on && !LocationSwitch.isOn
+        if restoredLocation { defaults.set(true, forKey: LocationSwitch.key) }
+        guard on != AutoSwitch.isOn else {
+            if restoredLocation { arm() }
+            return
+        }
         defaults.set(on, forKey: AutoSwitch.key)
         autoSwitched()
     }

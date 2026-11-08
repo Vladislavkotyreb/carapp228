@@ -23,6 +23,10 @@ final class AppState: ObservableObject {
         account = try? AppleAccountKeychain.load()
         #if DEBUG
         if UITestLaunch.isActive {
+            if ProcessInfo.processInfo.arguments.contains("-beepy-test-reset-auto") {
+                UserDefaults.standard.set(false, forKey: AutoSwitch.key)
+                UserDefaults.standard.set(false, forKey: LocationSwitch.key)
+            }
             isSignedIn = ProcessInfo.processInfo.arguments.contains("-beepy-test-authenticated")
             isCheckingAccount = false
         }

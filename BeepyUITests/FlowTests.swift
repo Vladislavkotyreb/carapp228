@@ -136,6 +136,58 @@ final class FlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["По названию"].waitForExistence(timeout: 5))
     }
 
+    /// Run with the simulator's actual Always permission pregranted; no permission stubs.
+    func testGPSActivationPersistsAfterRelaunch() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-beepy-ui-test", "-beepy-test-authenticated", "-beepy-seed", "-beepy-test-reset-auto", "-hasCompletedOnboarding", "NO"]
+        app.launch()
+        XCTAssertTrue(app.buttons["onboarding-next"].waitForExistence(timeout: 10))
+        app.swipeLeft()
+        app.swipeLeft()
+        app.buttons["Включить GPS"].tap()
+        XCTAssertTrue(app.staticTexts["Автопробег\nвключён"].waitForExistence(timeout: 10))
+        capture("gps-activated", app: app)
+        XCTAssertTrue(app.buttons["Продолжить"].exists)
+        app.buttons["Продолжить"].tap()
+        assertAutoMileageEnabled(app)
+        app.terminate()
+        app.launchArguments = ["-beepy-ui-test", "-beepy-test-authenticated", "-beepy-seed", "-hasCompletedOnboarding", "YES"]
+        app.launch()
+        assertAutoMileageEnabled(app)
+    }
+
+    func testGPSAllowOnceDoesNotClaimBackgroundReady() {
+        let app = XCUIApplication()
+        app.resetAuthorizationStatus(for: .location)
+        app.launchArguments = ["-beepy-ui-test", "-beepy-test-authenticated", "-beepy-test-reset-auto", "-hasCompletedOnboarding", "NO"]
+        app.launch()
+        XCTAssertTrue(app.buttons["onboarding-next"].waitForExistence(timeout: 10))
+        app.swipeLeft()
+        app.swipeLeft()
+        app.buttons["Включить GPS"].tap()
+        let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let once = system.buttons.matching(NSPredicate(format: "label IN %@", ["Allow Once", "Однократно", "Разрешить один раз"])).firstMatch
+        XCTAssertTrue(once.waitForExistence(timeout: 10))
+        once.tap()
+        XCTAssertTrue(app.staticTexts["Разреши запись\nв фоне"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Автопробег\nвключён"].exists)
+        XCTAssertTrue(app.buttons["Открыть настройки"].exists)
+        capture("gps-needs-always", app: app)
+        app.buttons["onboarding-later"].tap()
+        XCTAssertTrue(app.buttons["По названию"].waitForExistence(timeout: 5))
+    }
+
+    private func assertAutoMileageEnabled(_ app: XCUIApplication) {
+        XCTAssertTrue(app.buttons["Ещё"].waitForExistence(timeout: 10))
+        app.buttons["Ещё"].tap()
+        let link = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Автопробег")).firstMatch
+        XCTAssertTrue(link.waitForExistence(timeout: 5))
+        link.tap()
+        let toggle = app.switches["auto-mileage-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(toggle.value as? String, "1")
+    }
+
     func testFirstLaunchToFirstCar() {
         let app = launch(onboarded: false)
 
