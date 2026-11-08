@@ -10,6 +10,30 @@ import XCTest
 /// прогон не видит: модели, диск, бандл, экраны.
 @MainActor
 final class StoreTests: XCTestCase {
+    func testAddressCacheExpiresWithoutRemovingTrip() throws {
+        let container = AppStore.inMemory()
+        let context = container.mainContext
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let trip = Trip(startedAt: now, endedAt: now, meters: 1234, car: nil, track: Data([1, 2]))
+        trip.startAddress = "legacy"
+        trip.endAddress = "fresh"
+        trip.endAddressFetchedAt = now.addingTimeInterval(-60)
+        context.insert(trip)
+        try context.save()
+        try Trip.clearExpiredAddresses(in: context, now: now)
+        XCTAssertNil(trip.startAddress)
+        XCTAssertEqual(trip.endAddress, "fresh")
+        try Trip.clearExpiredAddresses(in: context, now: now.addingTimeInterval(AddressCache.lifetime))
+        XCTAssertNil(trip.endAddress)
+        XCTAssertNil(trip.endAddressFetchedAt)
+        XCTAssertEqual(trip.meters, 1234)
+        XCTAssertEqual(trip.track, Data([1, 2]))
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Trip>()), 1)
+        XCTAssertFalse(AddressCache.isFresh(now.addingTimeInterval(1), now: now))
+        XCTAssertFalse(AddressCache.isFresh(now, now: now.addingTimeInterval(AddressCache.lifetime)))
+        XCTAssertTrue(AddressCache.isFresh(now, now: now.addingTimeInterval(AddressCache.lifetime - 1)))
+    }
+
     func testSchemaOpensInMemory() throws {
         // Контейнер — в переменной: контекст его не удерживает, и временный
         // контейнер, освободившись, уронил бы процесс на первой записи.

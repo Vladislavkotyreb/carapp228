@@ -4,6 +4,7 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
 
@@ -24,6 +25,15 @@ struct RootView: View {
             }
         }
         .task { await appState.checkAppleAccount() }
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            repeat {
+                do { try Trip.clearExpiredAddresses(in: modelContext) }
+                catch { print("Address cache cleanup failed: \(error)") }
+                do { try await Task.sleep(for: .seconds(3600)) }
+                catch { return }
+            } while !Task.isCancelled
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await appState.checkAppleAccount() } }
         }

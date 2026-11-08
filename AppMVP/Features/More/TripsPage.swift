@@ -50,6 +50,8 @@ struct TripsPage: View {
     /// уходят две точки маршрута (решение пользователя 08.10.2026). Не
     /// ответил — поля остаются пустыми, следующий заход на экран спросит снова.
     private func resolveAddresses() async {
+        do { try Trip.clearExpiredAddresses(in: modelContext) }
+        catch { print("Address cache cleanup failed: \(error)") }
         var changed = false
         // Список снят заранее: `trips` — живой запрос и за время ожидания
         // может поменяться под циклом.
@@ -64,11 +66,13 @@ struct TripsPage: View {
             if trip.startAddress == nil, let address = await TripGeocoder.shared.address(at: ends.start),
                trip.modelContext != nil {
                 trip.startAddress = address
+                trip.startAddressFetchedAt = .now
                 changed = true
             }
             if trip.modelContext != nil, trip.endAddress == nil,
                let address = await TripGeocoder.shared.address(at: ends.end), trip.modelContext != nil {
                 trip.endAddress = address
+                trip.endAddressFetchedAt = .now
                 changed = true
             }
         }

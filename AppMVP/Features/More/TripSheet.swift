@@ -45,8 +45,8 @@ struct TripDetails: Identifiable, Equatable {
         }
         start = TripTrack.cardTitle(trip.startedAt, calendar: calendar)
         end = TripTrack.cardTitle(trip.endedAt, calendar: calendar)
-        startAddress = trip.startAddress
-        endAddress = trip.endAddress
+        startAddress = trip.currentStartAddress
+        endAddress = trip.currentEndAddress
         distance = MapGeo.distanceLabel(meters: trip.meters)
         let seconds = trip.endedAt.timeIntervalSince(trip.startedAt)
         duration = TripTrack.durationLabel(seconds: seconds)

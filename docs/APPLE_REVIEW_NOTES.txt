@@ -1,15 +1,15 @@
-DRAFT — complete the bracketed items before submitting to Apple.
+DRAFT — add and verify the physical-device video before submission.
 
 Hello App Review Team,
 
-Additional information for Beepy 1.0.0 (4), Guideline 2.1.
+Additional information for Beepy 1.0.0 (5), Guideline 2.1.
 
 1. Physical-device demonstration
 
 Video: [ADD ACCESSIBLE VIDEO LINK OR ATTACHMENT NAME]
 Device: [IPHONE MODEL]
 iOS version: [VERSION USED FOR RECORDING]
-Build demonstrated: [CONFIRM 1.0.0 (4)]
+Build demonstrated: [CONFIRM 1.0.0 (5)]
 
 [Verify video covers launch, sign-in, main features, sign-out and deletion.]
 
@@ -45,13 +45,14 @@ There is no active Beepy account backend, payment processor, cloud synchronizati
 
 5. Regional behavior
 
-The Russian-language app has no intentional region-specific feature or pricing differences. Local features work consistently across regions. Map coverage/results depend on Yandex service availability and data; coverage is not identical worldwide. Sign-in depends on Apple service availability.
+No region-specific feature gates. Interface: Russian. Map coverage depends on Yandex; sign-in depends on Apple service availability.
 
 6. Third-party materials
 
-Beepy is a personal vehicle journal, not a regulated financial or medical service. It uses Yandex Maps and vehicle imagery. The developer has confirmed that the necessary usage rights are held.
+Beepy is a personal vehicle journal.
 
-Supporting documentation: [ADD APPLICABLE YANDEX AND VEHICLE-IMAGE LICENCES/PERMISSIONS BEFORE SUBMISSION.]
+Yandex MapKit: active Free plan verified in the developer console. Terms: https://yandex.ru/legal/maps_api/ru/
+Vehicle illustrations were prepared with generative AI; the developer confirms the Lexus reference was also generated with Nano Banana. See the accompanying materials explanation for provenance and provider terms. No manufacturer endorsement is claimed.
 
 Privacy policy: https://vladislavkotyreb.github.io/carapp228/privacy.html
 Support: https://vladislavkotyreb.github.io/carapp228/

@@ -10,6 +10,7 @@ struct AboutPage: View {
     /// Открытый документ: политика или условия.
     @State private var legal: LegalDocument?
     @State private var licensesShown = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         MorePage(title: "О\u{00A0}приложении") {
@@ -20,6 +21,14 @@ struct AboutPage: View {
                         GroupedSeparator()
                     }
                     GroupedLinkRow(title: "Лицензии") { licensesShown = true }
+                    GroupedSeparator()
+                    GroupedLinkRow(title: "Условия использования сервиса Яндекс.Карты") {
+                        openURL(URL(string: "https://yandex.ru/legal/maps_termsofuse/")!)
+                    }
+                    GroupedSeparator()
+                    GroupedLinkRow(title: "Условия использования API Яндекс Карт") {
+                        openURL(URL(string: "https://yandex.ru/legal/maps_api/")!)
+                    }
                 }
 
                 GroupFootnote("Версия \(Self.version)")

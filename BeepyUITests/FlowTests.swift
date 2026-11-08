@@ -226,6 +226,12 @@ final class FlowTests: XCTestCase {
 
         let licenses = app.buttons["Лицензии"]
         XCTAssertTrue(licenses.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Условия использования сервиса Яндекс.Карты"].exists)
+        XCTAssertTrue(app.buttons["Условия использования API Яндекс Карт"].exists)
+        let aboutShot = XCTAttachment(screenshot: app.screenshot())
+        aboutShot.name = "about-yandex-links"
+        aboutShot.lifetime = .keepAlways
+        add(aboutShot)
         licenses.tap()
 
         let shaderKit = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "ShaderKit")).firstMatch

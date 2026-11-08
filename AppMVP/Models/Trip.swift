@@ -21,6 +21,8 @@ final class Trip {
     /// Пустые, пока не запрошены или запрос не удался.
     var startAddress: String?
     var endAddress: String?
+    var startAddressFetchedAt: Date?
+    var endAddressFetchedAt: Date?
     /// Записал сам Beepy (автопробег), а не кнопка или команда. Пусто у
     /// поездок до 12.10.2026.
     var auto: Bool?
@@ -42,5 +44,34 @@ extension Trip {
     /// начала, а не из идентификатора модели: тот между запусками меняет хэш.
     var snapshotKey: String {
         "\(Int((startedAt.timeIntervalSinceReferenceDate * 1000).rounded()))"
+    }
+}
+
+// Older installations have no fetch dates: their cached addresses are expired.
+extension Trip {
+    var currentStartAddress: String? {
+        AddressCache.isFresh(startAddressFetchedAt, now: .now) ? startAddress : nil
+    }
+    var currentEndAddress: String? {
+        AddressCache.isFresh(endAddressFetchedAt, now: .now) ? endAddress : nil
+    }
+    @discardableResult
+    func clearExpiredAddresses(now: Date) -> Bool {
+        var changed = false
+        if !AddressCache.isFresh(startAddressFetchedAt, now: now), startAddress != nil || startAddressFetchedAt != nil {
+            startAddress = nil; startAddressFetchedAt = nil; changed = true
+        }
+        if !AddressCache.isFresh(endAddressFetchedAt, now: now), endAddress != nil || endAddressFetchedAt != nil {
+            endAddress = nil; endAddressFetchedAt = nil; changed = true
+        }
+        return changed
+    }
+    @MainActor
+    static func clearExpiredAddresses(in context: ModelContext, now: Date = .now) throws {
+        var changed = false
+        for trip in try context.fetch(FetchDescriptor<Trip>()) {
+            if trip.clearExpiredAddresses(now: now) { changed = true }
+        }
+        if changed { try context.save() }
     }
 }

@@ -310,3 +310,13 @@ enum TripAccess: Equatable {
         }
     }
 }
+
+/// Shorter than Yandex's 30-day maximum; future dates fail closed.
+enum AddressCache {
+    static let lifetime: TimeInterval = 29 * 24 * 60 * 60
+    static func isFresh(_ fetchedAt: Date?, now: Date) -> Bool {
+        guard let fetchedAt else { return false }
+        let age = now.timeIntervalSince(fetchedAt)
+        return age >= 0 && age < lifetime
+    }
+}
