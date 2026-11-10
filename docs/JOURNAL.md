@@ -23,6 +23,34 @@
 
 ## Хроника
 
+### 2026-11-10 — Подробный жирафовый Discovery на карте, build 11
+
+По замечанию владельца заменена схематичная миниатюра giraffe-discovery.
+Новый рендер создан встроенным imagegen по собственной машине из каталога;
+стилевые референсы — существующие MapIconTyre и MapIconService. Вид сверху,
+нос вверх, объёмные стёкла, багажник, дополнительные фары и жирафовая окраска.
+PNG 384×384 с прозрачностью; мастер и точный prompt сохранены в
+`tools/map-icons/overrides/`. render-cars.sh восстанавливает эту версию после
+процедурной генерации. Остальные 180 машин и логика выбора не изменены.
+Figma 46584:130 обновлена, рендер просмотрен; описание источника дополнено.
+
+Проверено: xcodebuild test -project Beepy.xcodeproj -scheme AppMVP
+-configuration Debug -destination 'platform=iOS Simulator,id=79420072-75AF-4CB6-B8F5-C923C728601A'
+-derivedDataPath /private/tmp/beepy-rights-dd
+-only-testing:BeepyUITests/FlowTests/testMapMileageCarPreview
+-resultBundlePath /private/tmp/beepy-giraffe11b.xcresult — TEST SUCCEEDED.
+Временная тестовая машина Discovery и запуск с location.enabled YES
+восстановлены после снимка; исходники теста и TripTracker не изменены.
+Кадр карты с новой машиной визуально проверен после выдачи разрешения
+геопозиции симулятору. Первый кадр был без геопозиции и не использован.
+
+xcodebuild build -project Beepy.xcodeproj -scheme AppMVP -configuration Debug
+-destination 'platform=iOS,id=00008130-000A38DA0E04001C'
+-derivedDataPath /Users/vladislavkotyrev/Library/Developer/Xcode/DerivedData/beepy-device
+-allowProvisioningUpdates — BUILD SUCCEEDED. devicectl подтвердил установку
+build 11 поверх приложения на iPhone 15 Pro. Запуск отклонён iOS: Locked.
+Данные не удалялись; физическая поездка не проверялась; ASC не обновлялся.
+
 ### 2026-11-08 — Ссылки Яндекса, кэш адресов и build 5
 
 - AboutPage: две открываемые ссылки на официальные условия Яндекса.
