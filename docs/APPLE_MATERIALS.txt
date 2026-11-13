@@ -1,5 +1,5 @@
 BEEPY — MAP SERVICE AND VEHICLE ILLUSTRATIONS
-Prepared 8 November 2026 for App Review, app version 1.0.0.
+Updated 14 November 2026 for App Review, app version 1.0.0 (11).
 
 1. Yandex Maps
 Beepy uses the official Yandex MapKit SDK for map display, place search and geocoding. The developer's API console was inspected on 8 November 2026: MapKit SDK was Active, on the Free plan. The console displayed 2 out of 1,000 requests used that day. No plan change or purchase was made.
@@ -8,7 +8,7 @@ https://yandex.ru/legal/maps_api/ru/
 https://yandex.ru/legal/maps_termsofuse/ru/
 
 Beepy is a free public app. The latest source changes add tappable links to both terms under More > About. Geocoded trip addresses use a 29-day cache; expired entries and legacy entries without a retrieval date are cleared at launch/foreground and during active use. Expired addresses are excluded when creating trip display data. Trip distances and user-recorded route coordinates are not removed by this cache cleanup. iOS cannot run cleanup while the app is suspended; it resumes at the next activation.
-These corrections are for build 5; build 4 did not include them.
+These corrections were introduced in build 5 and are included in build 11; build 4 did not include them.
 
 2. Vehicle illustrations
 The vehicle catalogue contains 181 HEIC images. The repository retains generation tools and a dated development journal. Its final 6 September generation entry records Gemini/Nano Banana via OpenRouter; later entries document further generation batches. Local original PNG outputs are retained. Earlier records also describe Kandinsky experiments/batches; the audit does not certify the exact model used for each individual shipped file.
@@ -20,6 +20,10 @@ https://openrouter.ai/terms
 https://ai.google.dev/gemini-api/terms?authuser=00
 OpenRouter defers generated-output rights to the relevant model terms. Google states it does not claim ownership of generated content. These terms do not certify third-party trademark rights or replace rights required for input materials.
 
+Map position markers: 180 PNGs are procedural SceneKit renders made by the project. The giraffe Discovery marker was replaced on 10 November 2026 with an OpenAI image-generation render based on the existing catalogue artwork and map-icon style. Its source image and exact prompt are retained under tools/map-icons/overrides/.
+https://openai.com/policies/terms-of-use/
+AI output terms do not establish manufacturer endorsement or clear third-party rights by themselves.
+
 3. Supporting evidence available
 - Screenshot of the active free MapKit plan (kept locally; API key not included).
 - Current catalogue inventory and SHA-256 hashes.
@@ -27,3 +31,12 @@ OpenRouter defers generated-output rights to the relevant model terms. Google st
 - Developer confirmation of the AI-generated reference.
 
 This is a factual explanation of the service integration and asset provenance, not an assertion of exclusive copyright over AI outputs or a manufacturer authorization letter. Any further document specifically requested by App Review will need to be supplied on its own merits.
+
+4. Sign in with Apple and deletion
+The app stores only a local Apple user identifier/session in Keychain. It does not retain Apple authorization codes, access tokens or refresh tokens, and has no active account backend. More > Delete account and data deletes local records and the Keychain session, returns to onboarding, and links to Apple's manual revocation instructions. The app observes credentialRevokedNotification and checks credential state when active.
+Apple TN3194 describes manual revocation where tokens/authorization code are unavailable: delete account data, direct the user to revoke access, and respond to revoked credentials. This document reports the implemented behavior; it does not claim automatic server-side revocation or guarantee App Review acceptance.
+https://developer.apple.com/documentation/technotes/tn3194-handling-account-deletions-and-revoking-tokens-for-sign-in-with-apple
+https://support.apple.com/102571
+
+5. Current verification
+Public privacy/support pages returned HTTP 200 on 14 November 2026; the live privacy page exactly matches site/privacy.html. PrivacyInfo.xcprivacy declares precise location, device ID and other data (IP), app functionality, linked through the device, without tracking. The source confirms on-device analysis, no active Release plate provider, optional background tracking, Yandex terms links and 29-day address cache. The console plan evidence is dated 8 November, not a new billing entitlement certificate.

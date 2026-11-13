@@ -23,6 +23,44 @@
 
 ## Хроника
 
+### 2026-11-14 — Проверка материалов ревью и загрузка build 11
+
+Проверены текущие Release-пути Apple-входа, удаления, поиска машин,
+PrivacyInfo и политики. HTTP-проверка публичной политики и поддержки:
+200/200; cmp live privacy и site/privacy.html — совпадают. Изучены текущие
+официальные условия Яндекса, OpenRouter, Gemini, OpenAI и Apple TN3194.
+Последний описывает ручной отзыв при отсутствии токенов; документы честно
+описывают локальное удаление и отдельный ручной отзыв, без обещания сервера.
+
+APPLE_REVIEW_NOTES.txt обновлён для 1.0.0 (11): 3522 символа, шесть пунктов,
+видео явно ожидается. APPLE_MATERIALS.txt дополнен новыми маркерами карты,
+источником генерации Discovery и датой доказательства тарифа (08.11).
+Собран и просмотрен двухстраничный PDF Beepy-App-Review-Materials.pdf в
+outputs/apple-review-2026-11-14 чата. Из снимка кабинета в PDF включён только
+растровый фрагмент карточки продукта; полное изображение с данными аккаунта
+не встроено. Сформирован SHA-256 inventory текущих изображений каталога/карты.
+APPLE_DEVELOPER.md и DEVICE_TESTING.md исправлены: платная команда,
+работающий Apple-вход, различие Debug/Release для видео. Код не менялся.
+
+xcodebuild -project Beepy.xcodeproj -scheme AppMVP -configuration Release
+-destination 'generic/platform=iOS' -allowProvisioningUpdates
+-derivedDataPath /Users/vladislavkotyrev/Library/Developer/Xcode/DerivedData/beepy-device
+-archivePath /private/tmp/Beepy-11-Review.xcarchive archive — ARCHIVE SUCCEEDED.
+xcodebuild -exportArchive -archivePath /private/tmp/Beepy-11-Review.xcarchive
+-exportPath /private/tmp/Beepy-11-Upload
+-exportOptionsPlist /private/tmp/beepy-11-upload-options.plist
+-allowProvisioningUpdates — EXPORT SUCCEEDED (destination upload).
+Предупреждение: отсутствует dSYM YandexMapsMobile, загрузку не блокирует.
+Проверены версия 1.0.0/11 и отсутствие BeepyServerURL в архиве.
+check-project, build-licenses --check и diff-check — passed.
+
+Веб-карточка прочитана после входа владельца: build 4, отказ 2.1,
+краткие старые Notes и пустое вложение. Контакты, описание, ссылки и
+автоматический выпуск заполнены. Ввод новых Notes не подтверждён:
+переключение пользователем Chrome прерывает действия. Ожидается доступ
+к вкладке для сохранения Notes/PDF и выбора сборки 11. Видео ещё нет;
+повторной отправки и публикации приложения не было.
+
 ### 2026-11-10 — Подробный жирафовый Discovery на карте, build 11
 
 По замечанию владельца заменена схематичная миниатюра giraffe-discovery.
