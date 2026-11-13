@@ -1,0 +1,66 @@
+name: beepy
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: 192m
+    command: ["postgres", "-c", "shared_buffers=32MB", "-c", "max_connections=20"]
+    environment:
+      POSTGRES_DB: beepy
+      POSTGRES_USER: beepy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [database]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beepy -d beepy"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    logging:
+      options: {max-size: "5m", max-file: "2"}
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    mem_limit: 256m
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      DATABASE_URL: postgres://beepy:${POSTGRES_PASSWORD}@db:5432/beepy
+      AVTOVINCOD_TOKEN: ${AVTOVINCOD_TOKEN:-}
+      LOOKUP_PER_INSTALL_DAILY: ${LOOKUP_PER_INSTALL_DAILY:-10}
+      LOOKUP_DAILY_FOUND: ${LOOKUP_DAILY_FOUND:-0}
+      NODE_OPTIONS: --max-old-space-size=160
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [database, frontend]
+    logging:
+      options: {max-size: "5m", max-file: "2"}
+  edge:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    mem_limit: 96m
+    environment:
+      API_HOST: ${API_HOST:?required}
+      ACME_EMAIL: ${ACME_EMAIL:?required}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      api: {condition: service_healthy}
+    networks: [frontend]
+    logging:
+      options: {max-size: "5m", max-file: "2"}
+networks:
+  database: {internal: true}
+  frontend:
+volumes:
+  pgdata:
+  caddydata:
+  caddyconfig:

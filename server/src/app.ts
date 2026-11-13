@@ -36,6 +36,13 @@ export async function purgeLookupLog(db: Db): Promise<number> {
 export function createApp(db: Db, config: Config, vehicles: VehicleProvider | null = null) {
   const app = new Hono<Env>();
   const registrations = new RateLimit(20, 3600_000);
+  if (config.vehicleProxyOnly) {
+    const exposed = new Set(["GET /v1/health", "POST /v1/installs", "POST /v1/vehicles/lookup"]);
+    app.use("*", async (c, next) => {
+      if (!exposed.has(`${c.req.method} ${c.req.path}`)) return c.notFound();
+      await next();
+    });
+  }
 
   // Журнал запросов: метод, путь, код, время. Тел и заголовков в нём нет —
   // там токены и персональные данные.

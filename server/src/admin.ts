@@ -152,7 +152,7 @@ export function adminRoutes(db: Db, config: Config) {
 
   admin.get("/api/accounts/:id", session, async (c) => {
     const id = c.req.param("id");
-    if (!UUID.test(id)) return c.json({ error: "bad_request" }, 400);
+    if (!id || !UUID.test(id)) return c.json({ error: "bad_request" }, 400);
     const [account] = await db.query(
       "select id, created_at, last_sync_at, consent_version, consent_at from accounts where id = $1",
       [id],
@@ -182,7 +182,7 @@ export function adminRoutes(db: Db, config: Config) {
 
   admin.delete("/api/accounts/:id", session, async (c) => {
     const id = c.req.param("id");
-    if (!UUID.test(id)) return c.json({ error: "bad_request" }, 400);
+    if (!id || !UUID.test(id)) return c.json({ error: "bad_request" }, 400);
     const deleted = await db.tx(async (q) => {
       const rows = await q.query("delete from accounts where id = $1 returning id", [id]);
       if (rows.length) await audit(q, c.get("adminLogin"), "account.delete", id);
@@ -194,7 +194,7 @@ export function adminRoutes(db: Db, config: Config) {
   /** Отозвать устройство: потерянный телефон больше не синхронизирует. */
   admin.post("/api/devices/:id/revoke", session, async (c) => {
     const id = c.req.param("id");
-    if (!UUID.test(id)) return c.json({ error: "bad_request" }, 400);
+    if (!id || !UUID.test(id)) return c.json({ error: "bad_request" }, 400);
     const rows = await db.query<{ account_id: string }>(
       "update devices set revoked_at = now() where id = $1 and revoked_at is null returning account_id",
       [id],

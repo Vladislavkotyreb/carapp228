@@ -1,0 +1,28 @@
+{
+    email {$ACME_EMAIL}
+    admin off
+}
+{$API_HOST} {
+    encode gzip
+    header {
+        -Server
+        X-Content-Type-Options nosniff
+        Cache-Control no-store
+    }
+    request_body {
+        max_size 16KB
+    }
+    @api path /v1/health /v1/installs /v1/vehicles/lookup
+    handle @api {
+        reverse_proxy api:8787 {
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Real-IP {remote_host}
+            transport http {
+                response_header_timeout 75s
+            }
+        }
+    }
+    handle {
+        respond 404
+    }
+}

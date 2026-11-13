@@ -3,6 +3,8 @@
  *  базе — из `DATABASE_URL`. */
 export type Config = {
   port: number;
+  /** Публиковать только health, регистрацию установки и поиск по номеру. */
+  vehicleProxyOnly?: boolean;
   /** `postgres://…` — боевой Postgres. Пусто — встроенный PGlite. */
   databaseUrl?: string;
   /** Папка PGlite; пусто вместе с `databaseUrl` — база в памяти (тесты). */
@@ -44,6 +46,7 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): Config {
   const production = env.NODE_ENV === "production";
   return {
     port: Number(env.PORT ?? 8787),
+    vehicleProxyOnly: env.VEHICLE_PROXY_ONLY === "1",
     databaseUrl: env.DATABASE_URL || undefined,
     pgliteDir: env.DATABASE_URL ? undefined : (env.PGLITE_DIR ?? "./data/pglite"),
     consentVersion: env.CONSENT_VERSION ?? CONSENT_VERSION,

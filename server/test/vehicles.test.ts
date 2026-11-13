@@ -201,3 +201,16 @@ test("ошибка поставщика сохраняет резерв, не о
     assert.equal(requested, 1);
   } finally { await isolated.close(); }
 });
+
+test("режим прокси не публикует аккаунты, синхронизацию, админку или оценку", async () => {
+  const limited = createApp(db, { ...config, vehicleProxyOnly: true }, fake);
+  for (const [method, path] of [
+    ["POST", "/v1/accounts"], ["POST", "/v1/sync"], ["DELETE", "/v1/account"],
+    ["POST", "/v1/vehicles/price"], ["GET", "/admin/api/stats"], ["GET", "/privacy"],
+  ]) {
+    assert.equal((await limited.request(path!, { method: method! })).status, 404);
+  }
+  assert.equal((await limited.request("/v1/health")).status, 200);
+  assert.equal((await limited.request("/v1/installs", { method: "POST" })).status, 201);
+  assert.equal((await limited.request("/v1/vehicles/lookup", { method: "POST" })).status, 401);
+});
