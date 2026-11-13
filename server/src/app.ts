@@ -129,6 +129,11 @@ export function createApp(db: Db, config: Config, vehicles: VehicleProvider | nu
 
   // ---------------------------------------------------- поиск по госномеру
 
+  app.use("/v1/vehicles/*", async (c, next) => {
+    c.header("Cache-Control", "no-store");
+    await next();
+  });
+
   /** Установка приложения: случайный токен без согласия и без персональных
    *  данных — им считаются лимиты. Отдаётся один раз, хранится хешем. */
   app.post("/v1/installs", async (c) => {
@@ -156,21 +161,37 @@ export function createApp(db: Db, config: Config, vehicles: VehicleProvider | nu
    *  номера и VIN, ответ. */
   async function proxied(c: Context<Env>, kind: "plate" | "price", call: () => Promise<Outcome<FoundVehicle | Estimate>>) {
     const installId = c.get("deviceId");
-    const log = (outcome: string) =>
-      db.query("insert into lookup_log (install_id, kind, outcome) values ($1, $2, $3)", [installId, kind, outcome]);
     if (!vehicles) return c.json({ error: "not_configured" }, 503);
-    const [usage] = await db.query<{ mine: number; found: number }>(
-      `select
-         (select count(*)::int from lookup_log where install_id = $1 and at > now() - interval '1 day' and outcome <> 'limited') as mine,
-         (select count(*)::int from lookup_log where outcome = 'found' and at > now() - interval '1 day') as found`,
-      [installId],
-    );
-    if ((usage?.mine ?? 0) >= config.lookup.perInstallDaily || (usage?.found ?? 0) >= config.lookup.dailyFound) {
-      await log("limited");
-      return c.json({ error: "limited" }, 429);
+    // Проверка и резервирование — одна короткая транзакция. Общая блокировка
+    // работает и между процессами сервера; сетевой вызов идёт уже без неё.
+    const reservation = await db.tx(async (q) => {
+      await q.query("lock table lookup_log in share row exclusive mode");
+      const [usage] = await q.query<{ mine: number; reserved: number }>(
+        `select
+           (select count(*)::int from lookup_log where install_id = $1 and at > now() - interval '1 day' and outcome <> 'limited') as mine,
+           (select count(*)::int from lookup_log where outcome in ('found', 'pending', 'unavailable') and at > now() - interval '1 day') as reserved`,
+        [installId],
+      );
+      if ((usage?.mine ?? 0) >= config.lookup.perInstallDaily || (usage?.reserved ?? 0) >= config.lookup.dailyFound) {
+        return null;
+      }
+      const [row] = await q.query<{ id: number }>(
+        "insert into lookup_log (install_id, kind, outcome) values ($1, $2, 'pending') returning id",
+        [installId, kind],
+      );
+      return row!.id;
+    });
+    if (reservation === null) return c.json({ error: "limited" }, 429);
+    let result: Outcome<FoundVehicle | Estimate>;
+    try {
+      result = await call();
+    } catch {
+      // Не печатаем исключение поставщика: оно может содержать URL с номером.
+      result = { kind: "unavailable" };
     }
-    const result = await call();
-    await log(result.kind);
+    // Неизвестный исход сохраняет резерв: таймаут мог случиться после оплаты.
+    // После сбоя процесса pending также остаётся в лимите на 24 часа.
+    await db.query("update lookup_log set outcome = $1 where id = $2", [result.kind, reservation]);
     if (result.kind === "found") return c.json(result.value);
     return result.kind === "not_found" ? c.json({ error: "not_found" }, 404) : c.json({ error: "unavailable" }, 503);
   }

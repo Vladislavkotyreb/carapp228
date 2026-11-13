@@ -60,6 +60,7 @@ describe("прокси поиска по госномеру", () => {
     const token = await install();
     const found = await post("/v1/vehicles/lookup", { plate: "В777ОР777" }, token);
     assert.equal(found.status, 200);
+    assert.equal(found.headers.get("cache-control"), "no-store");
     assert.deepEqual(await found.json(), { name: "Mercedes-Benz GL", vin: "WDC1668241A123456", year: 2015 });
     assert.equal((await post("/v1/vehicles/lookup", { plate: "Е123КХ199" }, token)).status, 404);
     assert.equal((await post("/v1/vehicles/lookup", { plate: "А000АА00" }, token)).status, 503);
@@ -82,7 +83,9 @@ describe("прокси поиска по госномеру", () => {
   });
 
   test("лимит найденных на всех за сутки: дальше 429, поставщик не вызывается", async () => {
-    // Два найденных уже есть? Первое найденное было выше — добираем до лимита.
+    await db.query("delete from lookup_log");
+    const first = await install();
+    assert.equal((await post("/v1/vehicles/lookup", { plate: "В777ОР777" }, first)).status, 200);
     const token = await install();
     assert.equal((await post("/v1/vehicles/price", { vin: "WDC1668241A123456" }, token)).status, 200);
     calls.length = 0;
@@ -122,8 +125,8 @@ describe("прокси поиска по госномеру", () => {
          (now(), 'price', 'not_found')`,
     );
     assert.equal(await purgeLookupLog(db), 1);
-    const [{ left }] = await db.query<{ left: number }>("select count(*)::int as left from lookup_log");
-    assert.equal(left, 2);
+    const [remaining] = await db.query<{ left: number }>("select count(*)::int as left from lookup_log");
+    assert.equal(remaining?.left, 2);
   });
 
   test("политика конфиденциальности отдаётся страницей", async () => {
@@ -143,4 +146,58 @@ describe("прокси поиска по госномеру", () => {
     assert.equal(prettyName("bmw x5"), "BMW X5");
     assert.equal(prettyName("лада веста"), "Лада Веста");
   });
+});
+
+// Независимые сценарии с медленным поставщиком: запросы пересекаются до ответа.
+for (const [name, perInstallDaily, dailyFound] of [
+  ["общий резерв", 10, 2],
+  ["лимит установки", 2, 10],
+] as const) {
+  test(`параллельные запросы не обходят ${name}`, async () => {
+    const isolated = await openPglite();
+    await migrate(isolated);
+    let requested = 0;
+    const slow: VehicleProvider = {
+      async lookup() {
+        requested++;
+        await new Promise((resolve) => setTimeout(resolve, 60));
+        return { kind: "found", value: { name: "BMW X5", vin: null, year: 2020 } };
+      },
+      price: fake.price,
+    };
+    try {
+      const local = createApp(isolated, { ...config, lookup: { perInstallDaily, dailyFound } }, slow);
+      const registration = await local.request("/v1/installs", { method: "POST" });
+      const { token } = await registration.json() as { token: string };
+      const requests = Array.from({ length: 8 }, () => local.request("/v1/vehicles/lookup", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plate: "В777ОР777" }),
+      }));
+      const responses = await Promise.all(requests);
+      assert.equal(requested, 2);
+      assert.equal(responses.filter((r) => r.status === 200).length, 2);
+      assert.equal(responses.filter((r) => r.status === 429).length, 6);
+    } finally { await isolated.close(); }
+  });
+}
+
+test("ошибка поставщика сохраняет резерв, не открывая бюджет для повторов", async () => {
+  const isolated = await openPglite();
+  await migrate(isolated);
+  let requested = 0;
+  try {
+    const local = createApp(isolated, { ...config, lookup: { perInstallDaily: 20, dailyFound: 1 } }, {
+      async lookup() { requested++; throw new Error("provider failed"); }, price: fake.price,
+    });
+    const registration = await local.request("/v1/installs", { method: "POST" });
+    const { token } = await registration.json() as { token: string };
+    const lookup = () => local.request("/v1/vehicles/lookup", {
+      method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ plate: "В777ОР777" }),
+    });
+    assert.equal((await lookup()).status, 503);
+    assert.equal((await lookup()).status, 429);
+    assert.equal(requested, 1);
+  } finally { await isolated.close(); }
 });

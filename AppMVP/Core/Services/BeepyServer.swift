@@ -51,7 +51,8 @@ enum BeepyServer {
             let token = try await installToken(base: base, renew: attempt > 0)
             var request = URLRequest(url: base.appending(path: path))
             request.httpMethod = "POST"
-            request.timeoutInterval = 25
+            // Поставщик ищет до 45 секунд; прокси ждёт до 60 секунд.
+            request.timeoutInterval = 75
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.httpBody = try JSONEncoder().encode(body)

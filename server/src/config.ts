@@ -16,7 +16,7 @@ export type Config = {
   lookup: {
     /** Запросов с одной установки за сутки (любой исход). */
     perInstallDaily: number;
-    /** Найденных — то есть оплаченных — запросов за сутки на всех. */
+    /** Общий резерв на сутки: найденные, выполняющиеся и неизвестные исходы. */
     dailyFound: number;
   };
   admin: {
@@ -32,6 +32,14 @@ export type Config = {
 
 export const CONSENT_VERSION = "2026-10-12";
 
+function limit(value: string | undefined, fallback: number, name: string): number {
+  const parsed = value === undefined ? fallback : Number(value);
+  if (value?.trim() === "" || !Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error(`${name} должен быть целым неотрицательным числом`);
+  }
+  return parsed;
+}
+
 export function configFromEnv(env: NodeJS.ProcessEnv = process.env): Config {
   const production = env.NODE_ENV === "production";
   return {
@@ -40,8 +48,8 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): Config {
     pgliteDir: env.DATABASE_URL ? undefined : (env.PGLITE_DIR ?? "./data/pglite"),
     consentVersion: env.CONSENT_VERSION ?? CONSENT_VERSION,
     lookup: {
-      perInstallDaily: Number(env.LOOKUP_PER_INSTALL_DAILY ?? 20),
-      dailyFound: Number(env.LOOKUP_DAILY_FOUND ?? 100),
+      perInstallDaily: limit(env.LOOKUP_PER_INSTALL_DAILY, 20, "LOOKUP_PER_INSTALL_DAILY"),
+      dailyFound: limit(env.LOOKUP_DAILY_FOUND, 100, "LOOKUP_DAILY_FOUND"),
     },
     admin: {
       login: env.ADMIN_LOGIN || undefined,

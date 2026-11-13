@@ -19,7 +19,7 @@ export const plateSchema = z.string().regex(/^[АВЕКМНОРСТУХ0-9]{6,9}
 /** VIN — 17 знаков без I, O, Q; замаскированный звёздочками не годится. */
 export const vinSchema = z.string().regex(/^[A-HJ-NPR-Z0-9]{17}$/i);
 
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 60_000;
 
 async function get(url: string, headers: Record<string, string>): Promise<Response | null> {
   const host = new URL(url).host + new URL(url).pathname;
@@ -52,10 +52,9 @@ export function prettyName(raw: string): string {
     .join(" ");
 }
 
-/** avtovincod.ru: `gos2vin` и `price`. Ненайденное бесплатно, найденное —
- *  8 ₽ (по ответу сервиса 23.10.2026; было 5.5 ₽); оценка без данных по
- *  модели не списывается. При балансе ниже цены запроса сервис отвечает 402
- *  ещё до поиска — так проверяют баланс, ничего не тратя. */
+/** avtovincod.ru: `gos2vin` и `price`. Тариф проверяется в кабинете;
+ *  подтверждённое not_found бесплатно. Поиск может занимать до 45 секунд:
+ *  https://avtovincod.ru/docs/gos2vin/ */
 export function avtoVinCod(token: string): VehicleProvider {
   const auth = { Authorization: `Bearer ${token}` };
   return {
@@ -64,18 +63,21 @@ export function avtoVinCod(token: string): VehicleProvider {
       if (!res) return { kind: "unavailable" };
       // 404 — «номер не найден»; 401, 402, 429 — токен, баланс, частота.
       if (res.status === 404) return { kind: "not_found" };
+      if (!res.ok) return { kind: "unavailable" };
       const body = (await res.json().catch(() => null)) as
-        | { success?: number; vin?: string; brand?: string; model?: string; year?: number }
+        | { success?: number; status?: string; vin?: string; brand?: string; model?: string; year?: number }
         | null;
+      if (body?.success === 0 && body.status === "not_found") return { kind: "not_found" };
       if (!body || body.success !== 1) return { kind: "unavailable" };
       const name = prettyName([body.brand, body.model].filter(Boolean).join(" "));
-      if (!name) return { kind: "not_found" };
+      if (!name) return { kind: "unavailable" };
       return { kind: "found", value: { name, vin: body.vin ?? null, year: body.year ?? null } };
     },
     async price(vin) {
       const res = await get(`https://api.avtovincod.ru/price?vin=${encodeURIComponent(vin)}`, auth);
       if (!res) return { kind: "unavailable" };
       if (res.status === 404) return { kind: "not_found" };
+      if (!res.ok) return { kind: "unavailable" };
       type Block = { average?: number; min?: number; max?: number; count?: number };
       const body = (await res.json().catch(() => null)) as
         | (Block & { success?: number; found?: boolean; price?: Block; offers?: number })

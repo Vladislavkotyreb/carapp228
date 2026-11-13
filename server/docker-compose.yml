@@ -31,6 +31,10 @@ services:
       # Локально без HTTPS; на площадке перед сервером стоит nginx с TLS,
       # и cookie админки ходят только по нему.
       ADMIN_SECURE_COOKIES: ${ADMIN_SECURE_COOKIES:-0}
+      AVTOVINCOD_TOKEN: ${AVTOVINCOD_TOKEN:-}
+      APICLOUD_TOKEN: ${APICLOUD_TOKEN:-}
+      LOOKUP_PER_INSTALL_DAILY: ${LOOKUP_PER_INSTALL_DAILY:-20}
+      LOOKUP_DAILY_FOUND: ${LOOKUP_DAILY_FOUND:-100}
       NODE_ENV: production
     ports:
       - "127.0.0.1:8787:8787"

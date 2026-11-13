@@ -23,6 +23,42 @@
 
 ## Хроника
 
+### 2026-11-14 — Release 11 на iPhone и подготовка прокси поиска
+
+Из загруженного `/private/tmp/Beepy-11-Review.xcarchive` экспортирована
+сборка с development-профилем для устройства, без перекомпиляции Release.
+`codesign --verify --deep --strict` прошёл, профиль включает iPhone владельца
+и Apple sign-in. `devicectl device install app` подтвердил установку 1.0.0 (11),
+`device process launch --terminate-existing … -- -hasCompletedOnboarding NO`
+подтвердил запуск. Данные не удалялись; экран физического устройства визуально
+не проверен. Архив Apple и привязанная к App Store сборка не изменены.
+
+Пользователь выбрал серверный прокси вместо платного ключа в приложении.
+В `server/src/app.ts` проверка квоты и резерв теперь атомарны в транзакции
+с блокировкой таблицы до сетевого запроса. Pending и неизвестные исходы
+сохраняют общий резерв 24 часа; ошибки не печатают содержимое запроса.
+Добавлен no-store. Исправлены обработка HTTP 200 not_found, проверка HTTP
+ошибок, проверка числовых лимитов и передача токена/лимитов в Docker.
+Таймаут сервера 60 с, клиента BeepyServer 75 с (поставщик допускает до 45 с).
+
+Проверено: `npm --prefix server test` — 36 tests, 36 pass, 0 fail;
+`npm --prefix server run typecheck` — exit 0. Добавлены проверки гонки
+8 параллельных запросов, неизвестного исхода, ответов поставщика и no-store.
+Платный API не вызывался. Release `xcodebuild -project Beepy.xcodeproj
+-scheme AppMVP -configuration Release -destination generic/platform=iOS
+-derivedDataPath /Users/vladislavkotyrev/Library/Developer/Xcode/DerivedData/beepy-device
+CODE_SIGNING_ALLOWED=NO build` — BUILD SUCCEEDED, warning/error в логе нет.
+Эта проверочная сборка не установлена и не загружена Apple.
+
+Размещение не выполнено: выбран существующий VPS Netcup в Нюрнберге,
+SSH root отклоняет ключ. Пользователь добавлял команду в поле login,
+ему объяснён вход root и источник пароля Netcup. Нужен доступ SSH;
+дальше HTTPS, проверка боевого Postgres, бюджет поставщика, проверка
+обработки данных вне РФ и актуализация Privacy/Notes. API-лимиты пока на
+установку и глобальные; две сохранённые машины проверяет приложение,
+серверной проверки квоты по Apple-аккаунту ещё нет. Поиск в Release 11
+остаётся скрытым; новый публичный адрес и функция пойдут в новую сборку.
+
 ### 2026-11-14 — Проверка материалов ревью и загрузка build 11
 
 Финальное продолжение после «готово»: build 11 обработан Apple и сохранён
