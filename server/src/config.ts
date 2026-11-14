@@ -44,6 +44,16 @@ function limit(value: string | undefined, fallback: number, name: string): numbe
 
 export function configFromEnv(env: NodeJS.ProcessEnv = process.env): Config {
   const production = env.NODE_ENV === "production";
+  let dailyFound = limit(env.LOOKUP_DAILY_FOUND, 100, "LOOKUP_DAILY_FOUND");
+  // Денежный предел допустим только для plate-only прокси: другие методы
+  // поставщика стоят иначе. Цена — подтверждённый верхний предел в копейках.
+  if (env.LOOKUP_DAILY_BUDGET_RUB !== undefined) {
+    if (env.VEHICLE_PROXY_ONLY !== "1") throw new Error("Бюджет требует VEHICLE_PROXY_ONLY=1");
+    const budget = limit(env.LOOKUP_DAILY_BUDGET_RUB, 0, "LOOKUP_DAILY_BUDGET_RUB");
+    const cost = limit(env.LOOKUP_UNIT_COST_KOPEKS, 0, "LOOKUP_UNIT_COST_KOPEKS");
+    if (cost === 0 || !Number.isSafeInteger(budget * 100)) throw new Error("Для бюджета нужна положительная подтверждённая стоимость запроса");
+    dailyFound = Math.min(dailyFound, Math.floor(budget * 100 / cost));
+  }
   return {
     port: Number(env.PORT ?? 8787),
     vehicleProxyOnly: env.VEHICLE_PROXY_ONLY === "1",
@@ -52,7 +62,7 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): Config {
     consentVersion: env.CONSENT_VERSION ?? CONSENT_VERSION,
     lookup: {
       perInstallDaily: limit(env.LOOKUP_PER_INSTALL_DAILY, 20, "LOOKUP_PER_INSTALL_DAILY"),
-      dailyFound: limit(env.LOOKUP_DAILY_FOUND, 100, "LOOKUP_DAILY_FOUND"),
+      dailyFound,
     },
     admin: {
       login: env.ADMIN_LOGIN || undefined,

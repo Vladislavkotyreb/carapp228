@@ -113,8 +113,15 @@ struct ServerVehicleLookup: VehicleLookup {
 /// Рыночная оценка для карточки «Цена авто»: через сервер, а без него — в
 /// отладке прямым запросом к AvtoVinCod.
 enum MarketValuation {
+    // Публичный прокси поиска не включает платную оценку стоимости.
+    // Для неё нужен отдельный явный флаг и опубликованный endpoint.
+    private static var serverEnabled: Bool {
+        BeepyServer.url != nil &&
+        Bundle.main.object(forInfoDictionaryKey: "BeepyMarketValuationEnabled") as? Bool == true
+    }
+
     static var isConfigured: Bool {
-        if BeepyServer.url != nil { return true }
+        if BeepyServer.url != nil { return serverEnabled }
         #if DEBUG
         return AvtoVinCodValuation.isConfigured
         #else
@@ -125,6 +132,7 @@ enum MarketValuation {
     static func estimate(vin: String) async throws -> MarketEstimate {
         guard MarketPrice.canEstimate(vin: vin) else { throw VehicleLookupError.notFound }
         if BeepyServer.url != nil {
+            guard serverEnabled else { throw VehicleLookupError.unavailable }
             let (data, code) = try await BeepyServer.post("/v1/vehicles/price", ["vin": vin])
             if code == 404 { throw VehicleLookupError.notFound }
             guard code == 200, let reply = try? JSONDecoder().decode(ServerEstimate.self, from: data) else {
